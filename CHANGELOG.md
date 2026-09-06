@@ -1,0 +1,46 @@
+# Changelog
+
+Une ligne par déploiement, pour vérifier après coup que la mise à jour attendue
+est bien arrivée sur l'iPad — voir aussi le repère de version discret dans
+l'écran « Joueurs » (coin bas, format `commit · date`).
+
+## 2026-09-07
+
+- Correctif : l'app installée ne se remettait pas à jour toute seule après un
+  déploiement — iOS réveille souvent la PWA depuis un état suspendu plutôt que
+  de vraiment la recharger, ce qui empêchait la vérification native de
+  nouvelle version de se déclencher. L'app revérifie maintenant elle-même à
+  chaque retour au premier plan (`src/pwa.ts`).
+- Repère de version (commit + date de build) affiché dans l'écran « Joueurs ».
+- Spec 03 — son, confettis, célébration :
+  - Effets sonores ZzFX (coup, coup invalide, tour, victoire, égalité, tap
+    menu), vendorisés dans `src/vendor/`, avec interrupteur dans l'écran
+    « Joueurs » (persisté, activé par défaut).
+  - Confettis (canvas-confetti, vendorisé) à la victoire, aux couleurs du
+    gagnant ; rien sur un match nul.
+  - Morpion : ligne gagnante tracée sur le plateau (`getWinningLine`), avant
+    l'écran de résultat.
+  - Écran de résultat : grande photo du gagnant ; les deux photos côte à côte
+    sur un match nul.
+  - Stockage consolidé dans `src/storage/` (joueurs + réglages), seul module
+    de l'app à toucher `localStorage`.
+
+## 2026-09-06 — Spec 02 : profils joueurs et photos
+
+- Vrais profils (photo, prénom, couleur) à la place des joueurs codés en dur :
+  création/modification/suppression depuis un écran dédié, accessible par un
+  bouton discret du menu.
+- Sélection des joueurs par photo avant chaque partie.
+- Photos recadrées en carré et redimensionnées à 200×200 avant stockage.
+- Correctif : le clavier ne s'ouvrait pas sur le champ prénom sur iPadOS
+  (effet de bord d'un `user-select: none` global posé en spec 01).
+- Correctif de déploiement : le job de publication GitHub Pages avait été
+  annulé silencieusement par la file d'attente de GitHub la première fois.
+
+## 2026-09-06 — Spec 01 : fondations, PWA installable, morpion jouable
+
+- Projet Vite + React + TypeScript, Tailwind v3, PWA installable et
+  fonctionnelle hors ligne (précache complet, `registerType: 'autoUpdate'`).
+- Déploiement automatique sur GitHub Pages à chaque push sur `main`.
+- Contrat de jeu (`GameModule`) et premier jeu : le morpion, à deux joueurs
+  codés en dur en attendant les vrais profils.

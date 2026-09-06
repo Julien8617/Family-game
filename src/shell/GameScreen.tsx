@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { GameModule, Result } from '../games/types';
+import { play } from '../fx/sound';
 import { createLocalTransport } from '../net/localTransport';
 import type { Player } from '../players/types';
 
@@ -10,6 +11,10 @@ interface GameScreenProps {
   onGameEnd(result: Result, finalState: any): void;
 }
 
+// Le temps de voir la ligne gagnante se dessiner sur le plateau avant de
+// basculer sur l'écran de résultat (spec 03, critère 9 : ligne, puis photo).
+const RESULT_DELAY_MS = 900;
+
 export function GameScreen({ game, players, seed, onGameEnd }: GameScreenProps) {
   const [transport] = useState(() => createLocalTransport());
   const [state, setState] = useState<any>(() =>
@@ -18,16 +23,41 @@ export function GameScreen({ game, players, seed, onGameEnd }: GameScreenProps) 
       seed,
     ),
   );
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   useEffect(() => {
     return transport.onMove((move) => {
-      setState((prev: any) => (game.isValidMove(prev, move) ? game.applyMove(prev, move) : prev));
+      const prev = stateRef.current;
+
+      if (!game.isValidMove(prev, move)) {
+        play('invalid');
+        return;
+      }
+
+      const next = game.applyMove(prev, move);
+      const result = game.getResult(next);
+
+      if (result) {
+        play(result.kind === 'win' ? 'win' : 'draw');
+      } else {
+        play('move');
+        if (game.currentPlayer(next) !== game.currentPlayer(prev)) {
+          play('turn');
+        }
+      }
+
+      setState(next);
     });
   }, [transport, game]);
 
   useEffect(() => {
     const result = game.getResult(state);
-    if (result) onGameEnd(result, state);
+    if (!result) return;
+    const timer = setTimeout(() => onGameEnd(result, state), RESULT_DELAY_MS);
+    return () => clearTimeout(timer);
   }, [state, game, onGameEnd]);
 
   const turnId = game.currentPlayer(state);

@@ -54,12 +54,24 @@ export function currentPlayer(state: TicTacToeState): PlayerId | null {
   return state.turn;
 }
 
-export function getResult(state: TicTacToeState): Result | null {
-  for (const [a, b, c] of LINES) {
+// Les trois cases alignées d'une partie gagnée, ou null. Board.tsx s'en sert
+// pour tracer la ligne ; getResult() en dérive le gagnant, sans dupliquer la
+// recherche.
+export function getWinningLine(state: TicTacToeState): number[] | null {
+  for (const line of LINES) {
+    const [a, b, c] = line;
     const mark = state.board[a];
     if (mark !== null && mark === state.board[b] && mark === state.board[c]) {
-      return { kind: 'win', winner: mark };
+      return line;
     }
+  }
+  return null;
+}
+
+export function getResult(state: TicTacToeState): Result | null {
+  const line = getWinningLine(state);
+  if (line) {
+    return { kind: 'win', winner: state.board[line[0]] as PlayerId };
   }
   if (state.board.every((cell) => cell !== null)) {
     return { kind: 'draw' };

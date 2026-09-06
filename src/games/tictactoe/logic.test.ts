@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyMove, createState, getResult, isValidMove } from './logic';
+import { applyMove, createState, getResult, getWinningLine, isValidMove } from './logic';
 import type { TicTacToeState } from './logic';
 
 const P1 = 'p1';
@@ -62,5 +62,30 @@ describe('tictactoe logic', () => {
     const next = applyMove(state, { cell: 0 });
     expect(next.turn).toBe(P2);
     expect(next.board[0]).toBe(P1);
+  });
+
+  it('returns null for the winning line while the game continues', () => {
+    const state = createState([P1, P2], 0);
+    expect(getWinningLine(state)).toBeNull();
+  });
+
+  it('returns null for the winning line on a draw', () => {
+    const state = stateWithBoard([P1, P2, P1, P1, P2, P2, P2, P1, P1]);
+    expect(getWinningLine(state)).toBeNull();
+  });
+
+  it('returns the row for a row win', () => {
+    const state = stateWithBoard([P1, P1, P1, P2, P2, null, null, null, null]);
+    expect(getWinningLine(state)).toEqual([0, 1, 2]);
+  });
+
+  it('returns the column for a column win', () => {
+    const state = stateWithBoard([P1, P2, null, P1, P2, null, P1, null, null]);
+    expect(getWinningLine(state)).toEqual([0, 3, 6]);
+  });
+
+  it('returns the diagonal for a diagonal win', () => {
+    const state = stateWithBoard([P1, P2, P2, null, P1, null, null, null, P1]);
+    expect(getWinningLine(state)).toEqual([0, 4, 8]);
   });
 });

@@ -1,0 +1,124 @@
+import type { PlayerId } from '../games/types';
+import type { Player } from '../players/types';
+
+// Seul module de toute l'app à toucher localStorage (CLAUDE.md, conventions de
+// code). Deux espaces de clés indépendants, chacun avec sa version de schéma.
+
+export type SaveResult = { ok: true } | { ok: false; error: 'quota' | 'unknown' };
+
+function readJSON(key: string): unknown {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeJSON(key: string, data: unknown): SaveResult {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+    return { ok: true };
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      return { ok: false, error: 'quota' };
+    }
+    return { ok: false, error: 'unknown' };
+  }
+}
+
+// ---- players ----
+// Clé et forme inchangées depuis la spec 02 : ce refactor ne fait que déplacer
+// le code, pas les données. Les profils déjà sur l'iPad survivent sans migration.
+
+const PLAYERS_KEY = 'players';
+const PLAYERS_VERSION = 1;
+
+interface StoredPlayers {
+  version: number;
+  players: Player[];
+}
+
+function isPlayer(value: unknown): value is Player {
+  if (typeof value !== 'object' || value === null) return false;
+  const p = value as Record<string, unknown>;
+  return (
+    typeof p.id === 'string' &&
+    p.id.length > 0 &&
+    typeof p.name === 'string' &&
+    p.name.length >= 1 &&
+    p.name.length <= 12 &&
+    typeof p.photo === 'string' &&
+    p.photo.startsWith('data:image/') &&
+    typeof p.color === 'string' &&
+    /^#[0-9a-fA-F]{6}$/.test(p.color)
+  );
+}
+
+export function listPlayers(): Player[] {
+  const parsed = readJSON(PLAYERS_KEY);
+  if (typeof parsed !== 'object' || parsed === null) return [];
+  const data = parsed as Partial<StoredPlayers>;
+  // Pas de migration pour l'instant : une version inconnue est traitée comme
+  // absente plutôt que de risquer de faire planter le démarrage.
+  if (data.version !== PLAYERS_VERSION || !Array.isArray(data.players)) return [];
+  return data.players.filter(isPlayer);
+}
+
+export function getPlayer(id: PlayerId): Player | undefined {
+  return listPlayers().find((p) => p.id === id);
+}
+
+function writePlayers(players: Player[]): SaveResult {
+  const data: StoredPlayers = { version: PLAYERS_VERSION, players };
+  return writeJSON(PLAYERS_KEY, data);
+}
+
+export function createPlayer(player: Player): SaveResult {
+  return writePlayers([...listPlayers(), player]);
+}
+
+export function updatePlayer(player: Player): SaveResult {
+  return writePlayers(listPlayers().map((p) => (p.id === player.id ? player : p)));
+}
+
+export function deletePlayer(id: PlayerId): void {
+  writePlayers(listPlayers().filter((p) => p.id !== id));
+}
+
+// ---- settings ----
+
+const SETTINGS_KEY = 'settings';
+const SETTINGS_VERSION = 1;
+
+export interface Settings {
+  soundEnabled: boolean;
+}
+
+const DEFAULT_SETTINGS: Settings = { soundEnabled: true };
+
+interface StoredSettings {
+  version: number;
+  settings: Settings;
+}
+
+function isSettings(value: unknown): value is Settings {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Record<string, unknown>).soundEnabled === 'boolean'
+  );
+}
+
+export function getSettings(): Settings {
+  const parsed = readJSON(SETTINGS_KEY);
+  if (typeof parsed !== 'object' || parsed === null) return DEFAULT_SETTINGS;
+  const data = parsed as Partial<StoredSettings>;
+  if (data.version !== SETTINGS_VERSION || !isSettings(data.settings)) return DEFAULT_SETTINGS;
+  return data.settings;
+}
+
+export function updateSettings(patch: Partial<Settings>): SaveResult {
+  const next: StoredSettings = { version: SETTINGS_VERSION, settings: { ...getSettings(), ...patch } };
+  return writeJSON(SETTINGS_KEY, next);
+}

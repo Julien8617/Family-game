@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { GameModule, PlayerId } from '../games/types';
-import { listPlayers } from '../players/storage';
+import { play } from '../fx/sound';
+import { listPlayers } from '../storage';
 import type { Player } from '../players/types';
 
 interface PlayerPickScreenProps {
@@ -63,13 +64,23 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
       </div>
 
       <div className="flex gap-6">
-        <button type="button" onClick={onBack} className="h-20 rounded-3xl bg-piece/20 px-8 text-xl text-piece">
+        <button
+          type="button"
+          onClick={() => {
+            play('tap');
+            onBack();
+          }}
+          className="h-20 rounded-3xl bg-piece/20 px-8 text-xl text-piece"
+        >
           Retour
         </button>
         <button
           type="button"
           disabled={!canStart}
-          onClick={() => onConfirm(selected.map((id) => players.find((p) => p.id === id)!))}
+          onClick={() => {
+            play('tap');
+            onConfirm(selected.map((id) => players.find((p) => p.id === id)!));
+          }}
           className="h-20 rounded-3xl bg-victory px-10 text-2xl text-board disabled:opacity-40"
         >
           Jouer

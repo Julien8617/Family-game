@@ -1,11 +1,38 @@
 import { useState } from 'react';
-import { listPlayers } from './storage';
+import { isSoundEnabled, setSoundEnabled } from '../fx/sound';
+import { listPlayers } from '../storage';
 import type { Player } from './types';
 
 interface PlayerListScreenProps {
   onBack(): void;
   onEdit(player: Player): void;
   onCreate(): void;
+}
+
+function SoundToggle() {
+  const [enabled, setEnabled] = useState(() => isSoundEnabled());
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const next = !enabled;
+        setSoundEnabled(next);
+        setEnabled(next);
+      }}
+      aria-label={enabled ? 'Couper le son' : 'Activer le son'}
+      aria-pressed={enabled}
+      className="flex h-16 w-28 items-center rounded-full p-2 transition-colors"
+      style={{ backgroundColor: enabled ? '#4F8F6B' : 'rgba(242,228,201,0.2)' }}
+    >
+      <span
+        className="flex h-12 w-12 items-center justify-center rounded-full bg-piece text-2xl leading-none transition-transform"
+        style={{ transform: enabled ? 'translateX(48px)' : 'translateX(0)' }}
+      >
+        {enabled ? '🔊' : '🔇'}
+      </span>
+    </button>
+  );
 }
 
 export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenProps) {
@@ -18,7 +45,7 @@ export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenP
           ← Menu
         </button>
         <h1 className="text-4xl text-piece">Joueurs</h1>
-        <span className="w-24" aria-hidden />
+        <SoundToggle />
       </div>
 
       <div className="flex flex-1 flex-wrap items-center justify-center gap-8">
@@ -48,6 +75,12 @@ export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenP
           <span className="text-5xl leading-none">+</span>
         </button>
       </div>
+
+      {/* Repère de version pour vérifier qu'un déploiement est bien arrivé sur
+          l'appareil — voir CHANGELOG.md. */}
+      <p className="text-xs text-piece/40">
+        {__APP_COMMIT__} · {__APP_BUILD_DATE__.slice(0, 16).replace('T', ' ')}
+      </p>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { GAMES } from '../games/registry';
 import type { GameModule } from '../games/types';
-import { listPlayers } from '../players/storage';
+import { play } from '../fx/sound';
+import { listPlayers } from '../storage';
 import settingsIcon from './settings-icon.svg';
 
 interface MenuScreenProps {
@@ -19,7 +20,10 @@ export function MenuScreen({ onSelectGame, onManagePlayers }: MenuScreenProps) {
         <p className="text-xl text-piece/80">Ajoute le premier joueur pour commencer.</p>
         <button
           type="button"
-          onClick={onManagePlayers}
+          onClick={() => {
+            play('tap');
+            onManagePlayers();
+          }}
           className="h-24 rounded-3xl bg-victory px-10 text-2xl text-board shadow-[0_6px_0_0_rgba(0,0,0,0.25)] transition-transform active:translate-y-1 active:shadow-[0_2px_0_0_rgba(0,0,0,0.25)]"
         >
           Ajouter un joueur
@@ -32,7 +36,10 @@ export function MenuScreen({ onSelectGame, onManagePlayers }: MenuScreenProps) {
     <div className="relative flex h-screen w-screen flex-col items-center justify-center gap-8 bg-board px-12">
       <button
         type="button"
-        onClick={onManagePlayers}
+        onClick={() => {
+          play('tap');
+          onManagePlayers();
+        }}
         aria-label="Gérer les joueurs"
         className="absolute right-6 top-6 flex h-20 w-20 items-center justify-center rounded-full opacity-60"
       >
@@ -49,7 +56,10 @@ export function MenuScreen({ onSelectGame, onManagePlayers }: MenuScreenProps) {
               key={game.meta.id}
               type="button"
               disabled={!available}
-              onClick={() => onSelectGame(game)}
+              onClick={() => {
+                play('tap');
+                onSelectGame(game);
+              }}
               className={[
                 'flex h-40 w-40 flex-col items-center justify-center gap-3 rounded-3xl bg-piece text-board shadow-[0_6px_0_0_rgba(0,0,0,0.25)] transition-transform',
                 available

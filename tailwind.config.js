@@ -16,6 +16,15 @@ export default {
         // système grasses ailleurs.
         display: ['ui-rounded', '"Segoe UI"', 'system-ui', 'sans-serif'],
       },
+      keyframes: {
+        'win-line': {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+      },
+      animation: {
+        'win-line': 'win-line 200ms ease-out',
+      },
     },
   },
   plugins: [],

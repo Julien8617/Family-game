@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { PLAYER_COLORS } from './palette';
 import { toProfilePhoto } from './photo';
-import { createPlayer, deletePlayer, listPlayers, updatePlayer } from './storage';
+import { createPlayer, deletePlayer, listPlayers, updatePlayer } from '../storage';
 import type { Player } from './types';
 
 interface PlayerEditorProps {

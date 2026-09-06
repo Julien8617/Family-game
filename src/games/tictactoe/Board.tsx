@@ -1,33 +1,16 @@
 import type { BoardProps } from '../types';
+import { getWinningLine } from './logic';
 import type { TicTacToeMove, TicTacToeState } from './logic';
 
-const WINNING_LINES = [
-  [0, 1, 2],
-  [3, 4, 5],
-  [6, 7, 8],
-  [0, 3, 6],
-  [1, 4, 7],
-  [2, 5, 8],
-  [0, 4, 8],
-  [2, 4, 6],
-];
-
-function findWinningLine(board: TicTacToeState['board']): number[] | null {
-  for (const line of WINNING_LINES) {
-    const [a, b, c] = line;
-    if (board[a] !== null && board[a] === board[b] && board[a] === board[c]) {
-      return line;
-    }
-  }
-  return null;
-}
+const colOf = (index: number) => index % 3;
+const rowOf = (index: number) => Math.floor(index / 3);
 
 export function Board({ state, players, onMove }: BoardProps<TicTacToeState, TicTacToeMove>) {
-  const winningLine = findWinningLine(state.board);
+  const winningLine = getWinningLine(state);
   const colorOf = (playerId: string) => players.find((p) => p.id === playerId)?.color;
 
   return (
-    <div className="grid aspect-square h-full grid-cols-3 grid-rows-3 gap-4 p-4">
+    <div className="relative grid aspect-square h-full grid-cols-3 grid-rows-3 gap-4 p-4">
       {state.board.map((cell, index) => {
         const isWinningCell = winningLine?.includes(index) ?? false;
         const cellColor = cell ? colorOf(cell) : undefined;
@@ -55,6 +38,24 @@ export function Board({ state, players, onMove }: BoardProps<TicTacToeState, Tic
           </button>
         );
       })}
+
+      {winningLine && (
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full animate-win-line"
+          viewBox="0 0 3 3"
+          aria-hidden
+        >
+          <line
+            x1={colOf(winningLine[0]) + 0.5}
+            y1={rowOf(winningLine[0]) + 0.5}
+            x2={colOf(winningLine[2]) + 0.5}
+            y2={rowOf(winningLine[2]) + 0.5}
+            stroke="#F5A623"
+            strokeWidth={0.12}
+            strokeLinecap="round"
+          />
+        </svg>
+      )}
     </div>
   );
 }
