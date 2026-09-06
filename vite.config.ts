@@ -3,9 +3,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Déployé sur GitHub Pages sous /family-game/. Corriger ici si le dépôt est renommé.
+// Déployé sur GitHub Pages sous /Family-game/. Corriger ici si le dépôt est renommé.
 export default defineConfig({
-  base: '/family-game/',
+  base: '/Family-game/',
   build: {
     target: 'safari15',
   },
@@ -18,8 +18,8 @@ export default defineConfig({
         name: 'Jeux de famille',
         short_name: 'Jeux',
         description: 'Jeux de société pour jouer en famille, hors ligne.',
-        start_url: '/family-game/',
-        scope: '/family-game/',
+        start_url: '/Family-game/',
+        scope: '/Family-game/',
         display: 'fullscreen',
         orientation: 'landscape',
         background_color: '#1E3D34',
