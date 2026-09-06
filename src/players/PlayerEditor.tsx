@@ -90,6 +90,9 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
         onChange={(e) => setName(e.target.value)}
         maxLength={12}
         placeholder="Prénom"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="words"
         className="h-20 w-80 rounded-2xl bg-piece px-6 text-center text-2xl text-board outline-none"
       />
 

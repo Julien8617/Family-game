@@ -16,4 +16,13 @@
     -webkit-user-select: none;
     user-select: none;
   }
+
+  /* Sans ça, un input hérite de user-select:none et WebKit refuse d'y placer
+     un curseur éditable : le clavier ne s'ouvre jamais sur iPadOS Safari. */
+  input,
+  textarea {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
