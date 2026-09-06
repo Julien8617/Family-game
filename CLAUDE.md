@@ -1,0 +1,133 @@
+# CLAUDE.md
+
+Contexte permanent du projet. Lire `ARCHITECTURE.md` pour le détail des contrats.
+
+## Le projet
+
+App de jeux familiale, hors ligne, installée en PWA sur l'écran d'accueil d'un iPad
+familial. Menu général, sélection du joueur par photo, jeux ajoutés progressivement.
+Joueurs : deux adultes et deux jeunes enfants (dont un qui ne lit pas encore).
+
+Premier jeu livré : morpion (tic-tac-toe).
+
+## Cible matérielle — non négociable
+
+| | |
+|---|---|
+| Appareil | iPad Air 2 (2015), A8X, 2 Go de RAM |
+| OS | iPadOS 15.8.8 — figé, aucune mise à jour possible |
+| Moteur | Safari / WebKit 15.8 |
+| Écran | 2048×1536 physiques, **1024×768 points**, ratio 4:3 |
+| Orientation | Paysage verrouillée via le manifest |
+| Réseau | **Aucun**. L'appareil doit fonctionner en mode avion, indéfiniment |
+
+Tout le code doit tourner sur ce navigateur. En cas de doute sur une API, vérifier
+sa disponibilité en Safari 15.0 avant de l'utiliser. Ne jamais introduire une
+dépendance sans vérifier sa cible de compilation.
+
+### Disponible
+
+`?.` · `??` · logical assignment · `aspect-ratio` · `gap` en flexbox · `<dialog>` ·
+`structuredClone` · `crypto.randomUUID` · `Array.at()` · ES modules · service workers ·
+WebRTC (`RTCPeerConnection`, `RTCDataChannel`) · `getUserMedia` en PWA installée
+
+### Indisponible — ne pas utiliser
+
+- **Tailwind v4** (cible Safari 16.4). Le projet est verrouillé sur **Tailwind v3**.
+- Container queries, CSS nesting natif, View Transitions, `text-wrap: balance`
+- Toute API postérieure à Safari 15.4
+
+## Stack
+
+- Vite + React + TypeScript
+- Tailwind **v3** — vérifier la version dans `package.json` avant toute modification
+- `vite-plugin-pwa` pour le manifest et le service worker
+- Vitest pour la logique de jeu
+- `build.target: 'safari15'` dans `vite.config.ts`
+
+Aucun backend. Aucune base de données. Aucun Supabase. Aucun appel réseau,
+à l'exécution comme au démarrage.
+
+## Règles absolues
+
+1. **Zéro CDN.** Toute dépendance externe est copiée dans `src/vendor/` et servie
+   depuis le bundle. Un `<script src="https://...">` casse l'app hors ligne.
+2. **La logique de jeu est pure.** `applyMove(state, move)` ne touche jamais au DOM,
+   ne mute jamais son entrée, ne lit ni l'horloge ni `Math.random()` directement.
+3. **L'aléatoire passe par un PRNG seedé** rangé dans l'état du jeu. Sans ça, deux
+   appareils divergent dès qu'un jeu utilise le hasard.
+4. **Le composant `Board` n'applique aucun coup.** Il affiche l'état et appelle
+   `onMove`. C'est le shell qui valide, applique et redistribue.
+5. **Le shell ne connaît aucune règle de jeu.** Ajouter un jeu = créer un dossier
+   sous `src/games/` et ajouter une ligne à `registry.ts`. Rien d'autre.
+6. **Pas de photo brute en `localStorage`.** Redimensionner en canvas à 200 px de côté
+   avant sérialisation, sinon le quota de 5 Mo saute à trois joueurs.
+7. **L'`AudioContext` se débloque au premier tap** sur le menu. iOS refuse tout son
+   avant une interaction tactile réelle.
+
+## Conventions de code
+
+- Le code, les identifiants et les commentaires sont en anglais.
+- L'interface utilisateur est en français.
+- Types stricts, pas de `any`. `strict: true` dans `tsconfig.json`.
+- Un jeu = un dossier contenant `logic.ts` (pur, testé), `Board.tsx` (rendu),
+  `index.ts` (assemble le `GameModule`).
+- `logic.ts` n'importe jamais React ni quoi que ce soit du DOM. C'est la garantie
+  qu'il est testable et transportable sur le réseau.
+- Tout état persistant passe par `src/players/storage.ts`. Aucun appel direct à
+  `localStorage` ailleurs dans le code.
+
+## Commandes
+
+```bash
+npm run dev       # serveur local
+npm run build     # build de production
+npm run preview   # vérifier le build avant déploiement
+npm test          # tests de la logique de jeu
+npm run lint
+```
+
+Test sur l'appareil réel : `npm run dev -- --host`, puis ouvrir l'IP locale depuis
+l'iPad. Le service worker exige HTTPS ou localhost — pour tester l'installation et
+le mode hors ligne, passer par le déploiement GitHub Pages.
+
+## Direction visuelle
+
+Le sujet est une boîte de jeux de société posée sur la table du salon, pas une
+application. Surfaces franches, aplats mats, formes que la main a envie de toucher.
+Le jeu occupe l'écran ; l'interface se tait autour.
+
+- Cibles tactiles de **80 px minimum**. Un enfant de quatre ans vise mal.
+- Chaque écran doit être navigable **sans savoir lire** : photo du joueur, icône du
+  jeu, couleur. Le texte accompagne, il ne porte jamais seul l'information.
+- Les photos des joueurs sont l'élément identitaire principal de l'app. Elles sont
+  grandes, rondes, et c'est sur elles que tombe l'attention.
+- Le mouvement répond à une action : un pion qui se pose, un tour qui passe, une
+  victoire. Rien ne bouge tout seul.
+- Palette de départ, à faire évoluer si tu as mieux :
+  `#1E3D34` plateau · `#F2E4C9` pièces claires · `#C94F3D` joueur 1 ·
+  `#3C6E9F` joueur 2 · `#F5A623` accent de victoire
+- Une seule famille de caractères, grasse et large. Pas de deuxième typo décorative.
+
+À éviter, ce sont les réflexes par défaut et ils se voient :
+fond crème avec serif à fort contraste et accent terracotta ; grille de cartes
+arrondies identiques avec la même ombre grise sous chacune ; libellés en majuscules
+espacées au-dessus des titres ; flèche `→` collée au bout des boutons ; dégradés
+décoratifs.
+
+## Bibliothèques retenues
+
+| Usage | Choix | Licence | Note |
+|---|---|---|---|
+| Effets sonores | ZzFX | MIT | < 1 ko, sons générés en code, aucun fichier audio |
+| Confettis de victoire | canvas-confetti | ISC | Baisser `particleCount`, respecter `prefers-reduced-motion` |
+| Icônes, badges | OpenMoji | CC BY-SA 4.0 | SVG copiés localement, pas de CDN |
+
+## Ce qu'il ne faut jamais faire
+
+- Ajouter une dépendance lourde sans mesurer l'impact sur le bundle. 2 Go de RAM.
+- Mettre de la logique de jeu dans le shell, ou du rendu dans `logic.ts`.
+- Utiliser `Math.random()` dans un jeu.
+- Supposer qu'internet existe.
+- Modifier `registry.ts` pour autre chose que déclarer un jeu.
+- Passer à Tailwind v4.
