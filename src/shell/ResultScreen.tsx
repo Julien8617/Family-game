@@ -15,7 +15,12 @@ export function ResultScreen({ result, players, onReplay, onMenu }: ResultScreen
     <div className="flex h-screen w-screen flex-col items-center justify-center gap-12 bg-board px-12">
       <div className="flex flex-col items-center gap-4">
         {winner && (
-          <span className="h-16 w-16 rounded-full" style={{ backgroundColor: winner.color }} />
+          <img
+            src={winner.photo}
+            alt=""
+            className="h-28 w-28 rounded-full object-cover"
+            style={{ boxShadow: `0 0 0 5px ${winner.color}` }}
+          />
         )}
         <h1 className="text-5xl text-piece">
           {result.kind === 'win' ? `${winner?.name} gagne !` : 'Match nul !'}

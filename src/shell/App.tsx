@@ -1,14 +1,20 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import type { GameModule, Result } from '../games/types';
-import { FIXED_PLAYERS } from '../players/fixedPlayers';
+import { PlayerEditor } from '../players/PlayerEditor';
+import { PlayerListScreen } from '../players/PlayerListScreen';
+import type { Player } from '../players/types';
 import { GameScreen } from './GameScreen';
 import { MenuScreen } from './MenuScreen';
+import { PlayerPickScreen } from './PlayerPickScreen';
 import { ResultScreen } from './ResultScreen';
 
 type Screen =
   | { kind: 'menu' }
-  | { kind: 'game'; game: GameModule<any, any>; seed: number }
-  | { kind: 'result'; game: GameModule<any, any>; result: Result };
+  | { kind: 'players' }
+  | { kind: 'editPlayer'; player?: Player }
+  | { kind: 'pick'; game: GameModule<any, any> }
+  | { kind: 'game'; game: GameModule<any, any>; seed: number; players: Player[] }
+  | { kind: 'result'; game: GameModule<any, any>; result: Result; players: Player[] };
 
 function randomSeed(): number {
   const bytes = new Uint32Array(1);
@@ -19,40 +25,71 @@ function randomSeed(): number {
 export function App() {
   const [screen, setScreen] = useState<Screen>({ kind: 'menu' });
 
-  const handleSelectGame = useCallback((game: GameModule<any, any>) => {
-    setScreen({ kind: 'game', game, seed: randomSeed() });
-  }, []);
-
-  const handleGameEnd = useCallback((game: GameModule<any, any>, result: Result) => {
-    setScreen({ kind: 'result', game, result });
-  }, []);
-
-  const handleReplay = useCallback((game: GameModule<any, any>) => {
-    setScreen({ kind: 'game', game, seed: randomSeed() });
-  }, []);
-
-  const handleMenu = useCallback(() => setScreen({ kind: 'menu' }), []);
-
   switch (screen.kind) {
     case 'menu':
-      return <MenuScreen onSelectGame={handleSelectGame} />;
+      return (
+        <MenuScreen
+          onSelectGame={(game) => setScreen({ kind: 'pick', game })}
+          onManagePlayers={() => setScreen({ kind: 'players' })}
+        />
+      );
+
+    case 'players':
+      return (
+        <PlayerListScreen
+          onBack={() => setScreen({ kind: 'menu' })}
+          onEdit={(player) => setScreen({ kind: 'editPlayer', player })}
+          onCreate={() => setScreen({ kind: 'editPlayer' })}
+        />
+      );
+
+    case 'editPlayer':
+      return (
+        <PlayerEditor
+          player={screen.player}
+          onDone={() => setScreen({ kind: 'players' })}
+          onCancel={() => setScreen({ kind: 'players' })}
+        />
+      );
+
+    case 'pick':
+      return (
+        <PlayerPickScreen
+          game={screen.game}
+          onBack={() => setScreen({ kind: 'menu' })}
+          onConfirm={(players) =>
+            setScreen({ kind: 'game', game: screen.game, seed: randomSeed(), players })
+          }
+        />
+      );
+
     case 'game':
       return (
         <GameScreen
           key={screen.seed}
           game={screen.game}
-          players={FIXED_PLAYERS}
+          players={screen.players}
           seed={screen.seed}
-          onGameEnd={(result) => handleGameEnd(screen.game, result)}
+          onGameEnd={(result) =>
+            setScreen({ kind: 'result', game: screen.game, result, players: screen.players })
+          }
         />
       );
+
     case 'result':
       return (
         <ResultScreen
           result={screen.result}
-          players={FIXED_PLAYERS}
-          onReplay={() => handleReplay(screen.game)}
-          onMenu={handleMenu}
+          players={screen.players}
+          onReplay={() =>
+            setScreen({
+              kind: 'game',
+              game: screen.game,
+              seed: randomSeed(),
+              players: screen.players,
+            })
+          }
+          onMenu={() => setScreen({ kind: 'menu' })}
         />
       );
   }

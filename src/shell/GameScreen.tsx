@@ -35,11 +35,12 @@ export function GameScreen({ game, players, seed, onGameEnd }: GameScreenProps) 
 
   return (
     <div className="flex h-screen w-screen flex-col items-center bg-board px-8 py-6">
-      <div className="flex items-center gap-4 rounded-full bg-piece/10 px-8 py-3">
-        <span
-          className="h-6 w-6 rounded-full"
-          style={{ backgroundColor: turnPlayer.color }}
-          aria-hidden
+      <div className="flex items-center gap-4 rounded-full bg-piece/10 px-6 py-3">
+        <img
+          src={turnPlayer.photo}
+          alt=""
+          className="h-14 w-14 rounded-full object-cover"
+          style={{ boxShadow: `0 0 0 3px ${turnPlayer.color}` }}
         />
         <span className="text-2xl text-piece">Tour de {turnPlayer.name}</span>
       </div>
