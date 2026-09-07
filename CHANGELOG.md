@@ -9,9 +9,11 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 - Spec 04 — La course des poussins : premier palier vers les échecs. Vrai
   échiquier 8×8, coordonnées, pièces blanches/noires classiques, avance et
   prise en diagonale. Choix de qui commence (Blancs, Noirs, ou au hasard)
-  avant chaque partie. Jouable en famille (deux profils) ou contre
-  l'ordinateur (un profil, quatre niveaux : l'œuf, le poussin, la poule, le
-  coq — du hasard pur à un vrai moteur de recherche).
+  avant chaque partie. Plateau fixe pour toute la partie : orientation
+  standard en famille (deux profils, on se passe l'iPad), orientée sur son
+  propre camp du début à la fin contre l'ordinateur (un profil, quatre
+  niveaux : l'œuf, le poussin, la poule, le coq — du hasard pur à un vrai
+  moteur de recherche), quelle que soit la couleur choisie.
 
 ## 2026-09-07 — Avatar facultatif et recadrage repositionnable
 

@@ -230,6 +230,31 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   nommés profite du même mécanisme sans y toucher. `chess-race/logic.ts`
   traite déjà `players[0]` comme celui qui commence (c'était vrai depuis le
   début, juste jamais choisi explicitement) — aucun changement côté jeu.
+- **Orientation du plateau : fixe pour toute la partie, pas une rotation à
+  chaque tour** — corrigé après une première implémentation trop
+  hâtive. Premier réflexe : faire tourner le plateau à chaque tour pour que
+  le camp au trait soit toujours en bas (`localPlayer={turnPlayer.id}`, qui
+  change de coup en coup). Faux : sur un jeu à deux humains qui se passent
+  l'iPad, chacun est physiquement d'un côté de l'écran — le plateau d'une
+  vraie table ne pivote pas tout seul entre deux coups, seul le joueur se
+  penche. Contre l'ordinateur en revanche, l'humain ne bouge jamais : son
+  camp doit rester en bas *toute la partie*, qu'il ait choisi Blancs ou
+  Noirs. Fix : `GameScreen` calcule désormais un `localPlayer` **stable**,
+  pas dérivé de `state.turn` — l'humain contre l'ordinateur (`bot` défini),
+  un repère arbitraire mais fixe (`players[0]`) en famille (personne n'est
+  plus « local » qu'un autre sur un appareil partagé, donc autant ne jamais
+  bouger). `BoardProps.localPlayer` retrouve ainsi son sens d'origine
+  (« qui tient cet appareil », spec 01) au lieu d'être détourné en « qui a
+  le trait ». `chess-race/Board.tsx` en déduit
+  `flipped = colorOf(state, localPlayer) === 'black'` une fois pour toute la
+  partie, et inverse l'ordre de parcours des lignes *et* des colonnes
+  (rotation 180°, pas un simple miroir). Piège resté valable malgré la
+  correction : les bandeaux de rangée d'arrivée et les coordonnées se calent
+  sur le bord *visuel* (haut/bas/gauche), recalculé selon `flipped`, jamais
+  sur le numéro de case brut — sinon ils finiraient à l'intérieur du plateau
+  une fois celui-ci retourné. Les coups eux-mêmes ne sont pas affectés :
+  `handleTap` raisonne toujours en indices de case bruts, l'orientation
+  n'est qu'un ordre de rendu.
 - **Taille du plateau a forcé un (petit) changement du shell** : `GameScreen`
   imposait un plateau fixe de 600×600 px à tous les jeux, insuffisant pour
   8×8 cases ≥ 80 px. Remplacé par une taille responsive

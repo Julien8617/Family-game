@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { BoardProps } from '../types';
-import { algebraic, colOf, legalMovesFrom, rowOf, SIZE } from './logic';
+import { algebraic, colOf, colorOf, legalMovesFrom, rowOf, SIZE } from './logic';
 import type { ChessRaceMove, ChessRaceState } from './logic';
 
 // Couleurs de pièces fixes, comme un vrai jeu d'échecs — blancs et noirs, pas
@@ -9,7 +9,19 @@ import type { ChessRaceMove, ChessRaceState } from './logic';
 const WHITE_PIECE = '#FAF6EC';
 const BLACK_PIECE = '#201C16';
 
-export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMove>) {
+// range(0, 8) -> [0..7] ; range(7, -1) -> [7..0]. Sert à parcourir lignes et
+// colonnes dans un sens ou dans l'autre selon l'orientation du plateau.
+function range(start: number, end: number): number[] {
+  const result: number[] = [];
+  if (start <= end) {
+    for (let i = start; i < end; i++) result.push(i);
+  } else {
+    for (let i = start; i > end; i--) result.push(i);
+  }
+  return result;
+}
+
+export function Board({ state, localPlayer, onMove }: BoardProps<ChessRaceState, ChessRaceMove>) {
   const [selected, setSelected] = useState<number | null>(null);
 
   // Une nouvelle référence de state = un vrai coup a été appliqué (le shell
@@ -22,6 +34,12 @@ export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMov
 
   const legalTargets = selected !== null ? legalMovesFrom(state, selected) : [];
   const [whiteId] = state.players;
+
+  // Orientation fixe pour toute la partie, pas une rotation à chaque tour :
+  // `localPlayer` (GameScreen) est stable — l'humain contre l'ordinateur,
+  // un repère arbitraire en famille (l'iPad se partage, personne n'est plus
+  // « local » qu'un autre). Son camp reste en bas, quelle que soit sa couleur.
+  const flipped = colorOf(state, localPlayer) === 'black';
 
   function handleTap(cell: number) {
     const occupant = state.board[cell];
@@ -42,9 +60,11 @@ export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMov
     onMove({ from: selected, to: cell });
   }
 
+  const rowOrder = flipped ? range(0, SIZE) : range(SIZE - 1, -1);
+  const colOrder = flipped ? range(SIZE - 1, -1) : range(0, SIZE);
   const cells: number[] = [];
-  for (let row = SIZE - 1; row >= 0; row--) {
-    for (let col = 0; col < SIZE; col++) {
+  for (const row of rowOrder) {
+    for (const col of colOrder) {
       cells.push(row * SIZE + col);
     }
   }
@@ -62,6 +82,14 @@ export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMov
         const labelColor = isLight ? 'text-squareDark/70' : 'text-squareLight/70';
         const isWhitePiece = occupant === whiteId;
 
+        // Les rangées/colonnes d'arrivée et les coordonnées se collent au
+        // bord *visuel* du plateau (haut/bas/gauche), pas au numéro de case
+        // brut — sinon elles se retrouveraient à l'intérieur du plateau une
+        // fois celui-ci retourné.
+        const isVisualTopRow = flipped ? row === 0 : row === SIZE - 1;
+        const isVisualBottomRow = flipped ? row === SIZE - 1 : row === 0;
+        const isVisualLeftCol = flipped ? col === SIZE - 1 : col === 0;
+
         return (
           <button
             key={cell}
@@ -70,13 +98,17 @@ export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMov
             aria-label={algebraic(cell)}
             className={`relative flex items-center justify-center ${isLight ? 'bg-squareLight' : 'bg-squareDark'}`}
           >
-            {row === SIZE - 1 && <span className="absolute inset-x-0 top-0 h-1.5 bg-chessWhite" />}
-            {row === 0 && <span className="absolute inset-x-0 bottom-0 h-1.5 bg-chessBlack" />}
-
-            {col === 0 && (
-              <span className={`absolute left-1 top-1 text-[10px] font-bold ${labelColor}`}>{row + 1}</span>
+            {row === SIZE - 1 && (
+              <span className={`absolute inset-x-0 h-1.5 bg-chessWhite ${isVisualTopRow ? 'top-0' : 'bottom-0'}`} />
             )}
             {row === 0 && (
+              <span className={`absolute inset-x-0 h-1.5 bg-chessBlack ${isVisualTopRow ? 'top-0' : 'bottom-0'}`} />
+            )}
+
+            {isVisualLeftCol && (
+              <span className={`absolute left-1 top-1 text-[10px] font-bold ${labelColor}`}>{row + 1}</span>
+            )}
+            {isVisualBottomRow && (
               <span className={`absolute bottom-1 right-1 text-[10px] font-bold ${labelColor}`}>
                 {String.fromCharCode(97 + col)}
               </span>

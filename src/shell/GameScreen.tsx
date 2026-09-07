@@ -104,6 +104,15 @@ export function GameScreen({ game, players, seed, bot, onGameEnd }: GameScreenPr
   const turnId = game.currentPlayer(state);
   const turnPlayer = players.find((p) => p.id === turnId) ?? players[0];
 
+  // Qui « tient l'appareil », fixe pour toute la partie — pas le joueur au
+  // trait, qui change à chaque coup. Contre l'ordinateur, c'est toujours
+  // l'humain (le bot n'est jamais assis devant l'écran). En famille, l'iPad
+  // se partage : personne n'est plus « local » qu'un autre, donc un repère
+  // arbitraire mais stable (players[0]) — un jeu qui s'en sert pour orienter
+  // son plateau (spec 04) obtient ainsi une orientation fixe, pas une
+  // rotation à chaque tour.
+  const localPlayer = bot ? players.find((p) => p.id !== bot.playerId)!.id : players[0].id;
+
   return (
     <div className="flex h-screen w-screen flex-col items-center bg-board px-6 py-4">
       <div className="flex items-center gap-3 rounded-full bg-piece/10 px-5 py-2">
@@ -121,7 +130,7 @@ export function GameScreen({ game, players, seed, bot, onGameEnd }: GameScreenPr
         <div style={{ width: 'min(94vw, calc(100vh - 132px))', aspectRatio: '1 / 1' }}>
           <game.Board
             state={state}
-            localPlayer={turnPlayer.id}
+            localPlayer={localPlayer}
             players={players}
             onMove={(move) => transport.send(move)}
           />
