@@ -21,6 +21,12 @@ export interface BoardProps<S, M> {
   onMove(move: M): void;
 }
 
+export interface BotLevel {
+  id: number;
+  label: string;
+  icon: string;
+}
+
 export interface GameModule<S, M> {
   meta: GameMeta;
 
@@ -31,4 +37,11 @@ export interface GameModule<S, M> {
   getResult(state: S): Result | null;
 
   Board: ComponentType<BoardProps<S, M>>;
+
+  // Optionnel : un jeu qui propose un adversaire artificiel connaît ses
+  // propres règles, donc chooseMove vit ici, jamais dans le shell.
+  bot?: {
+    levels: BotLevel[];
+    chooseMove(state: S, level: number): M;
+  };
 }

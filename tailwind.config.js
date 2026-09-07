@@ -9,6 +9,12 @@ export default {
         player1: '#C94F3D',
         player2: '#3C6E9F',
         victory: '#F5A623',
+        // Cases de l'échiquier (spec 04) — un vrai jeu d'échecs a des pièces à
+        // couleur fixe, pas teintées par le profil du joueur.
+        squareLight: '#EDE0C0',
+        squareDark: '#2A4A40',
+        chickYellow: '#E3B23C',
+        chickRed: '#C94F3D',
       },
       fontFamily: {
         // ui-rounded rend SF Pro Rounded sur iPadOS Safari — la cible réelle —

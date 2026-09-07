@@ -156,6 +156,90 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
 5. Toute modification du fichier vendorisé (ex. `zzfx.js`) se documente dans
    ce même fichier de licence, avec le pourquoi.
 
+## Spec 04 — La course des poussins (premier palier vers les échecs)
+
+- Contrat étendu de façon additive (`GameModule.bot?`), sur le modèle de
+  `supportsRemote` : un jeu qui connaît un adversaire artificiel expose
+  `bot.levels` et `bot.chooseMove(state, level)`, purs et déterministes. Le
+  shell ne sait toujours rien des règles — il se contente d'appeler
+  `chooseMove` au bon moment (voir plus bas). La frontière a tenu, y compris
+  pour un plateau 8×8 avec deux modes de jeu.
+- **Recherche vs budget de temps, une tension réelle** : le niveau 4
+  (« le coq ») s'approfondit par itération jusqu'à 500 ms mesurés à
+  l'horloge (`iterativeDeepen` dans `bot.ts`) — mais lire l'horloge contredit
+  en toute rigueur « chooseMove pure et déterministe ». Résolu en séparant
+  clairement les deux : `searchBestMove(state, depth)` est la brique pure,
+  profondeur fixée, utilisée telle quelle par le niveau 3 (profondeur 4) et
+  par tous les tests automatisés (déterminisme, force). Seule
+  `iterativeDeepen` lit l'horloge, et seulement pour décider de lancer *une
+  profondeur de plus* — jamais pour interrompre une recherche en cours.
+  Chaque profondeur terminée reste donc un résultat pur ; le critère « jamais
+  plus de 500 ms » (critère 8) se vérifie sur l'iPad réel, pas en test
+  unitaire.
+- **Test de force (critère 6) : rejouer 200 fois le niveau 4 réel aurait pris
+  ~20 minutes** (500 ms × ~15 coups × 200 parties) et aurait introduit une
+  variance dépendante de la machine (JIT chaud ou non). `bot.test.ts` utilise
+  donc `searchBestMove` à une profondeur fixe (5, contre 4 pour le niveau 3)
+  comme représentant fidèle du niveau 4 pour ces 200 parties simulées — le
+  vrai `chooseMove(level: 4)` n'est exercé que par un test de fumée à part
+  (une seule recherche, marge large). Profondeur 6 marchait aussi (validé)
+  mais faisait grimper cette seule suite à 121 s ; profondeur 5 tient le même
+  résultat (>95 %) en 49 s.
+- **200 parties identiques sinon** : sans variation, les niveaux 2/3/4
+  (aucun hasard par construction, glouton et minimax) rejouent exactement la
+  même partie sur les 200 seeds testées — le taux de victoire tombe à 0 % ou
+  100 %, jamais « plus de 75 % ». Fix : un tie-break *seedé* (le même
+  `mulberry32(state.seed, state.moveCount)` que le niveau 1) départage les
+  coups à score égal, aux niveaux 2, 3 et 4 — toujours déterministe (même
+  state ⇒ même coup), juste dépendant du seed comme le reste du jeu. Écart
+  par rapport à la lettre de la spec (qui ne décrit le seed que pour le
+  niveau 1) mais nécessaire pour que le critère 6 ait un sens ; les deux
+  appariements alternent aussi qui joue les jaunes (premier trait) pour ne
+  pas biaiser le résultat par l'avantage de la première case.
+- **Le son `invalid` exige que `Board` tente le coup, pas qu'il l'empêche** :
+  contrairement au morpion (`disabled={cell !== null}`), `chess-race/Board.tsx`
+  appelle toujours `onMove({from, to})` dès qu'une pièce est sélectionnée et
+  qu'on touche une autre case — légale ou non. C'est `GameScreen`
+  (`isValidMove`) qui tranche et joue `move` ou `invalid`. La sélection ne
+  retombe que sur un vrai changement d'état (`useEffect` sur `state`), pas
+  sur une tentative refusée : on peut réessayer tout de suite sans retoucher
+  la pièce.
+- **Couleurs de pièces fixes, pas la couleur de profil** : contrairement au
+  morpion (marque = `player.color`), les poussins sont jaunes/roux de façon
+  fixe (`chickYellow`/`chickRed` dans `tailwind.config.js`) — un vrai jeu
+  d'échecs n'est pas teinté par qui le joue. La couleur de profil reste
+  l'identifiant dans la barre de tour et l'écran de résultat.
+- **Taille du plateau a forcé un (petit) changement du shell** : `GameScreen`
+  imposait un plateau fixe de 600×600 px à tous les jeux, insuffisant pour
+  8×8 cases ≥ 80 px. Remplacé par une taille responsive
+  (`min(94vw, calc(100vh - 132px))`) et un en-tête un peu plus compact — geste
+  générique de layout, pas une connaissance des règles du jeu, mais un
+  changement du shell hors du dossier `chess-race/` qui n'était pas explicite
+  dans la spec. Vérifié en navigateur à 1024×768 (viewport iPad Air 2) :
+  cases ≈ 80–85 px selon le jeu, morpion inchangé fonctionnellement (juste un
+  peu plus grand).
+- **Bug préexistant corrigé au passage** : `storage.getSettings()` ne
+  fusionnait pas avec les valeurs par défaut — un champ ajouté après coup
+  (comme `lastBotLevel`) aurait fait échouer la validation d'un réglage déjà
+  stocké et silencieusement tout réinitialisé au défaut. Fix minimal
+  (`{ ...DEFAULT_SETTINGS, ...data.settings }`), sans toucher au schéma
+  existant.
+- **`MenuScreen` doit connaître l'existence d'un bot, pas ses règles** : un
+  jeu avec `bot` défini n'a besoin que d'un seul profil réel pour être
+  jouable (le bot comble le reste) — sans ce correctif, une famille avec un
+  seul profil enregistré verrait la tuile du jeu grisée à tort. Toujours
+  générique (`game.bot ? 1 : game.meta.minPlayers`), aucune règle de jeu
+  connue du shell.
+- **Icônes des 4 niveaux dessinées à la main** (`chess-race/levels/*.svg`),
+  pas vendorisées comme les avatars OpenMoji — quatre formes simples
+  (œuf → poussin → poule → coq), progression de taille/complexité lisible
+  d'un coup d'œil sans lire, dans la palette existante. Pas de licence à
+  documenter puisque rien n'est emprunté.
+- Le joueur humain joue toujours les jaunes (premier trait) contre
+  l'ordinateur — décision simple pour une enfant de cinq ans : elle commence
+  toujours, jamais besoin d'expliquer pourquoi l'ordinateur a parfois le
+  premier coup.
+
 ## Process établi avec l'utilisateur
 
 - Avant d'écrire du CSS ou une nouvelle direction visuelle : proposer sa

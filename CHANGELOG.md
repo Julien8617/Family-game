@@ -6,6 +6,14 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 
 ## Non publié
 
+- Spec 04 — La course des poussins : premier palier vers les échecs (plateau
+  8×8, coordonnées, avance et prise en diagonale, blancs qui commencent).
+  Jouable en famille (deux profils) ou contre l'ordinateur (un profil, quatre
+  niveaux : l'œuf, le poussin, la poule, le coq — du hasard pur à un vrai
+  moteur de recherche).
+
+## 2026-09-07 — Avatar facultatif et recadrage repositionnable
+
 - Photo de profil facultative : possibilité de choisir un avatar (20
   personnages, dessins OpenMoji vendorisés — voir
   `src/players/avatars/LICENSE.md`) à la place d'une vraie photo.
@@ -13,7 +21,7 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
   recentrer dans le cercle et régler le zoom (curseur, jusqu'à ×3) avant de
   valider, plutôt qu'un centrage automatique fixe.
 
-## 2026-09-07
+## 2026-09-07 — Correctif mise à jour PWA
 
 - Correctif : l'app installée ne se remettait pas à jour toute seule après un
   déploiement — iOS réveille souvent la PWA depuis un état suspendu plutôt que

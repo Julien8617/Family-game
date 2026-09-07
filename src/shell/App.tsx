@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { GameModule, Result } from '../games/types';
+import type { GameModule, PlayerId, Result } from '../games/types';
 import { PlayerEditor } from '../players/PlayerEditor';
 import { PlayerListScreen } from '../players/PlayerListScreen';
 import type { Player } from '../players/types';
@@ -8,13 +8,15 @@ import { MenuScreen } from './MenuScreen';
 import { PlayerPickScreen } from './PlayerPickScreen';
 import { ResultScreen } from './ResultScreen';
 
+type BotChoice = { playerId: PlayerId; level: number };
+
 type Screen =
   | { kind: 'menu' }
   | { kind: 'players' }
   | { kind: 'editPlayer'; player?: Player }
   | { kind: 'pick'; game: GameModule<any, any> }
-  | { kind: 'game'; game: GameModule<any, any>; seed: number; players: Player[] }
-  | { kind: 'result'; game: GameModule<any, any>; result: Result; players: Player[] };
+  | { kind: 'game'; game: GameModule<any, any>; seed: number; players: Player[]; bot?: BotChoice }
+  | { kind: 'result'; game: GameModule<any, any>; result: Result; players: Player[]; bot?: BotChoice };
 
 function randomSeed(): number {
   const bytes = new Uint32Array(1);
@@ -57,8 +59,8 @@ export function App() {
         <PlayerPickScreen
           game={screen.game}
           onBack={() => setScreen({ kind: 'menu' })}
-          onConfirm={(players) =>
-            setScreen({ kind: 'game', game: screen.game, seed: randomSeed(), players })
+          onConfirm={(players, bot) =>
+            setScreen({ kind: 'game', game: screen.game, seed: randomSeed(), players, bot })
           }
         />
       );
@@ -70,8 +72,15 @@ export function App() {
           game={screen.game}
           players={screen.players}
           seed={screen.seed}
+          bot={screen.bot}
           onGameEnd={(result) =>
-            setScreen({ kind: 'result', game: screen.game, result, players: screen.players })
+            setScreen({
+              kind: 'result',
+              game: screen.game,
+              result,
+              players: screen.players,
+              bot: screen.bot,
+            })
           }
         />
       );
@@ -87,6 +96,7 @@ export function App() {
               game: screen.game,
               seed: randomSeed(),
               players: screen.players,
+              bot: screen.bot,
             })
           }
           onMenu={() => setScreen({ kind: 'menu' })}

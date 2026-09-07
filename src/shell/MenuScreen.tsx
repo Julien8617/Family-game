@@ -49,7 +49,10 @@ export function MenuScreen({ onSelectGame, onManagePlayers }: MenuScreenProps) {
       <h1 className="text-4xl tracking-tight text-piece">Jeux de famille</h1>
       <div className="grid grid-cols-4 gap-6">
         {GAMES.map((game) => {
-          const missing = game.meta.minPlayers - players.length;
+          // Un jeu contre l'ordinateur n'a besoin que d'un seul profil réel —
+          // le bot fabriqué par le shell comble le reste (spec 04).
+          const requiredPlayers = game.bot ? 1 : game.meta.minPlayers;
+          const missing = requiredPlayers - players.length;
           const available = missing <= 0;
           return (
             <button

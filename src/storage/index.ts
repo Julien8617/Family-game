@@ -93,6 +93,10 @@ const SETTINGS_VERSION = 1;
 
 export interface Settings {
   soundEnabled: boolean;
+  // Dernier niveau de bot choisi (spec 04), proposé par défaut la fois
+  // suivante. Optionnel : absent tant qu'aucune partie contre l'ordinateur
+  // n'a été lancée, y compris pour un profil stocké avant la spec 04.
+  lastBotLevel?: number;
 }
 
 const DEFAULT_SETTINGS: Settings = { soundEnabled: true };
@@ -102,20 +106,23 @@ interface StoredSettings {
   settings: Settings;
 }
 
-function isSettings(value: unknown): value is Settings {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    typeof (value as Record<string, unknown>).soundEnabled === 'boolean'
-  );
+function isSettings(value: unknown): value is Partial<Settings> {
+  if (typeof value !== 'object' || value === null) return false;
+  const v = value as Record<string, unknown>;
+  if (typeof v.soundEnabled !== 'boolean') return false;
+  if (v.lastBotLevel !== undefined && typeof v.lastBotLevel !== 'number') return false;
+  return true;
 }
 
 export function getSettings(): Settings {
   const parsed = readJSON(SETTINGS_KEY);
   if (typeof parsed !== 'object' || parsed === null) return DEFAULT_SETTINGS;
   const data = parsed as Partial<StoredSettings>;
+  // Fusionné avec les valeurs par défaut : un champ ajouté après coup (comme
+  // lastBotLevel en spec 04) ne doit pas rendre invalide un réglage déjà
+  // stocké qui ne le connaît pas encore.
   if (data.version !== SETTINGS_VERSION || !isSettings(data.settings)) return DEFAULT_SETTINGS;
-  return data.settings;
+  return { ...DEFAULT_SETTINGS, ...data.settings };
 }
 
 export function updateSettings(patch: Partial<Settings>): SaveResult {
