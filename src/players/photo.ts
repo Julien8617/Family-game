@@ -25,12 +25,12 @@ export function loadImage(file: File): Promise<LoadedPhoto> {
   });
 }
 
-// Recadre un carré de côté `side` (le plus petit côté de l'image) dont le
-// coin haut-gauche est (sx, sy) en pixels de l'image d'origine, et
-// redimensionne à 200×200 en JPEG. Le cadreur (PhotoCropper) calcule sx/sy ;
-// (naturalWidth-side)/2, (naturalHeight-side)/2 donne le centrage par défaut.
-export function cropToDataUrl(img: HTMLImageElement, sx: number, sy: number): string {
-  const side = Math.min(img.naturalWidth, img.naturalHeight);
+// Recadre un carré de côté `side` (en pixels de l'image d'origine — plus
+// `side` est petit par rapport à l'image, plus c'est zoomé) dont le coin
+// haut-gauche est (sx, sy), et redimensionne à 200×200 en JPEG. Le cadreur
+// (PhotoCropper) calcule sx/sy/side ; side = min(naturalWidth, naturalHeight)
+// avec sx/sy centrés donne le comportement par défaut (zoom 1, centré).
+export function cropToDataUrl(img: HTMLImageElement, sx: number, sy: number, side: number): string {
   const canvas = document.createElement('canvas');
   canvas.width = OUTPUT_SIZE;
   canvas.height = OUTPUT_SIZE;

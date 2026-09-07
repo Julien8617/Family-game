@@ -9,9 +9,9 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 - Photo de profil facultative : possibilité de choisir un avatar (20
   personnages, dessins OpenMoji vendorisés — voir
   `src/players/avatars/LICENSE.md`) à la place d'une vraie photo.
-- Recadrage repositionnable : on peut désormais glisser la photo pour la
-  recentrer dans le cercle avant de valider, plutôt qu'un centrage automatique
-  fixe.
+- Recadrage repositionnable et zoomable : on peut glisser la photo pour la
+  recentrer dans le cercle et régler le zoom (curseur, jusqu'à ×3) avant de
+  valider, plutôt qu'un centrage automatique fixe.
 
 ## 2026-09-07
 

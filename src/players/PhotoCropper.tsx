@@ -3,6 +3,12 @@ import type { PointerEvent as ReactPointerEvent } from 'react';
 import { cropToDataUrl } from './photo';
 
 const FRAME_SIZE = 260; // px, cercle de recadrage affiché à l'écran
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 3;
+
+function clamp01(v: number): number {
+  return Math.min(1, Math.max(0, v));
+}
 
 interface PhotoCropperProps {
   img: HTMLImageElement;
@@ -11,34 +17,41 @@ interface PhotoCropperProps {
 }
 
 export function PhotoCropper({ img, onConfirm, onCancel }: PhotoCropperProps) {
-  const scale = FRAME_SIZE / Math.min(img.naturalWidth, img.naturalHeight);
+  const baseScale = FRAME_SIZE / Math.min(img.naturalWidth, img.naturalHeight);
+
+  // Position exprimée en fraction (0..1) de la marge de défilement possible,
+  // pas en pixels : indépendante du zoom, pas besoin de la recalculer quand
+  // il change.
+  const [panFraction, setPanFraction] = useState({ x: 0.5, y: 0.5 });
+  const [zoom, setZoom] = useState(1);
+  const [drag, setDrag] = useState<{
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+  } | null>(null);
+
+  const scale = baseScale * zoom;
   const scaledWidth = img.naturalWidth * scale;
   const scaledHeight = img.naturalHeight * scale;
-  // <= 0 : jusqu'où l'image peut glisser avant qu'un bord n'entre dans le cadre.
-  const minX = FRAME_SIZE - scaledWidth;
-  const minY = FRAME_SIZE - scaledHeight;
-
-  // Centré par défaut, comme l'ancien recadrage automatique.
-  const [pos, setPos] = useState({ x: minX / 2, y: minY / 2 });
-  const [drag, setDrag] = useState<{ startX: number; startY: number; origX: number; origY: number } | null>(
-    null,
-  );
-
-  function clamp(x: number, y: number) {
-    return {
-      x: Math.min(0, Math.max(minX, x)),
-      y: Math.min(0, Math.max(minY, y)),
-    };
-  }
+  const rangeX = Math.max(0, scaledWidth - FRAME_SIZE);
+  const rangeY = Math.max(0, scaledHeight - FRAME_SIZE);
+  const posX = -rangeX * panFraction.x;
+  const posY = -rangeY * panFraction.y;
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     event.currentTarget.setPointerCapture(event.pointerId);
-    setDrag({ startX: event.clientX, startY: event.clientY, origX: pos.x, origY: pos.y });
+    setDrag({ startX: event.clientX, startY: event.clientY, origX: panFraction.x, origY: panFraction.y });
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     if (!drag) return;
-    setPos(clamp(drag.origX + (event.clientX - drag.startX), drag.origY + (event.clientY - drag.startY)));
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    setPanFraction({
+      x: rangeX > 0 ? clamp01(drag.origX - dx / rangeX) : 0.5,
+      y: rangeY > 0 ? clamp01(drag.origY - dy / rangeY) : 0.5,
+    });
   }
 
   function handlePointerUp() {
@@ -46,7 +59,10 @@ export function PhotoCropper({ img, onConfirm, onCancel }: PhotoCropperProps) {
   }
 
   function handleConfirm() {
-    onConfirm(cropToDataUrl(img, -pos.x / scale, -pos.y / scale));
+    const side = FRAME_SIZE / scale;
+    const sx = (rangeX * panFraction.x) / scale;
+    const sy = (rangeY * panFraction.y) / scale;
+    onConfirm(cropToDataUrl(img, sx, sy, side));
   }
 
   return (
@@ -64,9 +80,27 @@ export function PhotoCropper({ img, onConfirm, onCancel }: PhotoCropperProps) {
           alt=""
           draggable={false}
           className="absolute max-w-none"
-          style={{ width: scaledWidth, height: scaledHeight, left: pos.x, top: pos.y }}
+          style={{ width: scaledWidth, height: scaledHeight, left: posX, top: posY }}
         />
       </div>
+
+      <div className="flex w-64 items-center gap-3">
+        <span className="text-xl text-piece" aria-hidden>
+          🔍
+        </span>
+        <input
+          type="range"
+          min={MIN_ZOOM}
+          max={MAX_ZOOM}
+          step={0.05}
+          value={zoom}
+          onChange={(e) => setZoom(Number(e.target.value))}
+          className="h-10 flex-1"
+          style={{ accentColor: '#F5A623' }}
+          aria-label="Zoom"
+        />
+      </div>
+
       <p className="text-lg text-piece/70">Fais glisser la photo pour la recentrer</p>
       <div className="flex gap-4">
         <button
