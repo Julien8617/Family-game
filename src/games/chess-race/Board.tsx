@@ -130,24 +130,28 @@ export function Board({ state, localPlayer, onMove }: BoardProps<ChessRaceState,
 
 function Pawn({ color, dark }: { color: string; dark: boolean }) {
   // Contour clair sur les pièces noires (sinon elles se fondent dans la case
-  // foncée), contour sombre sur les blanches — même silhouette de pion
-  // classique des deux côtés.
-  const stroke = dark ? 'rgba(250,246,236,0.35)' : '#1E3D34';
+  // foncée), contour sombre sur les blanches — même silhouette des deux côtés.
+  const stroke = dark ? 'rgba(250,246,236,0.4)' : '#1E3D34';
 
   return (
-    <svg viewBox="0 0 24 24" className="h-[66%] w-[66%]" aria-hidden>
-      {/* Silhouette de pion classique (tête, col, corps évasé, socle) — un
-          vrai échiquier, sans aucun ornement « poussin » sur la pièce
-          elle-même. Le thème reste dans le nom du jeu et les icônes de niveau. */}
+    <svg viewBox="0 0 45 45" className="h-[72%] w-[72%]" aria-hidden>
+      {/* Silhouette Staunton classique (tête, col, corps évasé, épaule,
+          socle à deux niveaux) — la forme générique reprise par la quasi-
+          totalité des jeux d'échecs numériques, dessinée à la main (app
+          hors ligne, zéro appel réseau : aucun asset de tiers copié). Sans
+          aucun ornement « poussin » sur la pièce elle-même — le thème reste
+          dans le nom du jeu et les icônes de niveau. */}
+      <rect x="11" y="37.2" width="23" height="3.4" rx="1.5" fill={color} stroke={stroke} strokeWidth="0.6" />
+      <rect x="14.5" y="33.2" width="16" height="4.4" rx="1.4" fill={color} stroke={stroke} strokeWidth="0.6" />
       <path
-        d="M9.2 19 C9.0 14.2 9.6 11.6 10.6 10.3 C11.0 9.8 13.0 9.8 13.4 10.3 C14.4 11.6 15.0 14.2 14.8 19 Z"
+        d="M15.5 34.2 C14.3 28.7 16.3 23.7 19.5 21.4 L25.5 21.4 C28.7 23.7 30.7 28.7 29.5 34.2 Z"
         fill={color}
         stroke={stroke}
-        strokeWidth="0.4"
+        strokeWidth="0.6"
         strokeLinejoin="round"
       />
-      <rect x="7" y="18.6" width="10" height="2.6" rx="1.3" fill={color} stroke={stroke} strokeWidth="0.4" />
-      <circle cx="12" cy="7" r="3.2" fill={color} stroke={stroke} strokeWidth="0.4" />
+      <ellipse cx="22.5" cy="20" rx="5.8" ry="2.1" fill={color} stroke={stroke} strokeWidth="0.6" />
+      <circle cx="22.5" cy="11.7" r="7.3" fill={color} stroke={stroke} strokeWidth="0.6" />
     </svg>
   );
 }

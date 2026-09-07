@@ -216,9 +216,16 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   dans le nom du jeu et les icônes de niveau ; la pièce posée sur l'échiquier
   est un pion classique, sans ornement. La couleur de profil reste
   l'identifiant dans la barre de tour et l'écran de résultat. Contour clair
-  sur les pièces noires (`rgba(250,246,236,0.35)`) pour qu'elles ne se
+  sur les pièces noires (`rgba(250,246,236,0.4)`) pour qu'elles ne se
   fondent pas dans la case foncée — l'inverse (contour sombre) sur les
-  blanches.
+  blanches. Troisième itération : « exactement comme chess.com ». Impossible
+  au sens littéral — app hors ligne (zéro appel réseau) et artwork
+  propriétaire d'un tiers, pas question de le copier même si le réseau
+  existait. La forme Staunton générique qu'il reprend, elle, n'appartient à
+  personne (motif de 1849) : silhouette redessinée à la main avec des
+  proportions plus fidèles — col net sous la tête (ellipse séparée, pas
+  fondue dans le corps), épaule évasée, socle à deux niveaux (`Pawn` dans
+  `Board.tsx`, viewBox 45×45 pour plus de finesse que les 24×24 précédents).
 - **« Qui commence ? » — extension générique du contrat, pas un cas
   particulier de chess-race** : `GameMeta.colorLabels?: [string, string]`
   (`['Blancs', 'Noirs']` pour ce jeu) sur le modèle de `supportsRemote`. Si
