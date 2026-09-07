@@ -30,37 +30,49 @@ Le manifest verrouille `display: fullscreen` et `orientation: landscape`.
 ```
 src/
   shell/
-    App.tsx              routeur d'écrans (menu → sélection joueurs → partie → résultat)
+    App.tsx              routeur d'écrans (menu → joueurs → sélection → partie → résultat)
     MenuScreen.tsx       grille des jeux disponibles
-    PlayerPickScreen.tsx sélection des joueurs par photo
+    PlayerPickScreen.tsx sélection des joueurs par photo avant une partie
     GameScreen.tsx       hôte de partie : détient l'état, valide, applique
     ResultScreen.tsx     fin de partie, confettis, rejouer
+    settings-icon.svg    icône du bouton discret vers l'écran Joueurs
 
   players/
     types.ts             Player
-    storage.ts           SEUL point d'accès à localStorage de toute l'app
-    photo.ts             capture, recadrage carré, redimensionnement 200 px
-    PlayerEditor.tsx     création et modification d'un profil
+    palette.ts           8 couleurs de profil (exclut la couleur victory)
+    photo.ts             chargement + recadrage (carré, repositionnable, zoomable) en 200 px
+    avatars.ts           20 avatars au choix, en data URI (voir src/vendor/avatars/)
+    PhotoCropper.tsx      glisser pour recentrer, curseur de zoom ×1–×3
+    PlayerEditor.tsx     création et modification d'un profil (photo ou avatar)
+    PlayerListScreen.tsx liste des profils + interrupteur son + repère de version
+
+  storage/
+    index.ts              SEUL point d'accès à localStorage (joueurs + réglages, versionnés séparément)
 
   games/
     types.ts             GameModule, contrats partagés
     registry.ts          liste des jeux — la seule ligne à toucher pour en ajouter un
     tictactoe/
       logic.ts           pur, testé, sans React
-      Board.tsx          rendu et émission d'intentions
+      Board.tsx          rendu, émission d'intentions, ligne gagnante
       index.ts           assemble le GameModule
       logic.test.ts
 
   net/
     transport.ts         interface Transport
     localTransport.ts    boucle immédiate, un seul appareil
-    webrtcTransport.ts   phase 3, RTCDataChannel
+    webrtcTransport.ts   phase 3, RTCDataChannel — pas encore construit
 
   fx/
     sound.ts             ZzFX, déblocage AudioContext, table des sons
     confetti.ts          canvas-confetti, réglages économes
 
   vendor/                dépendances copiées localement, jamais de CDN
+    zzfx.js, zzfx.d.ts, confetti.js, confetti.d.ts, LICENSES.md
+    avatars/              20 SVG OpenMoji + LICENSE.md
+
+  pwa.ts                 enregistrement manuel du service worker (revérifie
+                          une mise à jour au retour au premier plan — voir NOTES.md)
 ```
 
 ## 4. Le contrat de jeu

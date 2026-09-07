@@ -1,6 +1,8 @@
 # CLAUDE.md
 
-Contexte permanent du projet. Lire `ARCHITECTURE.md` pour le détail des contrats.
+Contexte permanent du projet. Lire `ARCHITECTURE.md` pour le détail des
+contrats, et `NOTES.md` pour l'historique d'implémentation — décisions
+prises, pièges déjà rencontrés, specs livrées.
 
 ## Le projet
 
@@ -74,7 +76,7 @@ Aucun backend. Aucune base de données. Aucun Supabase. Aucun appel réseau,
   `index.ts` (assemble le `GameModule`).
 - `logic.ts` n'importe jamais React ni quoi que ce soit du DOM. C'est la garantie
   qu'il est testable et transportable sur le réseau.
-- Tout état persistant passe par `src/players/storage.ts`. Aucun appel direct à
+- Tout état persistant passe par `src/storage/index.ts`. Aucun appel direct à
   `localStorage` ailleurs dans le code.
 
 ## Commandes
@@ -90,6 +92,11 @@ npm run lint
 Test sur l'appareil réel : `npm run dev -- --host`, puis ouvrir l'IP locale depuis
 l'iPad. Le service worker exige HTTPS ou localhost — pour tester l'installation et
 le mode hors ligne, passer par le déploiement GitHub Pages.
+
+Chaque déploiement qui change quelque chose d'observable ajoute une entrée dans
+`CHANGELOG.md`. Ça sert à vérifier, après coup, qu'une mise à jour attendue est
+bien arrivée sur l'iPad — voir aussi le repère `commit · date` affiché dans
+l'écran Joueurs.
 
 ## Direction visuelle
 
@@ -131,3 +138,8 @@ décoratifs.
 - Supposer qu'internet existe.
 - Modifier `registry.ts` pour autre chose que déclarer un jeu.
 - Passer à Tailwind v4.
+- Repasser `injectRegister` à sa valeur par défaut dans `vite.config.ts`, ou
+  supprimer `src/pwa.ts`. L'enregistrement du service worker est fait à la
+  main exprès, pour revérifier une mise à jour à chaque retour au premier
+  plan — sans ça, l'app installée reste bloquée sur une vieille version
+  jusqu'à fermeture complète. Détail dans `NOTES.md`.

@@ -1,23 +1,23 @@
-import chat from './avatars/chat.svg?raw';
-import chien from './avatars/chien.svg?raw';
-import cochon from './avatars/cochon.svg?raw';
-import dragon from './avatars/dragon.svg?raw';
-import grenouille from './avatars/grenouille.svg?raw';
-import herisson from './avatars/herisson.svg?raw';
-import hibou from './avatars/hibou.svg?raw';
-import koala from './avatars/koala.svg?raw';
-import lapin from './avatars/lapin.svg?raw';
-import licorne from './avatars/licorne.svg?raw';
-import lion from './avatars/lion.svg?raw';
-import loup from './avatars/loup.svg?raw';
-import ours from './avatars/ours.svg?raw';
-import panda from './avatars/panda.svg?raw';
-import pingouin from './avatars/pingouin.svg?raw';
-import poule from './avatars/poule.svg?raw';
-import poulpe from './avatars/poulpe.svg?raw';
-import renard from './avatars/renard.svg?raw';
-import singe from './avatars/singe.svg?raw';
-import tigre from './avatars/tigre.svg?raw';
+import chat from '../vendor/avatars/chat.svg?raw';
+import chien from '../vendor/avatars/chien.svg?raw';
+import cochon from '../vendor/avatars/cochon.svg?raw';
+import dragon from '../vendor/avatars/dragon.svg?raw';
+import grenouille from '../vendor/avatars/grenouille.svg?raw';
+import herisson from '../vendor/avatars/herisson.svg?raw';
+import hibou from '../vendor/avatars/hibou.svg?raw';
+import koala from '../vendor/avatars/koala.svg?raw';
+import lapin from '../vendor/avatars/lapin.svg?raw';
+import licorne from '../vendor/avatars/licorne.svg?raw';
+import lion from '../vendor/avatars/lion.svg?raw';
+import loup from '../vendor/avatars/loup.svg?raw';
+import ours from '../vendor/avatars/ours.svg?raw';
+import panda from '../vendor/avatars/panda.svg?raw';
+import pingouin from '../vendor/avatars/pingouin.svg?raw';
+import poule from '../vendor/avatars/poule.svg?raw';
+import poulpe from '../vendor/avatars/poulpe.svg?raw';
+import renard from '../vendor/avatars/renard.svg?raw';
+import singe from '../vendor/avatars/singe.svg?raw';
+import tigre from '../vendor/avatars/tigre.svg?raw';
 
 // Chargés en texte brut (?raw) plutôt qu'en asset : un import SVG classique
 // n'est mis en data URI par Vite que sous ~4 ko, et plusieurs de ces dessins
@@ -31,7 +31,7 @@ function toDataUri(svg: string): string {
 }
 
 // Personnages au choix quand on ne veut pas prendre de photo. Licence des
-// dessins : src/players/avatars/LICENSE.md.
+// dessins : src/vendor/avatars/LICENSE.md.
 export const AVATARS = [
   { id: 'renard', label: 'Renard', src: toDataUri(renard) },
   { id: 'chat', label: 'Chat', src: toDataUri(chat) },

@@ -4,6 +4,9 @@ Ce dossier contient le code source de bibliothèques tierces, copié directement
 dans le dépôt — zéro CDN, zéro appel réseau à l'exécution (voir `CLAUDE.md`,
 règle absolue n°1).
 
+Les 20 avatars de profil (`avatars/`, dessins OpenMoji) suivent la même règle
+mais ont leur propre fichier de licence : `avatars/LICENSE.md`.
+
 ## ZzFX (`zzfx.js`)
 
 - Source : https://github.com/KilledByAPixel/ZzFX (édition « Micro »,
