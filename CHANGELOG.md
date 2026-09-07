@@ -4,6 +4,15 @@ Une ligne par déploiement, pour vérifier après coup que la mise à jour atten
 est bien arrivée sur l'iPad — voir aussi le repère de version discret dans
 l'écran « Joueurs » (coin bas, format `commit · date`).
 
+## Non publié
+
+- Photo de profil facultative : possibilité de choisir un avatar (20
+  personnages, dessins OpenMoji vendorisés — voir
+  `src/players/avatars/LICENSE.md`) à la place d'une vraie photo.
+- Recadrage repositionnable : on peut désormais glisser la photo pour la
+  recentrer dans le cercle avant de valider, plutôt qu'un centrage automatique
+  fixe.
+
 ## 2026-09-07
 
 - Correctif : l'app installée ne se remettait pas à jour toute seule après un

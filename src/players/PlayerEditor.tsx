@@ -1,7 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
+import { AVATARS } from './avatars';
 import { PLAYER_COLORS } from './palette';
-import { toProfilePhoto } from './photo';
+import { PhotoCropper } from './PhotoCropper';
+import { loadImage } from './photo';
+import type { LoadedPhoto } from './photo';
 import { createPlayer, deletePlayer, listPlayers, updatePlayer } from '../storage';
 import type { Player } from './types';
 
@@ -16,7 +19,9 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
   const [name, setName] = useState(player?.name ?? '');
   const [photo, setPhoto] = useState(player?.photo ?? '');
   const [color, setColor] = useState(player?.color ?? '');
+  const [mode, setMode] = useState<'photo' | 'avatar'>('photo');
   const [error, setError] = useState<string | null>(null);
+  const [cropperState, setCropperState] = useState<LoadedPhoto | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -30,11 +35,22 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
     event.target.value = '';
     if (!file) return;
     try {
-      setPhoto(await toProfilePhoto(file));
+      setCropperState(await loadImage(file));
       setError(null);
     } catch {
       setError('Photo illisible, réessaie.');
     }
+  }
+
+  function handleCropConfirm(dataUrl: string) {
+    setPhoto(dataUrl);
+    cropperState?.revoke();
+    setCropperState(null);
+  }
+
+  function handleCropCancel() {
+    cropperState?.revoke();
+    setCropperState(null);
   }
 
   const trimmedName = name.trim();
@@ -61,14 +77,23 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
     onDone();
   }
 
+  if (cropperState) {
+    return (
+      <div className="flex h-screen w-screen flex-col items-center justify-center gap-8 bg-board px-12">
+        <h1 className="text-3xl text-piece">Ajuste la photo</h1>
+        <PhotoCropper img={cropperState.img} onConfirm={handleCropConfirm} onCancel={handleCropCancel} />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen w-screen flex-col items-center gap-8 bg-board px-12 py-10">
-      <h1 className="text-4xl text-piece">{player ? 'Modifier le joueur' : 'Nouveau joueur'}</h1>
+    <div className="flex h-screen w-screen flex-col items-center gap-4 overflow-y-auto bg-board px-12 py-6">
+      <h1 className="text-3xl text-piece">{player ? 'Modifier le joueur' : 'Nouveau joueur'}</h1>
 
       <button
         type="button"
-        onClick={() => fileInputRef.current?.click()}
-        className="flex h-48 w-48 items-center justify-center overflow-hidden rounded-full bg-piece/20 text-piece shadow-[0_6px_0_0_rgba(0,0,0,0.25)]"
+        onClick={() => mode === 'photo' && fileInputRef.current?.click()}
+        className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full bg-piece/20 text-piece shadow-[0_6px_0_0_rgba(0,0,0,0.25)]"
       >
         {photo ? (
           <img src={photo} alt="" className="h-full w-full object-cover" />
@@ -84,6 +109,40 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
         className="hidden"
       />
 
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => setMode('photo')}
+          className={`h-12 rounded-full px-6 text-lg ${mode === 'photo' ? 'bg-victory text-board' : 'bg-piece/20 text-piece'}`}
+        >
+          Photo
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode('avatar')}
+          className={`h-12 rounded-full px-6 text-lg ${mode === 'avatar' ? 'bg-victory text-board' : 'bg-piece/20 text-piece'}`}
+        >
+          Avatar
+        </button>
+      </div>
+
+      {mode === 'avatar' && (
+        <div className="flex w-full max-w-2xl gap-3 overflow-x-auto px-2 py-1">
+          {AVATARS.map((avatar) => (
+            <button
+              key={avatar.id}
+              type="button"
+              onClick={() => setPhoto(avatar.src)}
+              aria-label={avatar.label}
+              className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-piece/20"
+              style={{ boxShadow: photo === avatar.src ? '0 0 0 4px #F5A623' : 'none' }}
+            >
+              <img src={avatar.src} alt="" className="h-full w-full object-contain p-1" />
+            </button>
+          ))}
+        </div>
+      )}
+
       <input
         type="text"
         value={name}
@@ -96,7 +155,7 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
         className="h-20 w-80 rounded-2xl bg-piece px-6 text-center text-2xl text-board outline-none"
       />
 
-      <div className="flex flex-wrap justify-center gap-4">
+      <div className="flex flex-wrap justify-center gap-3">
         {PLAYER_COLORS.map((swatch) => {
           const isTaken = takenColors.has(swatch) && swatch !== color;
           const isSelected = swatch === color;
@@ -121,7 +180,7 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
 
       {error && <p className="text-lg text-victory">{error}</p>}
 
-      <div className="mt-auto flex flex-wrap items-center justify-center gap-6">
+      <div className="mt-auto flex flex-wrap items-center justify-center gap-6 pb-2">
         <button
           type="button"
           onClick={onCancel}
