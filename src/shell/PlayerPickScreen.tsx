@@ -12,10 +12,18 @@ interface PlayerPickScreenProps {
 }
 
 type Mode = 'family' | 'computer';
+type Phase = 'select' | 'color';
+
+function randomBit(): boolean {
+  const bytes = new Uint8Array(1);
+  crypto.getRandomValues(bytes);
+  return bytes[0] % 2 === 0;
+}
 
 export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenProps) {
   const [players] = useState(() => listPlayers());
   const [mode, setMode] = useState<Mode>('family');
+  const [phase, setPhase] = useState<Phase>('select');
   const [selected, setSelected] = useState<PlayerId[]>([]);
   const levels = game.bot?.levels ?? [];
   const [levelId, setLevelId] = useState<number>(() => {
@@ -45,16 +53,95 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
       ? selected.length >= game.meta.minPlayers && selected.length <= game.meta.maxPlayers
       : selected.length === 1;
 
-  function confirm() {
+  // Ordre « naturel » avant tout choix de qui commence : l'ordre de sélection
+  // en famille, ou [humain, bot] contre l'ordinateur.
+  function participantsInOrder(): Player[] {
+    if (mode === 'computer') {
+      const human = players.find((p) => p.id === selected[0]);
+      const level = levels.find((l) => l.id === levelId) ?? levels[0];
+      return human ? [human, createBotPlayer(level)] : [];
+    }
+    return selected
+      .map((id) => players.find((p) => p.id === id))
+      .filter((p): p is Player => p !== undefined);
+  }
+
+  function finalize(orderedPlayers: Player[]) {
     play('tap');
-    const chosen = selected.map((id) => players.find((p) => p.id === id)!);
     if (mode === 'computer') {
       const level = levels.find((l) => l.id === levelId) ?? levels[0];
       updateSettings({ lastBotLevel: level.id });
-      onConfirm([chosen[0], createBotPlayer(level)], { playerId: BOT_PLAYER_ID, level: level.id });
+      onConfirm(orderedPlayers, { playerId: BOT_PLAYER_ID, level: level.id });
     } else {
-      onConfirm(chosen);
+      onConfirm(orderedPlayers);
     }
+  }
+
+  function onPlay() {
+    if (game.meta.colorLabels) {
+      play('tap');
+      setPhase('color');
+    } else {
+      finalize(participantsInOrder());
+    }
+  }
+
+  if (phase === 'color' && game.meta.colorLabels) {
+    const participants = participantsInOrder();
+    const [firstLabel] = game.meta.colorLabels;
+
+    return (
+      <div className="flex h-screen w-screen flex-col items-center justify-center gap-10 bg-board px-12 py-8">
+        <h1 className="text-4xl text-piece">Qui commence ?</h1>
+
+        <div className="flex flex-wrap items-center justify-center gap-10">
+          {participants.map((participant, index) => {
+            const other = participants[1 - index];
+            return (
+              <button
+                key={participant.id}
+                type="button"
+                onClick={() => finalize([participant, other])}
+                className="flex flex-col items-center gap-3"
+              >
+                <span
+                  className="block h-36 w-36 overflow-hidden rounded-full"
+                  style={{ boxShadow: `0 0 0 5px ${participant.color}` }}
+                >
+                  <img src={participant.photo} alt="" className="h-full w-full object-cover" />
+                </span>
+                <span className="text-xl text-piece">{participant.name}</span>
+                <span className="rounded-full bg-piece/15 px-4 py-1 text-lg text-piece">{firstLabel}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex gap-6">
+          <button
+            type="button"
+            onClick={() => {
+              play('tap');
+              setPhase('select');
+            }}
+            className="h-20 rounded-3xl bg-piece/20 px-8 text-xl text-piece"
+          >
+            Retour
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const first = randomBit() ? participants[0] : participants[1];
+              const second = first === participants[0] ? participants[1] : participants[0];
+              finalize([first, second]);
+            }}
+            className="h-20 rounded-3xl bg-victory px-10 text-2xl text-board"
+          >
+            Au hasard
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -160,7 +247,7 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
         <button
           type="button"
           disabled={!canStart}
-          onClick={confirm}
+          onClick={onPlay}
           className="h-20 rounded-3xl bg-victory px-10 text-2xl text-board disabled:opacity-40"
         >
           Jouer

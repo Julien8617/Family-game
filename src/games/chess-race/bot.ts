@@ -38,10 +38,10 @@ function chooseRandom(state: ChessRaceState): ChessRaceMove {
 // ---- niveau 2 — le poussin : glouton sur un coup ----
 
 function progress(state: ChessRaceState, cell: number): number {
-  const [yellow] = state.players;
+  const [white] = state.players;
   const piece = state.board[cell];
   const row = rowOf(cell);
-  return piece === yellow ? row : SIZE - 1 - row;
+  return piece === white ? row : SIZE - 1 - row;
 }
 
 function chooseGreedy(state: ChessRaceState): ChessRaceMove {
@@ -67,12 +67,12 @@ const COUNT_WEIGHT = 10;
 
 // Distance (en cases) du poussin le plus avancé de `player` jusqu'à sa
 // rangée d'arrivée. 0 s'il n'en a plus (n'arrive jamais).
-function distanceToGoal(state: ChessRaceState, player: PlayerId, isYellow: boolean): number {
+function distanceToGoal(state: ChessRaceState, player: PlayerId, isWhite: boolean): number {
   let best = -1;
   for (let cell = 0; cell < SIZE * SIZE; cell++) {
     if (state.board[cell] !== player) continue;
     const row = rowOf(cell);
-    const advancement = isYellow ? row : SIZE - 1 - row;
+    const advancement = isWhite ? row : SIZE - 1 - row;
     if (advancement > best) best = advancement;
   }
   if (best === -1) return SIZE; // aucun poussin : distance maximale, sans intérêt (compté ailleurs)
@@ -82,14 +82,14 @@ function distanceToGoal(state: ChessRaceState, player: PlayerId, isYellow: boole
 // Un poussin est « libre » si aucun adversaire ne peut jamais lui barrer la
 // route ou le prendre en chemin : aucune case adverse devant lui, sur sa
 // colonne ou les deux voisines (l'équivalent d'un pion passé aux échecs).
-function isFree(state: ChessRaceState, cell: number, isYellow: boolean): boolean {
-  const [yellow, red] = state.players;
-  const opponent = isYellow ? red : yellow;
+function isFree(state: ChessRaceState, cell: number, isWhite: boolean): boolean {
+  const [white, black] = state.players;
+  const opponent = isWhite ? black : white;
   const col = colOf(cell);
   const row = rowOf(cell);
   for (let c = Math.max(0, col - 1); c <= Math.min(SIZE - 1, col + 1); c++) {
     for (let r = 0; r < SIZE; r++) {
-      const ahead = isYellow ? r > row : r < row;
+      const ahead = isWhite ? r > row : r < row;
       if (!ahead) continue;
       if (state.board[cellOf(r, c)] === opponent) return false;
     }
@@ -97,42 +97,42 @@ function isFree(state: ChessRaceState, cell: number, isYellow: boolean): boolean
   return true;
 }
 
-function evaluateYellowPerspective(state: ChessRaceState): number {
-  const [yellow, red] = state.players;
-  let yellowCount = 0;
-  let redCount = 0;
-  let yellowFree = 0;
-  let redFree = 0;
+function evaluateWhitePerspective(state: ChessRaceState): number {
+  const [white, black] = state.players;
+  let whiteCount = 0;
+  let blackCount = 0;
+  let whiteFree = 0;
+  let blackFree = 0;
 
   for (let cell = 0; cell < SIZE * SIZE; cell++) {
     const occupant = state.board[cell];
-    if (occupant === yellow) {
-      yellowCount++;
-      if (isFree(state, cell, true)) yellowFree++;
-    } else if (occupant === red) {
-      redCount++;
-      if (isFree(state, cell, false)) redFree++;
+    if (occupant === white) {
+      whiteCount++;
+      if (isFree(state, cell, true)) whiteFree++;
+    } else if (occupant === black) {
+      blackCount++;
+      if (isFree(state, cell, false)) blackFree++;
     }
   }
 
-  let dYellow = distanceToGoal(state, yellow, true);
-  let dRed = distanceToGoal(state, red, false);
+  let dWhite = distanceToGoal(state, white, true);
+  let dBlack = distanceToGoal(state, black, false);
   // Tempo : le camp au trait est effectivement une demi-case plus proche —
   // « un coup d'avance vaut plus que n'importe quoi d'autre » dans une course.
-  if (state.turn === yellow) dYellow -= 0.5;
-  else dRed -= 0.5;
+  if (state.turn === white) dWhite -= 0.5;
+  else dBlack -= 0.5;
 
-  const raceScore = (dRed - dYellow) * RACE_WEIGHT;
-  const freeScore = (yellowFree - redFree) * FREE_WEIGHT;
-  const countScore = (yellowCount - redCount) * COUNT_WEIGHT;
+  const raceScore = (dBlack - dWhite) * RACE_WEIGHT;
+  const freeScore = (whiteFree - blackFree) * FREE_WEIGHT;
+  const countScore = (whiteCount - blackCount) * COUNT_WEIGHT;
 
   return raceScore + freeScore + countScore;
 }
 
 function evaluate(state: ChessRaceState): number {
-  const [yellow] = state.players;
-  const score = evaluateYellowPerspective(state);
-  return state.turn === yellow ? score : -score;
+  const [white] = state.players;
+  const score = evaluateWhitePerspective(state);
+  return state.turn === white ? score : -score;
 }
 
 function orderMoves(state: ChessRaceState, moves: ChessRaceMove[]): ChessRaceMove[] {

@@ -3,11 +3,11 @@ import type { BoardProps } from '../types';
 import { algebraic, colOf, legalMovesFrom, rowOf, SIZE } from './logic';
 import type { ChessRaceMove, ChessRaceState } from './logic';
 
-// Couleurs d'équipe fixes, comme un vrai jeu d'échecs — pas la couleur de
-// profil du joueur (celle-ci sert déjà à identifier qui joue dans la barre de
-// tour et l'écran de résultat).
-const YELLOW = '#E3B23C';
-const RED = '#C94F3D';
+// Couleurs de pièces fixes, comme un vrai jeu d'échecs — blancs et noirs, pas
+// la couleur de profil du joueur (celle-ci sert déjà à identifier qui joue
+// dans la barre de tour et l'écran de résultat).
+const WHITE_PIECE = '#FAF6EC';
+const BLACK_PIECE = '#201C16';
 
 export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMove>) {
   const [selected, setSelected] = useState<number | null>(null);
@@ -21,7 +21,7 @@ export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMov
   }, [state]);
 
   const legalTargets = selected !== null ? legalMovesFrom(state, selected) : [];
-  const [yellowId] = state.players;
+  const [whiteId] = state.players;
 
   function handleTap(cell: number) {
     const occupant = state.board[cell];
@@ -60,6 +60,7 @@ export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMov
         const isTarget = legalTargets.includes(cell);
         const isCaptureTarget = isTarget && occupant !== null;
         const labelColor = isLight ? 'text-squareDark/70' : 'text-squareLight/70';
+        const isWhitePiece = occupant === whiteId;
 
         return (
           <button
@@ -69,8 +70,8 @@ export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMov
             aria-label={algebraic(cell)}
             className={`relative flex items-center justify-center ${isLight ? 'bg-squareLight' : 'bg-squareDark'}`}
           >
-            {row === SIZE - 1 && <span className="absolute inset-x-0 top-0 h-1.5 bg-chickYellow" />}
-            {row === 0 && <span className="absolute inset-x-0 bottom-0 h-1.5 bg-chickRed" />}
+            {row === SIZE - 1 && <span className="absolute inset-x-0 top-0 h-1.5 bg-chessWhite" />}
+            {row === 0 && <span className="absolute inset-x-0 bottom-0 h-1.5 bg-chessBlack" />}
 
             {col === 0 && (
               <span className={`absolute left-1 top-1 text-[10px] font-bold ${labelColor}`}>{row + 1}</span>
@@ -81,7 +82,7 @@ export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMov
               </span>
             )}
 
-            {occupant && <Chick color={occupant === yellowId ? YELLOW : RED} />}
+            {occupant && <Pawn color={isWhitePiece ? WHITE_PIECE : BLACK_PIECE} dark={!isWhitePiece} />}
 
             {isSelected && <span className="absolute inset-1 rounded-xl ring-4 ring-victory ring-inset" />}
             {isTarget && !isCaptureTarget && (
@@ -95,13 +96,26 @@ export function Board({ state, onMove }: BoardProps<ChessRaceState, ChessRaceMov
   );
 }
 
-function Chick({ color }: { color: string }) {
+function Pawn({ color, dark }: { color: string; dark: boolean }) {
+  // Contour clair sur les pièces noires (sinon elles se fondent dans la case
+  // foncée), contour sombre sur les blanches — même silhouette de pion
+  // classique des deux côtés.
+  const stroke = dark ? 'rgba(250,246,236,0.35)' : '#1E3D34';
+
   return (
-    <svg viewBox="0 0 24 24" className="h-[62%] w-[62%]" aria-hidden>
-      <circle cx="12" cy="15" r="7" fill={color} />
-      <circle cx="12" cy="7" r="4.5" fill={color} />
-      <path d="M16 6.5l4 1.5-4 1.5z" fill="#1E3D34" />
-      <circle cx="13.5" cy="6" r="0.9" fill="#1E3D34" />
+    <svg viewBox="0 0 24 24" className="h-[66%] w-[66%]" aria-hidden>
+      {/* Silhouette de pion classique (tête, col, corps évasé, socle) — un
+          vrai échiquier, sans aucun ornement « poussin » sur la pièce
+          elle-même. Le thème reste dans le nom du jeu et les icônes de niveau. */}
+      <path
+        d="M9.2 19 C9.0 14.2 9.6 11.6 10.6 10.3 C11.0 9.8 13.0 9.8 13.4 10.3 C14.4 11.6 15.0 14.2 14.8 19 Z"
+        fill={color}
+        stroke={stroke}
+        strokeWidth="0.4"
+        strokeLinejoin="round"
+      />
+      <rect x="7" y="18.6" width="10" height="2.6" rx="1.3" fill={color} stroke={stroke} strokeWidth="0.4" />
+      <circle cx="12" cy="7" r="3.2" fill={color} stroke={stroke} strokeWidth="0.4" />
     </svg>
   );
 }

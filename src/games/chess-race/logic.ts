@@ -1,10 +1,10 @@
 import type { PlayerId, Result } from '../types';
 
 // Échiquier 8x8. Index de case = row * 8 + col, row 0 = rangée 1 (bord des
-// jaunes), row 7 = rangée 8 (bord des roux). Les jaunes (players[0]) avancent
-// vers row croissant, les roux (players[1]) vers row décroissant — exactement
-// comme les pions blancs/noirs aux échecs, pour que rien ne surprenne le jour
-// où d'autres pièces s'ajoutent.
+// blancs), row 7 = rangée 8 (bord des noirs). Les blancs (players[0])
+// avancent vers row croissant, les noirs (players[1]) vers row décroissant —
+// exactement comme aux échecs, pour que rien ne surprenne le jour où
+// d'autres pièces s'ajoutent.
 
 export const SIZE = 8;
 
@@ -13,7 +13,7 @@ export type Cell = PlayerId | null;
 export interface ChessRaceState {
   board: Cell[]; // longueur 64
   turn: PlayerId;
-  players: [PlayerId, PlayerId]; // [jaunes, roux]
+  players: [PlayerId, PlayerId]; // [blancs, noirs]
   seed: number;
   moveCount: number;
 }
@@ -39,22 +39,22 @@ export function algebraic(cell: number): string {
   return `${String.fromCharCode(97 + colOf(cell))}${rowOf(cell) + 1}`;
 }
 
-export function colorOf(state: ChessRaceState, player: PlayerId): 'yellow' | 'red' {
-  return state.players[0] === player ? 'yellow' : 'red';
+export function colorOf(state: ChessRaceState, player: PlayerId): 'white' | 'black' {
+  return state.players[0] === player ? 'white' : 'black';
 }
 
-function directionOf(color: 'yellow' | 'red'): 1 | -1 {
-  return color === 'yellow' ? 1 : -1;
+function directionOf(color: 'white' | 'black'): 1 | -1 {
+  return color === 'white' ? 1 : -1;
 }
 
 export function createState(players: PlayerId[], seed: number): ChessRaceState {
-  const [yellow, red] = players as [PlayerId, PlayerId];
+  const [white, black] = players as [PlayerId, PlayerId];
   const board: Cell[] = Array(SIZE * SIZE).fill(null);
   for (let col = 0; col < SIZE; col++) {
-    board[cellOf(1, col)] = yellow; // rangée 2
-    board[cellOf(6, col)] = red; // rangée 7
+    board[cellOf(1, col)] = white; // rangée 2
+    board[cellOf(6, col)] = black; // rangée 7
   }
-  return { board, turn: yellow, players: [yellow, red], seed, moveCount: 0 };
+  return { board, turn: white, players: [white, black], seed, moveCount: 0 };
 }
 
 // Cases atteignables depuis `from` pour le joueur au trait — avance sur case
@@ -116,8 +116,8 @@ export function applyMove(state: ChessRaceState, move: ChessRaceMove): ChessRace
   const piece = board[move.from];
   board[move.from] = null;
   board[move.to] = piece;
-  const [yellow, red] = state.players;
-  const turn = state.turn === yellow ? red : yellow;
+  const [white, black] = state.players;
+  const turn = state.turn === white ? black : white;
   return { ...state, board, turn, moveCount: state.moveCount + 1 };
 }
 
@@ -127,21 +127,21 @@ export function currentPlayer(state: ChessRaceState): PlayerId | null {
 }
 
 export function getResult(state: ChessRaceState): Result | null {
-  const [yellow, red] = state.players;
+  const [white, black] = state.players;
 
   for (let col = 0; col < SIZE; col++) {
-    if (state.board[cellOf(SIZE - 1, col)] === yellow) return { kind: 'win', winner: yellow };
-    if (state.board[cellOf(0, col)] === red) return { kind: 'win', winner: red };
+    if (state.board[cellOf(SIZE - 1, col)] === white) return { kind: 'win', winner: white };
+    if (state.board[cellOf(0, col)] === black) return { kind: 'win', winner: black };
   }
 
-  let yellowCount = 0;
-  let redCount = 0;
+  let whiteCount = 0;
+  let blackCount = 0;
   for (const cell of state.board) {
-    if (cell === yellow) yellowCount++;
-    else if (cell === red) redCount++;
+    if (cell === white) whiteCount++;
+    else if (cell === black) blackCount++;
   }
-  if (yellowCount === 0) return { kind: 'win', winner: red };
-  if (redCount === 0) return { kind: 'win', winner: yellow };
+  if (whiteCount === 0) return { kind: 'win', winner: black };
+  if (blackCount === 0) return { kind: 'win', winner: white };
 
   if (rawLegalMoves(state).length === 0) return { kind: 'draw' };
 

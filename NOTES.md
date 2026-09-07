@@ -194,8 +194,8 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   state ⇒ même coup), juste dépendant du seed comme le reste du jeu. Écart
   par rapport à la lettre de la spec (qui ne décrit le seed que pour le
   niveau 1) mais nécessaire pour que le critère 6 ait un sens ; les deux
-  appariements alternent aussi qui joue les jaunes (premier trait) pour ne
-  pas biaiser le résultat par l'avantage de la première case.
+  appariements alternent aussi qui joue en premier pour ne pas biaiser le
+  résultat par l'avantage de la première case.
 - **Le son `invalid` exige que `Board` tente le coup, pas qu'il l'empêche** :
   contrairement au morpion (`disabled={cell !== null}`), `chess-race/Board.tsx`
   appelle toujours `onMove({from, to})` dès qu'une pièce est sélectionnée et
@@ -204,11 +204,32 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   retombe que sur un vrai changement d'état (`useEffect` sur `state`), pas
   sur une tentative refusée : on peut réessayer tout de suite sans retoucher
   la pièce.
-- **Couleurs de pièces fixes, pas la couleur de profil** : contrairement au
-  morpion (marque = `player.color`), les poussins sont jaunes/roux de façon
-  fixe (`chickYellow`/`chickRed` dans `tailwind.config.js`) — un vrai jeu
-  d'échecs n'est pas teinté par qui le joue. La couleur de profil reste
-  l'identifiant dans la barre de tour et l'écran de résultat.
+- **Couleurs de pièces fixes, pas la couleur de profil — et littéralement
+  blanc/noir** : contrairement au morpion (marque = `player.color`), les
+  pièces sont blanches/noires de façon fixe (`chessWhite`/`chessBlack` dans
+  `tailwind.config.js`) — un vrai jeu d'échecs n'est pas teinté par qui le
+  joue. Deux itérations avant d'arriver là : d'abord jaune/roux (thème
+  « poussin » porté par la pièce elle-même, avec un petit bec), rejeté par
+  l'utilisateur deux fois de suite — d'abord « garde l'esthétique d'un vrai
+  jeu d'échecs » (le bec est resté, juste sur une vraie silhouette de pion),
+  puis « pas de bec, un vrai échiquier ». Le thème poussin ne vit plus que
+  dans le nom du jeu et les icônes de niveau ; la pièce posée sur l'échiquier
+  est un pion classique, sans ornement. La couleur de profil reste
+  l'identifiant dans la barre de tour et l'écran de résultat. Contour clair
+  sur les pièces noires (`rgba(250,246,236,0.35)`) pour qu'elles ne se
+  fondent pas dans la case foncée — l'inverse (contour sombre) sur les
+  blanches.
+- **« Qui commence ? » — extension générique du contrat, pas un cas
+  particulier de chess-race** : `GameMeta.colorLabels?: [string, string]`
+  (`['Blancs', 'Noirs']` pour ce jeu) sur le modèle de `supportsRemote`. Si
+  défini, `PlayerPickScreen` ajoute une étape après la sélection des
+  participants (famille ou bot compris) : deux boutons — un par participant,
+  avec son nom et le premier libellé — plus « Au hasard », qui réordonnent
+  `players[]` avant `onConfirm`. Le shell ne sait toujours pas *pourquoi*
+  l'ordre compte, juste qu'il compte parfois ; un futur jeu à deux camps
+  nommés profite du même mécanisme sans y toucher. `chess-race/logic.ts`
+  traite déjà `players[0]` comme celui qui commence (c'était vrai depuis le
+  début, juste jamais choisi explicitement) — aucun changement côté jeu.
 - **Taille du plateau a forcé un (petit) changement du shell** : `GameScreen`
   imposait un plateau fixe de 600×600 px à tous les jeux, insuffisant pour
   8×8 cases ≥ 80 px. Remplacé par une taille responsive
@@ -235,10 +256,6 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   (œuf → poussin → poule → coq), progression de taille/complexité lisible
   d'un coup d'œil sans lire, dans la palette existante. Pas de licence à
   documenter puisque rien n'est emprunté.
-- Le joueur humain joue toujours les jaunes (premier trait) contre
-  l'ordinateur — décision simple pour une enfant de cinq ans : elle commence
-  toujours, jamais besoin d'expliquer pourquoi l'ordinateur a parfois le
-  premier coup.
 
 ## Process établi avec l'utilisateur
 

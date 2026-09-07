@@ -13,8 +13,8 @@ export default {
         // couleur fixe, pas teintées par le profil du joueur.
         squareLight: '#EDE0C0',
         squareDark: '#2A4A40',
-        chickYellow: '#E3B23C',
-        chickRed: '#C94F3D',
+        chessWhite: '#FAF6EC',
+        chessBlack: '#201C16',
       },
       fontFamily: {
         // ui-rounded rend SF Pro Rounded sur iPadOS Safari — la cible réelle —

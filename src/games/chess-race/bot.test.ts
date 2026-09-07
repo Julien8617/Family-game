@@ -3,8 +3,8 @@ import { chooseMove, searchBestMove } from './bot';
 import { applyMove, createState, getResult } from './logic';
 import type { ChessRaceMove, ChessRaceState } from './logic';
 
-const YELLOW = 'yellow-player';
-const RED = 'red-player';
+const WHITE = 'white-player';
+const BLACK = 'black-player';
 
 type Policy = (state: ChessRaceState) => ChessRaceMove;
 
@@ -15,17 +15,17 @@ const PLY_SAFETY_CAP = 200;
 
 function playGame(
   seed: number,
-  yellowPolicy: Policy,
-  redPolicy: Policy,
-): { winner: 'yellow' | 'red' | 'draw' } {
-  let state = createState([YELLOW, RED], seed);
+  whitePolicy: Policy,
+  blackPolicy: Policy,
+): { winner: 'white' | 'black' | 'draw' } {
+  let state = createState([WHITE, BLACK], seed);
   for (let ply = 0; ply < PLY_SAFETY_CAP; ply++) {
     const result = getResult(state);
     if (result) {
       if (result.kind === 'draw') return { winner: 'draw' };
-      return { winner: result.winner === YELLOW ? 'yellow' : 'red' };
+      return { winner: result.winner === WHITE ? 'white' : 'black' };
     }
-    const move = state.turn === YELLOW ? yellowPolicy(state) : redPolicy(state);
+    const move = state.turn === WHITE ? whitePolicy(state) : blackPolicy(state);
     state = applyMove(state, move);
   }
   return { winner: 'draw' }; // ne devrait jamais être atteint sur ce jeu
@@ -58,7 +58,7 @@ describe('chess-race bot — déterminisme', () => {
   });
 
   it('chooseMove(level 3) est une fonction pure de state (même state, même coup)', () => {
-    const state = createState([YELLOW, RED], 7);
+    const state = createState([WHITE, BLACK], 7);
     expect(chooseMove(state, 3)).toEqual(chooseMove(state, 3));
   });
 });
@@ -70,14 +70,14 @@ describe('chess-race bot — force des niveaux', () => {
     for (let i = 0; i < games; i++) {
       // Alterne qui joue les jaunes (premier trait) pour ne pas biaiser le
       // test par l'avantage du premier coup.
-      const level4IsYellow = i % 2 === 0;
+      const level4IsWhite = i % 2 === 0;
       const { winner } = playGame(
         i,
-        level4IsYellow ? level4Depth : level1,
-        level4IsYellow ? level1 : level4Depth,
+        level4IsWhite ? level4Depth : level1,
+        level4IsWhite ? level1 : level4Depth,
       );
       const level4Won =
-        (level4IsYellow && winner === 'yellow') || (!level4IsYellow && winner === 'red');
+        (level4IsWhite && winner === 'white') || (!level4IsWhite && winner === 'black');
       if (level4Won) level4Wins++;
     }
     expect(level4Wins / games).toBeGreaterThan(0.95);
@@ -87,14 +87,14 @@ describe('chess-race bot — force des niveaux', () => {
     const games = 200;
     let level3Wins = 0;
     for (let i = 0; i < games; i++) {
-      const level3IsYellow = i % 2 === 0;
+      const level3IsWhite = i % 2 === 0;
       const { winner } = playGame(
         i,
-        level3IsYellow ? level3Depth : level2,
-        level3IsYellow ? level2 : level3Depth,
+        level3IsWhite ? level3Depth : level2,
+        level3IsWhite ? level2 : level3Depth,
       );
       const level3Won =
-        (level3IsYellow && winner === 'yellow') || (!level3IsYellow && winner === 'red');
+        (level3IsWhite && winner === 'white') || (!level3IsWhite && winner === 'black');
       if (level3Won) level3Wins++;
     }
     expect(level3Wins / games).toBeGreaterThan(0.75);
@@ -106,7 +106,7 @@ describe('chess-race bot — budget de temps (niveau 4)', () => {
     // Filet de sécurité, pas une mesure de performance iPad : une machine de
     // CI peut être plus lente ou plus rapide qu'un A8X. Le critère 8 se
     // vérifie pour de vrai sur l'appareil.
-    const state = createState([YELLOW, RED], 1);
+    const state = createState([WHITE, BLACK], 1);
     const start = performance.now();
     chooseMove(state, 4);
     const elapsed = performance.now() - start;

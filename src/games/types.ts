@@ -12,6 +12,12 @@ export interface GameMeta {
   minPlayers: number;
   maxPlayers: number;
   supportsRemote: boolean;
+  // Optionnel : un jeu à deux joueurs où l'ordre compte (qui commence, quelle
+  // « couleur ») propose un libellé par place — ex. ['Blancs', 'Noirs'].
+  // Le shell affiche alors une étape « qui commence » (dont un tirage au
+  // sort) et réordonne les joueurs en conséquence ; il ne sait toujours rien
+  // de la raison pour laquelle l'ordre compte.
+  colorLabels?: [string, string];
 }
 
 export interface BoardProps<S, M> {

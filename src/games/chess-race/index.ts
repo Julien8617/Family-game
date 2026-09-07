@@ -17,6 +17,7 @@ export const chessRace: GameModule<ChessRaceState, ChessRaceMove> = {
     minPlayers: 2,
     maxPlayers: 2,
     supportsRemote: false,
+    colorLabels: ['Blancs', 'Noirs'],
   },
   createState,
   isValidMove,
