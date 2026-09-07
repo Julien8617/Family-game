@@ -17,6 +17,10 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
   repère (photo, nom) dupliqué en haut et en bas de l'écran — chacun voit
   le sien à l'endroit, sait d'un coup d'œil si c'est son tour, sans que le
   plateau ne bouge.
+- Bouton « Quitter » sur tous les jeux (coin haut gauche) : rester appuyé
+  2 secondes pour interrompre une partie en cours et revenir au menu — un
+  simple tap ne fait rien, pour éviter qu'une partie soit coupée par
+  mégarde.
 
 ## 2026-09-07 — Avatar facultatif et recadrage repositionnable
 

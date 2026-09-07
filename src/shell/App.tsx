@@ -82,6 +82,7 @@ export function App() {
               bot: screen.bot,
             })
           }
+          onExit={() => setScreen({ kind: 'menu' })}
         />
       );
 

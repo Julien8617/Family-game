@@ -314,6 +314,23 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   (œuf → poussin → poule → coq), progression de taille/complexité lisible
   d'un coup d'œil sans lire, dans la palette existante. Pas de licence à
   documenter puisque rien n'est emprunté.
+- **Bouton « Quitter » générique, dans `GameScreen` — pas dans chaque jeu** :
+  rester appuyé 2 s (pas un simple tap) avant de couper une partie, pour
+  qu'un enfant qui touche l'écran par mégarde ne perde jamais une partie en
+  cours. Anneau de progression circulaire (SVG `stroke-dasharray` /
+  `strokeDashoffset`, avancé par `requestAnimationFrame` plutôt qu'un
+  `setInterval` — animation fluide, et le pourcentage se recalcule à partir
+  d'un horodatage de départ, jamais d'un compteur de tics qui dériverait).
+  `onPointerUp`/`onPointerLeave`/`onPointerCancel` remettent la progression
+  à zéro : relâcher avant 2 s annule sans laisser de trace. Bouton placé
+  avec de la marge (`left-6 top-6`, comme l'icône réglages du menu) plutôt
+  que dans l'angle exact de l'écran : un anneau complet reste toujours
+  entièrement visible, pas de demi-cercle nécessaire. Cible tactile à
+  80 px (`h-20 w-20`), comme l'exige la direction visuelle. Testé par script
+  (`PointerEvent` synthétique) faute de pouvoir simuler un appui maintenu
+  avec les outils d'automatisation du navigateur : down+up immédiat
+  n'annule rien côté partie (correct), un maintien franchissant 2 s déclenche
+  bien le retour au menu.
 
 ## Process établi avec l'utilisateur
 

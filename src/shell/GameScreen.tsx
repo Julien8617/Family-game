@@ -10,11 +10,16 @@ interface GameScreenProps {
   seed: number;
   bot?: { playerId: PlayerId; level: number };
   onGameEnd(result: Result, finalState: any): void;
+  onExit(): void;
 }
 
 // Le temps de voir la ligne gagnante se dessiner sur le plateau avant de
 // basculer sur l'écran de résultat (spec 03, critère 9 : ligne, puis photo).
 const RESULT_DELAY_MS = 900;
+
+// Rester appuyé, pas taper : un enfant qui touche l'écran par mégarde ne
+// doit jamais couper une partie en cours.
+const EXIT_HOLD_MS = 2000;
 
 // Spec 04 : un adversaire qui répond avant que le doigt ne soit relevé est
 // déroutant, même quand le calcul est instantané (niveaux 1 et 2).
@@ -23,7 +28,7 @@ const BOT_MIN_DELAY_MS = 600;
 // de bloquer le fil principal sur une recherche synchrone (niveaux 3 et 4).
 const BOT_PAINT_DELAY_MS = 80;
 
-export function GameScreen({ game, players, seed, bot, onGameEnd }: GameScreenProps) {
+export function GameScreen({ game, players, seed, bot, onGameEnd, onExit }: GameScreenProps) {
   const [transport] = useState(() => createLocalTransport());
   const [state, setState] = useState<any>(() =>
     game.createState(
@@ -121,7 +126,9 @@ export function GameScreen({ game, players, seed, bot, onGameEnd }: GameScreenPr
   const dualSided = sharedDevice && Boolean(game.meta.colorLabels);
 
   return (
-    <div className="flex h-screen w-screen flex-col items-center bg-board px-6 py-4">
+    <div className="relative flex h-screen w-screen flex-col items-center bg-board px-6 py-4">
+      <ExitButton onExit={onExit} />
+
       {dualSided ? (
         <PlayerBadge player={players[1]} active={turnId === players[1].id} rotated />
       ) : (
@@ -176,5 +183,76 @@ function PlayerBadge({ player, active, rotated }: { player: Player; active: bool
       />
       <span className="text-lg text-piece">{player.name}</span>
     </div>
+  );
+}
+
+// Bouton « Quitter » — placé avec de la marge (pas dans l'angle exact de
+// l'écran), donc un anneau de progression complet reste toujours visible en
+// entier pendant le maintien.
+const EXIT_BUTTON_RADIUS = 34;
+const EXIT_BUTTON_CIRCUMFERENCE = 2 * Math.PI * EXIT_BUTTON_RADIUS;
+
+function ExitButton({ onExit }: { onExit(): void }) {
+  const [progress, setProgress] = useState(0);
+  const frameRef = useRef<number>();
+
+  function start() {
+    const startedAt = performance.now();
+    const tick = (now: number) => {
+      const elapsed = now - startedAt;
+      const p = Math.min(1, elapsed / EXIT_HOLD_MS);
+      setProgress(p);
+      if (p >= 1) {
+        play('tap');
+        onExit();
+        return;
+      }
+      frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+  }
+
+  function cancel() {
+    if (frameRef.current !== undefined) cancelAnimationFrame(frameRef.current);
+    setProgress(0);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (frameRef.current !== undefined) cancelAnimationFrame(frameRef.current);
+    };
+  }, []);
+
+  return (
+    <button
+      type="button"
+      onPointerDown={start}
+      onPointerUp={cancel}
+      onPointerLeave={cancel}
+      onPointerCancel={cancel}
+      aria-label="Quitter la partie (rester appuyé)"
+      className="absolute left-6 top-6 flex h-20 w-20 items-center justify-center rounded-full bg-piece/10 opacity-60"
+    >
+      <svg viewBox="0 0 80 80" className="absolute h-full w-full -rotate-90" aria-hidden>
+        <circle cx="40" cy="40" r={EXIT_BUTTON_RADIUS} fill="none" stroke="rgba(242,228,201,0.2)" strokeWidth="5" />
+        <circle
+          cx="40"
+          cy="40"
+          r={EXIT_BUTTON_RADIUS}
+          fill="none"
+          stroke="#F5A623"
+          strokeWidth="5"
+          strokeLinecap="round"
+          strokeDasharray={EXIT_BUTTON_CIRCUMFERENCE}
+          strokeDashoffset={EXIT_BUTTON_CIRCUMFERENCE * (1 - progress)}
+        />
+      </svg>
+      <svg viewBox="0 0 24 24" className="h-8 w-8" aria-hidden>
+        <g stroke="#F2E4C9" strokeWidth="2.4" strokeLinecap="round">
+          <line x1="7" y1="7" x2="17" y2="17" />
+          <line x1="17" y1="7" x2="7" y2="17" />
+        </g>
+      </svg>
+    </button>
   );
 }
