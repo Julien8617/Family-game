@@ -21,7 +21,12 @@ function range(start: number, end: number): number[] {
   return result;
 }
 
-export function Board({ state, localPlayer, onMove }: BoardProps<ChessRaceState, ChessRaceMove>) {
+export function Board({
+  state,
+  localPlayer,
+  sharedDevice,
+  onMove,
+}: BoardProps<ChessRaceState, ChessRaceMove>) {
   const [selected, setSelected] = useState<number | null>(null);
 
   // Une nouvelle référence de state = un vrai coup a été appliqué (le shell
@@ -40,6 +45,13 @@ export function Board({ state, localPlayer, onMove }: BoardProps<ChessRaceState,
   // un repère arbitraire en famille (l'iPad se partage, personne n'est plus
   // « local » qu'un autre). Son camp reste en bas, quelle que soit sa couleur.
   const flipped = colorOf(state, localPlayer) === 'black';
+
+  // Deux humains autour du même iPad (sharedDevice) : le plateau ne bouge
+  // jamais (flipped reste toujours false dans ce cas, cf. GameScreen), donc
+  // les noirs sont systématiquement en haut de l'écran. Plutôt que de les
+  // laisser « à l'envers » pour le joueur assis de ce côté, on tourne
+  // seulement leurs pièces à 180° — le plateau, lui, ne pivote pas.
+  const faceOwner = (isWhite: boolean) => sharedDevice && !isWhite;
 
   function handleTap(cell: number) {
     const occupant = state.board[cell];
@@ -114,7 +126,13 @@ export function Board({ state, localPlayer, onMove }: BoardProps<ChessRaceState,
               </span>
             )}
 
-            {occupant && <Pawn color={isWhitePiece ? WHITE_PIECE : BLACK_PIECE} dark={!isWhitePiece} />}
+            {occupant && (
+              <Pawn
+                color={isWhitePiece ? WHITE_PIECE : BLACK_PIECE}
+                dark={!isWhitePiece}
+                rotated={faceOwner(isWhitePiece)}
+              />
+            )}
 
             {isSelected && <span className="absolute inset-1 rounded-xl ring-4 ring-victory ring-inset" />}
             {isTarget && !isCaptureTarget && (
@@ -128,13 +146,18 @@ export function Board({ state, localPlayer, onMove }: BoardProps<ChessRaceState,
   );
 }
 
-function Pawn({ color, dark }: { color: string; dark: boolean }) {
+function Pawn({ color, dark, rotated }: { color: string; dark: boolean; rotated: boolean }) {
   // Contour clair sur les pièces noires (sinon elles se fondent dans la case
   // foncée), contour sombre sur les blanches — même silhouette des deux côtés.
   const stroke = dark ? 'rgba(250,246,236,0.4)' : '#1E3D34';
 
   return (
-    <svg viewBox="0 0 45 45" className="h-[72%] w-[72%]" aria-hidden>
+    <svg
+      viewBox="0 0 45 45"
+      className="h-[72%] w-[72%]"
+      style={rotated ? { transform: 'rotate(180deg)' } : undefined}
+      aria-hidden
+    >
       {/* Silhouette Staunton classique (tête, col, corps évasé, épaule,
           socle à deux niveaux) — la forme générique reprise par la quasi-
           totalité des jeux d'échecs numériques, dessinée à la main (app

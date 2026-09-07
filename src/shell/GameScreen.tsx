@@ -111,31 +111,70 @@ export function GameScreen({ game, players, seed, bot, onGameEnd }: GameScreenPr
   // arbitraire mais stable (players[0]) — un jeu qui s'en sert pour orienter
   // son plateau (spec 04) obtient ainsi une orientation fixe, pas une
   // rotation à chaque tour.
+  const sharedDevice = !bot;
   const localPlayer = bot ? players.find((p) => p.id !== bot.playerId)!.id : players[0].id;
+
+  // Deux humains autour d'un même iPad, dans un jeu à deux camps orientés :
+  // chacun reçoit son propre repère (photo/nom), orienté vers lui, plutôt
+  // qu'une seule barre lisible d'un seul côté de la table. Sans ça (bot, ou
+  // jeu sans camps comme le morpion), la barre unique habituelle suffit.
+  const dualSided = sharedDevice && Boolean(game.meta.colorLabels);
 
   return (
     <div className="flex h-screen w-screen flex-col items-center bg-board px-6 py-4">
-      <div className="flex items-center gap-3 rounded-full bg-piece/10 px-5 py-2">
-        <img
-          src={turnPlayer.photo}
-          alt=""
-          className="h-11 w-11 rounded-full object-cover"
-          style={{ boxShadow: `0 0 0 3px ${turnPlayer.color}` }}
-        />
-        <span className={`text-xl text-piece ${thinking ? 'animate-pulse' : ''}`}>
-          {thinking ? `${turnPlayer.name} réfléchit…` : `Tour de ${turnPlayer.name}`}
-        </span>
-      </div>
+      {dualSided ? (
+        <PlayerBadge player={players[1]} active={turnId === players[1].id} rotated />
+      ) : (
+        <div className="flex items-center gap-3 rounded-full bg-piece/10 px-5 py-2">
+          <img
+            src={turnPlayer.photo}
+            alt=""
+            className="h-11 w-11 rounded-full object-cover"
+            style={{ boxShadow: `0 0 0 3px ${turnPlayer.color}` }}
+          />
+          <span className={`text-xl text-piece ${thinking ? 'animate-pulse' : ''}`}>
+            {thinking ? `${turnPlayer.name} réfléchit…` : `Tour de ${turnPlayer.name}`}
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-1 items-center justify-center overflow-hidden py-2">
-        <div style={{ width: 'min(94vw, calc(100vh - 132px))', aspectRatio: '1 / 1' }}>
+        <div
+          style={{
+            width: `min(94vw, calc(100vh - ${dualSided ? 168 : 132}px))`,
+            aspectRatio: '1 / 1',
+          }}
+        >
           <game.Board
             state={state}
             localPlayer={localPlayer}
+            sharedDevice={sharedDevice}
             players={players}
             onMove={(move) => transport.send(move)}
           />
         </div>
       </div>
+
+      {dualSided && <PlayerBadge player={players[0]} active={turnId === players[0].id} />}
+    </div>
+  );
+}
+
+function PlayerBadge({ player, active, rotated }: { player: Player; active: boolean; rotated?: boolean }) {
+  return (
+    <div
+      className={`flex items-center gap-3 rounded-full px-5 py-2 transition-opacity ${
+        active ? 'bg-piece/15 opacity-100' : 'bg-piece/5 opacity-50'
+      }`}
+      style={rotated ? { transform: 'rotate(180deg)' } : undefined}
+    >
+      <img
+        src={player.photo}
+        alt=""
+        className="h-9 w-9 rounded-full object-cover"
+        style={{ boxShadow: active ? `0 0 0 3px ${player.color}` : '0 0 0 2px rgba(242,228,201,0.25)' }}
+      />
+      <span className="text-lg text-piece">{player.name}</span>
     </div>
   );
 }

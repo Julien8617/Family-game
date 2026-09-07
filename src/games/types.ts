@@ -24,6 +24,14 @@ export interface BoardProps<S, M> {
   state: S;
   localPlayer: PlayerId;
   players: Player[];
+  // true quand plusieurs humains se partagent physiquement cet appareil pour
+  // cette partie (deux joueurs, iPad qu'on se passe) — false s'il n'y a
+  // qu'un seul spectateur fixe (contre l'ordinateur ; plus tard, chaque
+  // appareil d'une partie en réseau). Un jeu à deux camps orientés peut s'en
+  // servir pour présenter chaque camp face à son propre joueur (pièces
+  // tournées, repères dupliqués) sans jamais faire pivoter le plateau
+  // lui-même.
+  sharedDevice: boolean;
   onMove(move: M): void;
 }
 

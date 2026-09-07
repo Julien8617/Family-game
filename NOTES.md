@@ -262,6 +262,32 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   une fois celui-ci retourné. Les coups eux-mêmes ne sont pas affectés :
   `handleTap` raisonne toujours en indices de case bruts, l'orientation
   n'est qu'un ordre de rendu.
+- **Deux humains autour du même iPad : chacun son côté, sans jamais faire
+  bouger le plateau** — la suite logique de la correction précédente.
+  Question de l'utilisateur : comment chacun peut-il lire les pièces dans
+  son sens, si le plateau ne pivote pas ? Réponse retenue : le plateau
+  (les cases) ne bouge jamais, mais deux choses sont dupliquées/orientées
+  par joueur, pas par tour :
+  1. `BoardProps.sharedDevice` (nouveau champ générique, calculé par
+     `GameScreen` comme `!bot` — vrai en famille, faux contre l'ordinateur
+     et plus tard sur un jeu en réseau où chaque appareil n'a qu'un seul
+     spectateur). `chess-race/Board.tsx` tourne à 180° (`transform: rotate
+     (180deg)` sur le SVG) les pièces du camp visuellement en haut — en
+     mode partagé, `flipped` vaut toujours `false` (cf. note précédente),
+     donc c'est toujours les noirs — au lieu de les laisser à l'envers pour
+     le joueur assis de ce côté-là.
+  2. `GameScreen` remplace la barre de tour unique par deux badges compacts
+     (photo + nom) quand `sharedDevice && game.meta.colorLabels` : un en
+     haut (tourné à 180°, pour le joueur d'en face), un en bas (à l'endroit).
+     Celui dont c'est le tour est mis en avant (anneau de sa couleur,
+     opacité pleine), l'autre s'estompe — chacun voit instantanément si
+     c'est son tour, depuis son propre côté de la table, sans avoir à lire
+     à l'envers.
+  Généricité préservée : ni `sharedDevice` ni la logique de duplication ne
+  mentionnent les échecs — un futur jeu à deux camps orientés (`colorLabels`
+  défini) en profite automatiquement ; le morpion (pas de `colorLabels`) et
+  le mode contre l'ordinateur (`sharedDevice` faux) gardent la barre unique
+  d'origine, vérifié sans régression dans les deux cas.
 - **Taille du plateau a forcé un (petit) changement du shell** : `GameScreen`
   imposait un plateau fixe de 600×600 px à tous les jeux, insuffisant pour
   8×8 cases ≥ 80 px. Remplacé par une taille responsive
