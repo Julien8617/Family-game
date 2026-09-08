@@ -2,12 +2,8 @@ import { useEffect, useState } from 'react';
 import type { BoardProps } from '../types';
 import { algebraic, colOf, colorOf, legalMovesFrom, rowOf, SIZE } from './logic';
 import type { ChessRaceMove, ChessRaceState } from './logic';
-
-// Couleurs de pièces fixes, comme un vrai jeu d'échecs — blancs et noirs, pas
-// la couleur de profil du joueur (celle-ci sert déjà à identifier qui joue
-// dans la barre de tour et l'écran de résultat).
-const WHITE_PIECE = '#FAF6EC';
-const BLACK_PIECE = '#201C16';
+import { Pawn } from './Pawn';
+import { pawnSkin } from './pawnSkin';
 
 // range(0, 8) -> [0..7] ; range(7, -1) -> [7..0]. Sert à parcourir lignes et
 // colonnes dans un sens ou dans l'autre selon l'orientation du plateau.
@@ -25,6 +21,7 @@ export function Board({
   state,
   localPlayer,
   sharedDevice,
+  players,
   onMove,
 }: BoardProps<ChessRaceState, ChessRaceMove>) {
   const [selected, setSelected] = useState<number | null>(null);
@@ -38,7 +35,9 @@ export function Board({
   }, [state]);
 
   const legalTargets = selected !== null ? legalMovesFrom(state, selected) : [];
-  const [whiteId] = state.players;
+  const [whiteId, blackId] = state.players;
+  const whiteColor = players.find((p) => p.id === whiteId)!.color;
+  const blackColor = players.find((p) => p.id === blackId)!.color;
 
   // Orientation fixe pour toute la partie, pas une rotation à chaque tour :
   // `localPlayer` (GameScreen) est stable — l'humain contre l'ordinateur,
@@ -128,8 +127,7 @@ export function Board({
 
             {occupant && (
               <Pawn
-                color={isWhitePiece ? WHITE_PIECE : BLACK_PIECE}
-                dark={!isWhitePiece}
+                skin={pawnSkin(isWhitePiece ? whiteColor : blackColor, isWhitePiece ? 'white' : 'black')}
                 rotated={faceOwner(isWhitePiece)}
               />
             )}
@@ -143,38 +141,5 @@ export function Board({
         );
       })}
     </div>
-  );
-}
-
-function Pawn({ color, dark, rotated }: { color: string; dark: boolean; rotated: boolean }) {
-  // Contour clair sur les pièces noires (sinon elles se fondent dans la case
-  // foncée), contour sombre sur les blanches — même silhouette des deux côtés.
-  const stroke = dark ? 'rgba(250,246,236,0.4)' : '#1E3D34';
-
-  return (
-    <svg
-      viewBox="0 0 45 45"
-      className="h-[72%] w-[72%]"
-      style={rotated ? { transform: 'rotate(180deg)' } : undefined}
-      aria-hidden
-    >
-      {/* Silhouette Staunton classique (tête, col, corps évasé, épaule,
-          socle à deux niveaux) — la forme générique reprise par la quasi-
-          totalité des jeux d'échecs numériques, dessinée à la main (app
-          hors ligne, zéro appel réseau : aucun asset de tiers copié). Sans
-          aucun ornement « poussin » sur la pièce elle-même — le thème reste
-          dans le nom du jeu et les icônes de niveau. */}
-      <rect x="11" y="37.2" width="23" height="3.4" rx="1.5" fill={color} stroke={stroke} strokeWidth="0.6" />
-      <rect x="14.5" y="33.2" width="16" height="4.4" rx="1.4" fill={color} stroke={stroke} strokeWidth="0.6" />
-      <path
-        d="M15.5 34.2 C14.3 28.7 16.3 23.7 19.5 21.4 L25.5 21.4 C28.7 23.7 30.7 28.7 29.5 34.2 Z"
-        fill={color}
-        stroke={stroke}
-        strokeWidth="0.6"
-        strokeLinejoin="round"
-      />
-      <ellipse cx="22.5" cy="20" rx="5.8" ry="2.1" fill={color} stroke={stroke} strokeWidth="0.6" />
-      <circle cx="22.5" cy="11.7" r="7.3" fill={color} stroke={stroke} strokeWidth="0.6" />
-    </svg>
   );
 }

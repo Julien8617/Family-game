@@ -226,6 +226,20 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   proportions plus fidèles — col net sous la tête (ellipse séparée, pas
   fondue dans le corps), épaule évasée, socle à deux niveaux (`Pawn` dans
   `Board.tsx`, viewBox 45×45 pour plus de finesse que les 24×24 précédents).
+- **Revirement ultérieur : couleur de pièce = couleur de profil, comme
+  partout ailleurs** — la décision ci-dessus (pièces blanches/noires fixes)
+  est explicitement abandonnée. Nouvelle silhouette apportée par
+  l'utilisateur (tête ronde, col en gélule, jupe évasée, socle plat, sans le
+  socle à deux niveaux — `Pawn.tsx`), avec un skin calculé par
+  `pawnSkin(playerColor, side)` (`pawnSkin.ts`) plutôt qu'un skin fixe ou
+  choisissable : les Blancs gardent un intérieur blanc avec un contour dans
+  la couleur du joueur, les Noirs l'inverse (intérieur coloré). Contour des
+  Noirs sombre par défaut (`#201C16`), sauf rose framboise de la palette
+  (`PLAYER_COLORS[5]`, `#C15C8C`) où un contour rose foncé (`#B8446B`) reste
+  plus lisible qu'un contour noir plat sur un remplissage rose — règle
+  provisoire, à ajuster au cas par cas si une autre couleur de la palette se
+  lit mal. `tailwind.config.js` : `chessWhite`/`chessBlack` restent utilisés,
+  mais seulement pour les rangées d'arrivée, plus pour les pièces.
 - **« Qui commence ? » — extension générique du contrat, pas un cas
   particulier de chess-race** : `GameMeta.colorLabels?: [string, string]`
   (`['Blancs', 'Noirs']` pour ce jeu) sur le modèle de `supportsRemote`. Si

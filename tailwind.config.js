@@ -9,8 +9,9 @@ export default {
         player1: '#C94F3D',
         player2: '#3C6E9F',
         victory: '#F5A623',
-        // Cases de l'échiquier (spec 04) — un vrai jeu d'échecs a des pièces à
-        // couleur fixe, pas teintées par le profil du joueur.
+        // Palette fixe de l'échiquier (spec 04) : cases et rangées d'arrivée.
+        // Les pions, eux, ne sont plus teintés en blanc/noir fixe — leur
+        // couleur vient du profil du joueur (voir chess-race/pawnSkin.ts).
         squareLight: '#EDE0C0',
         squareDark: '#2A4A40',
         chessWhite: '#FAF6EC',

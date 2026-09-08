@@ -14,8 +14,10 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
   à l'écran — reste jouable, cible tactile réduite mais conforme au minimum
   recommandé par Apple.
 - Spec 04 — La course des poussins : premier palier vers les échecs. Vrai
-  échiquier 8×8, coordonnées, pièces blanches/noires classiques, avance et
-  prise en diagonale. Choix de qui commence (Blancs, Noirs, ou au hasard)
+  échiquier 8×8, coordonnées, avance et prise en diagonale. Les pions
+  reprennent la couleur de profil de leur joueur (intérieur blanc et contour
+  coloré pour les Blancs, l'inverse pour les Noirs) plutôt qu'un blanc/noir
+  classique. Choix de qui commence (Blancs, Noirs, ou au hasard)
   avant chaque partie. Plateau fixe pour toute la partie : orientation
   standard en famille (deux profils, on se passe l'iPad), orientée sur son
   propre camp du début à la fin contre l'ordinateur (un profil, quatre
