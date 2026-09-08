@@ -23,7 +23,9 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
   standard en famille (deux profils, on se passe l'iPad), orientée sur son
   propre camp du début à la fin contre l'ordinateur (un profil, quatre
   niveaux : l'œuf, le poussin, la poule, le coq — du hasard pur à un vrai
-  moteur de recherche), quelle que soit la couleur choisie. En famille, un
+  moteur de recherche, chaque niveau illustré par une icône animée qui
+  s'anime pendant qu'il est sélectionné), quelle que soit la couleur
+  choisie. En famille, un
   repère (photo, nom) dupliqué en haut et en bas de l'écran — chacun voit
   le sien à l'endroit, sait d'un coup d'œil si c'est son tour, sans que le
   plateau ne bouge.

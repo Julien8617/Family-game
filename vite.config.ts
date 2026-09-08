@@ -58,7 +58,7 @@ export default defineConfig({
       workbox: {
         // Précache tout le bundle : l'app doit fonctionner sans réseau après une
         // seule visite. Pas de stratégie réseau, il n'y a pas de réseau.
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,gif}'],
       },
     }),
   ],

@@ -7,6 +7,10 @@ règle absolue n°1).
 Les 20 avatars de profil (`avatars/`, dessins OpenMoji) suivent la même règle
 mais ont leur propre fichier de licence : `avatars/LICENSE.md`.
 
+Les icônes des 4 niveaux de bot de la course des poussins
+(`chess-race-levels/`, GIF Flaticon) suivent la même règle mais ont leur
+propre fichier de licence : `chess-race-levels/LICENSE.md`.
+
 ## ZzFX (`zzfx.js`)
 
 - Source : https://github.com/KilledByAPixel/ZzFX (édition « Micro »,

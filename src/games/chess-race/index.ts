@@ -1,9 +1,13 @@
 import type { GameModule } from '../types';
 import { chooseMove } from './bot';
-import chickIcon from './levels/chick.svg';
-import eggIcon from './levels/egg.svg';
-import henIcon from './levels/hen.svg';
-import roosterIcon from './levels/rooster.svg';
+import eggIcon from '../../vendor/chess-race-levels/egg-static.gif';
+import eggIconAnimated from '../../vendor/chess-race-levels/egg-animated.gif';
+import chickIcon from '../../vendor/chess-race-levels/chick-static.gif';
+import chickIconAnimated from '../../vendor/chess-race-levels/chick-animated.gif';
+import henIcon from '../../vendor/chess-race-levels/hen-static.gif';
+import henIconAnimated from '../../vendor/chess-race-levels/hen-animated.gif';
+import roosterIcon from '../../vendor/chess-race-levels/rooster-static.gif';
+import roosterIconAnimated from '../../vendor/chess-race-levels/rooster-animated.gif';
 import { Board } from './Board';
 import icon from './icon.svg';
 import { applyMove, createState, currentPlayer, getResult, isValidMove } from './logic';
@@ -27,10 +31,10 @@ export const chessRace: GameModule<ChessRaceState, ChessRaceMove> = {
   Board,
   bot: {
     levels: [
-      { id: 1, label: "L'œuf", icon: eggIcon },
-      { id: 2, label: 'Le poussin', icon: chickIcon },
-      { id: 3, label: 'La poule', icon: henIcon },
-      { id: 4, label: 'Le coq', icon: roosterIcon },
+      { id: 1, label: "L'œuf", icon: eggIcon, animatedIcon: eggIconAnimated },
+      { id: 2, label: 'Le poussin', icon: chickIcon, animatedIcon: chickIconAnimated },
+      { id: 3, label: 'La poule', icon: henIcon, animatedIcon: henIconAnimated },
+      { id: 4, label: 'Le coq', icon: roosterIcon, animatedIcon: roosterIconAnimated },
     ],
     chooseMove,
   },

@@ -340,6 +340,33 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   (œuf → poussin → poule → coq), progression de taille/complexité lisible
   d'un coup d'œil sans lire, dans la palette existante. Pas de licence à
   documenter puisque rien n'est emprunté.
+- **Revirement : icônes de niveau remplacées par des GIF Flaticon animés**,
+  fournis par l'utilisateur (dossier `idée/` à la racine, hors dépôt). Les 4
+  SVG dessinés à la main ci-dessus sont supprimés. Deux vrais blocages
+  vérifiés avant d'intégrer, pas devinés :
+  1. Ce sont de vrais GIF animés (40 à 120 images, boucle infinie, vérifié en
+     parsant la structure de blocs GIF à la main faute d'ImageMagick/ffprobe
+     disponibles dans l'environnement) — en contradiction directe avec la
+     règle « rien ne bouge tout seul ». Résolu en gardant une image statique
+     par défaut (`*-static.gif`, la première image de l'animation) et en ne
+     basculant sur `*-animated.gif` que pendant que ce niveau est sélectionné
+     (`BotLevel.animatedIcon`, `PlayerPickScreen.tsx`) — le mouvement répond
+     bien à l'action de sélection du joueur.
+  2. Licence inconnue au départ : demandé à l'utilisateur, réponse « licence
+     Flaticon gratuite, attribution obligatoire ». Documentée dans
+     `src/vendor/chess-race-levels/LICENSE.md` (même principe que
+     `avatars/LICENSE.md`) — l'auteur/pack exact et le lien Flaticon d'origine
+     restent à compléter par l'utilisateur (visibles sur la page de
+     téléchargement Flaticon, pas dans les fichiers eux-mêmes).
+  Poids original 640×640, ~4,4 Mo pour les 4 animations : beaucoup trop lourd
+  pour une icône affichée à ~96 px sur un appareil précaché hors ligne.
+  Réduit avec `gifsicle` (`--resize 200x200 -O3 --lossy=80`, exécuté une fois
+  via `npx` — outil de préparation d'assets, pas une dépendance du projet) à
+  ~990 Ko pour les 4, sans perte visible à la taille d'affichage réelle.
+  `vite.config.ts` : `gif` ajouté à `globPatterns` du workbox — sans ça, ces
+  fichiers auraient existé dans `dist/` mais jamais été précachés, cassant le
+  niveau après le premier chargement une fois hors ligne (bug qui serait
+  passé inaperçu en test local, seulement visible avion/hors ligne).
 - **Bouton « Quitter » générique, dans `GameScreen` — pas dans chaque jeu** :
   rester appuyé 0,6 s (pas un simple tap) avant de couper une partie, pour
   qu'un enfant qui touche l'écran par mégarde ne perde jamais une partie en

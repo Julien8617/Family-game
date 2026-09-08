@@ -225,7 +225,14 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
                     levelId === level.id ? '0 0 0 5px #F5A623' : '0 0 0 3px rgba(242,228,201,0.25)',
                 }}
               >
-                <img src={level.icon} alt="" className="h-full w-full" />
+                <img
+                  // Animée seulement pendant que ce niveau est sélectionné —
+                  // le choix du joueur est l'action qui déclenche le
+                  // mouvement, l'icône ne s'anime jamais toute seule.
+                  src={levelId === level.id ? level.animatedIcon ?? level.icon : level.icon}
+                  alt=""
+                  className="h-full w-full"
+                />
               </span>
               <span className="text-lg text-piece">{level.label}</span>
             </button>

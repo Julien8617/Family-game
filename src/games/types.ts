@@ -39,6 +39,11 @@ export interface BotLevel {
   id: number;
   label: string;
   icon: string;
+  // Variante animée facultative, affichée à la place de `icon` pendant que ce
+  // niveau est sélectionné dans l'écran de choix — jamais toute seule (règle
+  // « rien ne bouge tout seul » de CLAUDE.md : ici, le mouvement répond bien
+  // à l'action de sélection).
+  animatedIcon?: string;
 }
 
 export interface GameModule<S, M> {
