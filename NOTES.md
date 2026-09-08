@@ -232,14 +232,26 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   l'utilisateur (tête ronde, col en gélule, jupe évasée, socle plat, sans le
   socle à deux niveaux — `Pawn.tsx`), avec un skin calculé par
   `pawnSkin(playerColor, side)` (`pawnSkin.ts`) plutôt qu'un skin fixe ou
-  choisissable : les Blancs gardent un intérieur blanc avec un contour dans
-  la couleur du joueur, les Noirs l'inverse (intérieur coloré). Contour des
-  Noirs sombre par défaut (`#201C16`), sauf rose framboise de la palette
-  (`PLAYER_COLORS[5]`, `#C15C8C`) où un contour rose foncé (`#B8446B`) reste
-  plus lisible qu'un contour noir plat sur un remplissage rose — règle
-  provisoire, à ajuster au cas par cas si une autre couleur de la palette se
-  lit mal. `tailwind.config.js` : `chessWhite`/`chessBlack` restent utilisés,
-  mais seulement pour les rangées d'arrivée, plus pour les pièces.
+  choisissable. `tailwind.config.js` : `chessWhite`/`chessBlack` restent
+  utilisés, mais seulement pour les rangées d'arrivée, plus pour les pièces.
+  Trois itérations sur la table de skins (`pawnSkin.ts`), chaque fois
+  affinée par l'utilisateur :
+  1. Contour = couleur du joueur brute pour les Blancs, remplissage =
+     couleur du joueur brute pour les Noirs (contour sombre fixe partout).
+  2. Table `DARK_PAWN_SKINS` : remplissage très sombre teinté par couleur
+     (L≈12 %, ne se distingue pas de la case foncée — le camp Noirs reste
+     lisiblement « le foncé »), contour de la même teinte remonté à L≈68 %.
+  3. Version retenue, table `PLAYER_PAWN_SKINS` : remplissage = couleur du
+     joueur telle quelle (pas assombrie), contour = même teinte poussée très
+     sombre — deux tons d'une seule famille par joueur, la pièce se lit comme
+     « le pion de ce joueur » plutôt que comme un pion bicolore générique
+     (contrastes vérifiés par l'utilisateur : contour/remplissage 2,8:1 à
+     4,4:1, contour/case claire 8,8:1 à 13,5:1). Les Blancs réutilisent ce
+     même contour (par couleur de joueur) sur un remplissage blanc — c'est le
+     contour, pas le remplissage, qui porte l'identité de couleur des deux
+     côtés. Table indexée directement sur le hex de `player.color` plutôt que
+     sur une seconde liste nommée de couleurs, pour ne pas dupliquer
+     `PLAYER_COLORS` (`src/players/palette.ts`) comme second point de vérité.
 - **« Qui commence ? » — extension générique du contrat, pas un cas
   particulier de chess-race** : `GameMeta.colorLabels?: [string, string]`
   (`['Blancs', 'Noirs']` pour ce jeu) sur le modèle de `supportsRemote`. Si
@@ -329,21 +341,21 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   d'un coup d'œil sans lire, dans la palette existante. Pas de licence à
   documenter puisque rien n'est emprunté.
 - **Bouton « Quitter » générique, dans `GameScreen` — pas dans chaque jeu** :
-  rester appuyé 1 s (pas un simple tap) avant de couper une partie, pour
+  rester appuyé 0,6 s (pas un simple tap) avant de couper une partie, pour
   qu'un enfant qui touche l'écran par mégarde ne perde jamais une partie en
   cours. Anneau de progression circulaire (SVG `stroke-dasharray` /
   `strokeDashoffset`, avancé par `requestAnimationFrame` plutôt qu'un
   `setInterval` — animation fluide, et le pourcentage se recalcule à partir
   d'un horodatage de départ, jamais d'un compteur de tics qui dériverait).
   `onPointerUp`/`onPointerLeave`/`onPointerCancel` remettent la progression
-  à zéro : relâcher avant 1 s annule sans laisser de trace. Bouton placé
+  à zéro : relâcher avant 0,6 s annule sans laisser de trace. Bouton placé
   avec de la marge (`left-6 top-6`, comme l'icône réglages du menu) plutôt
   que dans l'angle exact de l'écran : un anneau complet reste toujours
   entièrement visible, pas de demi-cercle nécessaire. Cible tactile à
   80 px (`h-20 w-20`), comme l'exige la direction visuelle. Testé par script
   (`PointerEvent` synthétique) faute de pouvoir simuler un appui maintenu
   avec les outils d'automatisation du navigateur : down+up immédiat
-  n'annule rien côté partie (correct), un maintien franchissant 1 s déclenche
+  n'annule rien côté partie (correct), un maintien franchissant 0,6 s déclenche
   bien le retour au menu.
 
 ## Support iPhone à égalité avec l'iPad (portrait obligatoire sur les deux)

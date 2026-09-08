@@ -15,9 +15,10 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
   recommandé par Apple.
 - Spec 04 — La course des poussins : premier palier vers les échecs. Vrai
   échiquier 8×8, coordonnées, avance et prise en diagonale. Les pions
-  reprennent la couleur de profil de leur joueur (intérieur blanc et contour
-  coloré pour les Blancs, l'inverse pour les Noirs) plutôt qu'un blanc/noir
-  classique. Choix de qui commence (Blancs, Noirs, ou au hasard)
+  reprennent la couleur de profil de leur joueur plutôt qu'un blanc/noir
+  classique : intérieur blanc pour les Blancs, intérieur teinté (sombre) pour
+  les Noirs, même contour dans la couleur du joueur des deux côtés. Choix de
+  qui commence (Blancs, Noirs, ou au hasard)
   avant chaque partie. Plateau fixe pour toute la partie : orientation
   standard en famille (deux profils, on se passe l'iPad), orientée sur son
   propre camp du début à la fin contre l'ordinateur (un profil, quatre
@@ -27,7 +28,7 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
   le sien à l'endroit, sait d'un coup d'œil si c'est son tour, sans que le
   plateau ne bouge.
 - Bouton « Quitter » sur tous les jeux (coin haut gauche) : rester appuyé
-  1 seconde pour interrompre une partie en cours et revenir au menu — un
+  0,6 seconde pour interrompre une partie en cours et revenir au menu — un
   simple tap ne fait rien, pour éviter qu'une partie soit coupée par
   mégarde.
 

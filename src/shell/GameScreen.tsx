@@ -19,7 +19,7 @@ const RESULT_DELAY_MS = 900;
 
 // Rester appuyé, pas taper : un enfant qui touche l'écran par mégarde ne
 // doit jamais couper une partie en cours.
-const EXIT_HOLD_MS = 1000;
+const EXIT_HOLD_MS = 600;
 
 // Spec 04 : un adversaire qui répond avant que le doigt ne soit relevé est
 // déroutant, même quand le calcul est instantané (niveaux 1 et 2).
