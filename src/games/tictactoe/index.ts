@@ -23,6 +23,12 @@ export const ticTacToe: GameModule<TicTacToeState, TicTacToeMove> = {
     minPlayers: 2,
     maxPlayers: 2,
     supportsRemote: false,
+    // Réutilise l'écran « Qui commence ? » de la course des poussins — même
+    // mécanisme générique (PlayerPickScreen), pas une règle du morpion. Pas
+    // de camps ici (juste un ordre de passage), donc un seul libellé a du
+    // sens ; le second n'est de toute façon jamais affiché par l'écran
+    // actuel (voir PlayerPickScreen.tsx, phase 'color').
+    colorLabels: ['Commence', 'Commence'],
   },
   createState,
   isValidMove,

@@ -12,7 +12,11 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
   Moyen, Imbattable — ce dernier ne perd jamais). Contre l'Imbattable, une
   série de défaites d'affilée adoucit discrètement le niveau réellement joué
   (Moyen à partir de 3 défaites, Facile à partir de 5), remis à zéro dès une
-  victoire ou un match nul.
+  victoire ou un match nul. Choix de qui commence avant chaque partie, comme
+  pour la course des poussins ; en famille, chacun a maintenant aussi son
+  repère de tour dupliqué haut/bas.
+- Les boutons « En famille » / « Contre l'ordinateur » de l'écran « Qui
+  joue ? » sont maintenant illustrés d'une icône plutôt qu'un simple texte.
 - Avec un seul profil enregistré, l'écran « Qui joue ? » d'un jeu jouable
   contre l'ordinateur démarre directement sur ce profil et ce mode — plus
   besoin de taper deux fois pour lancer une partie.

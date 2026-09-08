@@ -3,6 +3,8 @@ import type { GameModule, PlayerId } from '../games/types';
 import { play } from '../fx/sound';
 import { getSettings, listPlayers, updateSettings } from '../storage';
 import type { Player } from '../players/types';
+import familyIcon from '../vendor/mode-icons/family.png';
+import computerIcon from '../vendor/mode-icons/computer.png';
 import { BOT_PLAYER_ID, createBotPlayer } from './bot';
 
 interface PlayerPickScreenProps {
@@ -154,24 +156,24 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
       <h1 className="text-4xl text-piece">Qui joue ?</h1>
 
       {game.bot && (
-        <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
-          <button
-            type="button"
-            onClick={() => switchMode('family')}
-            className={`h-16 rounded-2xl px-4 text-base sm:px-6 sm:text-lg ${
-              mode === 'family' ? 'bg-piece text-board' : 'bg-piece/15 text-piece'
-            }`}
-          >
-            En famille
+        <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+          <button type="button" onClick={() => switchMode('family')} className="flex flex-col items-center gap-2">
+            <span
+              className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl bg-piece p-3 sm:h-24 sm:w-24 sm:p-4"
+              style={{ boxShadow: mode === 'family' ? '0 0 0 5px #F5A623' : '0 0 0 3px rgba(242,228,201,0.25)' }}
+            >
+              <img src={familyIcon} alt="" className="h-full w-full object-contain" />
+            </span>
+            <span className="text-lg text-piece">En famille</span>
           </button>
-          <button
-            type="button"
-            onClick={() => switchMode('computer')}
-            className={`h-16 rounded-2xl px-4 text-base sm:px-6 sm:text-lg ${
-              mode === 'computer' ? 'bg-piece text-board' : 'bg-piece/15 text-piece'
-            }`}
-          >
-            Contre l'ordinateur
+          <button type="button" onClick={() => switchMode('computer')} className="flex flex-col items-center gap-2">
+            <span
+              className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl bg-piece p-3 sm:h-24 sm:w-24 sm:p-4"
+              style={{ boxShadow: mode === 'computer' ? '0 0 0 5px #F5A623' : '0 0 0 3px rgba(242,228,201,0.25)' }}
+            >
+              <img src={computerIcon} alt="" className="h-full w-full object-contain" />
+            </span>
+            <span className="text-lg text-piece">Contre l'ordinateur</span>
           </button>
         </div>
       )}

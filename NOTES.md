@@ -539,6 +539,53 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
     de le battre par une fourchette classique (double menace qu'un niveau
     sans recherche en profondeur ne peut bloquer que d'un côté).
 
+## « Qui commence ? » ajouté au morpion
+
+- Demandé explicitement « de la même manière qu'à la course des poussins » :
+  réutilise tel quel `game.meta.colorLabels` (`tictactoe/index.ts`,
+  `colorLabels: ['Commence', 'Commence']`) — zéro changement dans
+  `PlayerPickScreen`/`GameScreen`, la mécanique existait déjà pour n'importe
+  quel jeu à deux joueurs où l'ordre compte, morpion compris. Deuxième
+  confirmation (après le bot) que le contrat générique de spec 04 tient au-
+  delà d'un seul jeu.
+- Le morpion n'a pas de camps (juste un ordre de passage, pas de « couleur »
+  comme Blancs/Noirs), donc les deux libellés du tuple sont identiques —
+  `PlayerPickScreen` n'affiche de toute façon que le premier (`colorLabels[0]`)
+  sous chaque photo candidate. Documenté dans un commentaire à l'endroit de
+  la déclaration pour que ça ne passe pas pour un oubli.
+- **Effet de bord assumé, pas corrigé** : `colorLabels` déclenche aussi
+  `dualSided` dans `GameScreen` (badges dupliqués haut/bas en famille) —
+  conçu à l'origine pour les pièces d'échecs qui ont besoin d'être retournées
+  pour le joueur d'en face. Le plateau du morpion (cercles simples, pas de
+  notion de sens) n'a rien à retourner ; `Board.tsx` ignore déjà
+  `sharedDevice`. Résultat : chaque joueur reçoit son repère de tour dupliqué,
+  sans aucune pièce à corriger — un bénéfice gratuit plutôt qu'un problème,
+  vérifié en jouant une partie en famille.
+
+## Icônes pour les boutons de mode (En famille / Contre l'ordinateur)
+
+- Boutons texte (`PlayerPickScreen.tsx`) remplacés par des icônes (silhouette
+  famille, robot — fournies par l'utilisateur), même style de tuile que le
+  sélecteur de niveau juste en dessous sur le même écran (fond `bg-piece`,
+  anneau orange si sélectionné) — cohérence visuelle entre les deux
+  sélecteurs de la même page, et encore un pas vers « navigable sans savoir
+  lire ». Le libellé texte reste sous chaque icône, comme pour les niveaux :
+  l'icône porte le sens principal, le texte reste un appoint.
+- **Différence avec les icônes de niveau déjà en place** : celles-ci n'ont
+  pas de fond propre (PNG trait noir sur transparent, contrairement aux GIF
+  poussin/poule/coq qui embarquent déjà leur propre disque blanc) — d'où le
+  `bg-piece` explicite ajouté sur la tuile, sinon le trait noir se serait
+  fondu dans le fond vert foncé du plateau.
+- Vendorisées dans `src/vendor/mode-icons/` (redimensionnées 512×512 → 128×128,
+  `sharp-cli` via `npx`), même licence Flaticon (ou similaire) que les autres
+  icônes du projet, déclarée par l'utilisateur avant intégration — voir
+  `mode-icons/LICENSE.md` (attribution exacte encore à compléter, comme les
+  autres fichiers de licence de ce dossier).
+- Pas de contrainte de data URI ici (contrairement à `player.photo`) : ces
+  icônes ne sont jamais stockées, juste affichées dans l'écran de choix — un
+  import Vite classique suffit, `png` était déjà dans `globPatterns` du
+  workbox (ajouté pour l'avatar par défaut).
+
 ## Process établi avec l'utilisateur
 
 - Avant d'écrire du CSS ou une nouvelle direction visuelle : proposer sa

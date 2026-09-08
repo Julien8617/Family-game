@@ -15,6 +15,10 @@ L'avatar par défaut des profils joueur (`default-avatar/`, PNG Flaticon ou
 similaire) suit la même règle mais a son propre fichier de licence :
 `default-avatar/LICENSE.md`.
 
+Les icônes de mode « En famille »/« Contre l'ordinateur » (`mode-icons/`, PNG
+Flaticon ou similaire) suivent la même règle mais ont leur propre fichier de
+licence : `mode-icons/LICENSE.md`.
+
 ## ZzFX (`zzfx.js`)
 
 - Source : https://github.com/KilledByAPixel/ZzFX (édition « Micro »,
