@@ -15,8 +15,22 @@ type Screen =
   | { kind: 'players' }
   | { kind: 'editPlayer'; player?: Player }
   | { kind: 'pick'; game: GameModule<any, any> }
-  | { kind: 'game'; game: GameModule<any, any>; seed: number; players: Player[]; bot?: BotChoice }
-  | { kind: 'result'; game: GameModule<any, any>; result: Result; players: Player[]; bot?: BotChoice };
+  | {
+      kind: 'game';
+      game: GameModule<any, any>;
+      seed: number;
+      players: Player[];
+      bot?: BotChoice;
+      lossStreak: number;
+    }
+  | {
+      kind: 'result';
+      game: GameModule<any, any>;
+      result: Result;
+      players: Player[];
+      bot?: BotChoice;
+      lossStreak: number;
+    };
 
 function randomSeed(): number {
   const bytes = new Uint32Array(1);
@@ -60,7 +74,7 @@ export function App() {
           game={screen.game}
           onBack={() => setScreen({ kind: 'menu' })}
           onConfirm={(players, bot) =>
-            setScreen({ kind: 'game', game: screen.game, seed: randomSeed(), players, bot })
+            setScreen({ kind: 'game', game: screen.game, seed: randomSeed(), players, bot, lossStreak: 0 })
           }
         />
       );
@@ -73,15 +87,24 @@ export function App() {
           players={screen.players}
           seed={screen.seed}
           bot={screen.bot}
-          onGameEnd={(result) =>
+          lossStreak={screen.lossStreak}
+          onGameEnd={(result) => {
+            // Série de défaites d'affilée du joueur humain face au bot —
+            // remise à zéro dès qu'il gagne ou fait nul. Sert uniquement à
+            // adoucir discrètement l'Imbattable du morpion (voir
+            // tictactoe/bot.ts, adjustLevel) ; ne change rien pour un jeu qui
+            // ne s'en sert pas.
+            const humanLost =
+              Boolean(screen.bot) && result.kind === 'win' && result.winner === screen.bot!.playerId;
             setScreen({
               kind: 'result',
               game: screen.game,
               result,
               players: screen.players,
               bot: screen.bot,
-            })
-          }
+              lossStreak: humanLost ? screen.lossStreak + 1 : 0,
+            });
+          }}
           onExit={() => setScreen({ kind: 'menu' })}
         />
       );
@@ -98,6 +121,7 @@ export function App() {
               seed: randomSeed(),
               players: screen.players,
               bot: screen.bot,
+              lossStreak: screen.lossStreak,
             })
           }
           onMenu={() => setScreen({ kind: 'menu' })}

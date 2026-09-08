@@ -335,6 +335,13 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   seul profil enregistré verrait la tuile du jeu grisée à tort. Toujours
   générique (`game.bot ? 1 : game.meta.minPlayers`), aucune règle de jeu
   connue du shell.
+- **`PlayerPickScreen` : un seul profil enregistré + jeu jouable contre
+  l'ordinateur → mode et joueur présélectionnés** (`singlePlayerVsBot`,
+  valeurs initiales de `mode`/`selected`, pas un `useEffect` après coup —
+  ça évite un rendu intermédiaire sur « En famille » avant de basculer). Ce
+  n'est qu'un point de départ : les boutons mode/joueur restent utilisables
+  normalement ensuite, rien n'est verrouillé. Un jeu sans `bot` (morpion)
+  n'est pas concerné : la condition inclut `Boolean(game.bot)`.
 - **Icônes des 4 niveaux dessinées à la main** (`chess-race/levels/*.svg`),
   pas vendorisées comme les avatars OpenMoji — quatre formes simples
   (œuf → poussin → poule → coq), progression de taille/complexité lisible
@@ -432,6 +439,77 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   à ce stade — pas encore testé sur iPad ni iPhone réels. L'installation PWA,
   le verrouillage d'orientation effectif et les zones de sécurité ne se
   vérifient fiablement que sur l'appareil.
+
+## Mode contre l'ordinateur pour le morpion
+
+- **Contrat `GameModule.bot` déjà générique (spec 04) — aucune modification
+  du shell nécessaire.** `MenuScreen`, `PlayerPickScreen`, `GameScreen`
+  savaient déjà afficher/gérer un bot sans connaître ses règles ; ajouter
+  `bot` à `tictactoe/index.ts` a suffi pour que le mode « Contre l'ordinateur »
+  apparaisse, y compris la présélection à un seul profil ajoutée juste avant
+  (`singlePlayerVsBot`). C'est la preuve que ce contrat, conçu pour un seul
+  jeu, généralise vraiment.
+- **Trois niveaux, pas quatre comme la course des poussins** : le morpion a un
+  espace d'états minuscule (~5000 positions valides), une échelle à 4 niveaux
+  façon échecs y aurait inventé une profondeur qui n'existe pas dans le jeu
+  lui-même. Facile (coup aléatoire) → Moyen (gagne si possible, sinon bloque,
+  sinon aléatoire) → Imbattable (minimax exhaustif, sans limite de profondeur
+  ni horloge — contrairement à `chess-race/bot.ts`, le jeu est trop court
+  pour en avoir besoin).
+- **`LINES` exporté de `logic.ts`** plutôt que dupliqué dans `bot.ts` : une
+  seule liste des lignes gagnantes, réutilisée par `getWinningLine` et par le
+  niveau imbattable (`wouldWin`, qui teste un coup pour n'importe quel joueur,
+  indépendamment de `state.turn` — nécessaire pour évaluer aussi bien son
+  propre coup gagnant que la menace de l'adversaire).
+- **Pas de champ `moveCount` dans `TicTacToeState`** (contrairement à
+  `ChessRaceState`) : le nombre de cases déjà jouées (`board.filter(c => c
+  !== null).length`) suffit pour dériver la seed du tirage aléatoire à
+  chaque coup — inutile d'ajouter un champ d'état pour ça.
+- **Tests de force réduits de 100 à 30 parties** pour les deux invariants
+  « l'imbattable ne perd jamais » : ce n'est pas une mesure statistique (comme
+  les seuils de pourcentage de chess-race) mais un invariant prouvé par la
+  recherche exhaustive — 30 parties (premier joueur alterné, seeds variés)
+  suffisent à l'exercer. Passage de 32 s à 12 s pour ce fichier de tests ;
+  chaque partie relance une recherche minimax complète à chaque coup de
+  l'imbattable, sans mémoïsation ni table de transposition.
+- **Icônes dessinées à la main puis abandonnées** : première version (dé,
+  ampoule, étoile, patron des icônes d'origine de la course des poussins) —
+  remplacée ensuite, à la demande de l'utilisateur, par les GIF Flaticon
+  poussin/poule/coq déjà vendorisés pour la course des poussins
+  (`src/vendor/chess-race-levels/`). Même vocabulaire visuel de progression
+  dans les deux jeux plutôt qu'un second jeu d'icônes pour trois niveaux
+  seulement — les fichiers `easy.svg`/`medium.svg`/`hard.svg` sont supprimés.
+- **Vérifié en jouant contre le niveau imbattable** (navigateur, coups
+  choisis à la main pour tester un piège classique du morpion — double coin
+  adverse) : match nul, comme attendu d'un minimax correct. Pas de partie
+  perdue possible à tester, l'invariant est déjà prouvé par les tests.
+- **Adoucissement discret de l'Imbattable après une série de défaites**
+  (`tictactoe/bot.ts`, `adjustLevel`) : un enfant de 5 ans qui enchaîne les
+  défaites contre un adversaire parfait risque de se lasser du jeu, pas
+  seulement de perdre. 3 défaites d'affilée → la partie suivante se joue en
+  Moyen ; 5 → Facile. Toute victoire ou tout nul remet le compteur à zéro.
+  Le sélecteur de niveau reste sur « Imbattable » tout du long — rien
+  n'indique à l'enfant que le niveau réel a changé, l'effet est voulu
+  invisible (mécanique de « pitié », comme dans beaucoup de jeux).
+  - **Extension générique du contrat, pas une exception pour le morpion** :
+    `GameModule.bot.adjustLevel?(selectedLevel, lossStreak)` est optionnel ;
+    le shell l'appelle toujours s'il existe (`GameScreen.tsx`, juste avant
+    `chooseMove`) mais ignore son absence pour tout autre jeu. La *règle*
+    (3 → Moyen, 5 → Facile) reste propre au morpion, qui seul sait que son
+    niveau 3 est un minimax exhaustif — chess-race n'implémente pas cette
+    fonction, son niveau 3 (« La poule ») n'a pas la même signification.
+  - **Le streak vit dans `App.tsx`, pas dans `GameScreen`** : `GameScreen`
+    est démonté/remonté à chaque partie (`key={screen.seed}`), donc un état
+    local n'y survivrait pas à un « Rejouer ». Porté par les variants `game`/
+    `result` de `Screen`, initialisé à 0 au moment du choix des joueurs,
+    recalculé à la fin de chaque partie (`onGameEnd` : incrémente si le bot a
+    gagné, remet à 0 sinon) et transmis tel quel au rejeu.
+  - **Vérifié en conditions réelles** (navigateur, 3 défaites provoquées à la
+    main contre l'Imbattable) : dès la 4ᵉ partie, le bot répond à une
+    ouverture en coin par un autre coin plutôt que le centre — signature du
+    niveau Moyen, jamais vue sur les 3 parties précédentes — ce qui a permis
+    de le battre par une fourchette classique (double menace qu'un niveau
+    sans recherche en profondeur ne peut bloquer que d'un côté).
 
 ## Process établi avec l'utilisateur
 

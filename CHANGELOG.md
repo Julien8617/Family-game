@@ -6,6 +6,14 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 
 ## Non publié
 
+- Morpion : nouveau mode « Contre l'ordinateur », trois niveaux (Facile,
+  Moyen, Imbattable — ce dernier ne perd jamais). Contre l'Imbattable, une
+  série de défaites d'affilée adoucit discrètement le niveau réellement joué
+  (Moyen à partir de 3 défaites, Facile à partir de 5), remis à zéro dès une
+  victoire ou un match nul.
+- Avec un seul profil enregistré, l'écran « Qui joue ? » d'un jeu jouable
+  contre l'ordinateur démarre directement sur ce profil et ce mode — plus
+  besoin de taper deux fois pour lancer une partie.
 - Support iPhone à égalité avec l'iPad : l'app est maintenant verrouillée en
   **portrait** sur les deux appareils (avant : iPad uniquement, en paysage).
   Le mode famille (deux profils, appareil partagé) fonctionne à l'identique

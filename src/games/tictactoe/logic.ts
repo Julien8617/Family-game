@@ -13,7 +13,9 @@ export interface TicTacToeMove {
   cell: number;
 }
 
-const LINES = [
+// Exporté pour bot.ts (niveau imbattable) — une seule liste des lignes
+// gagnantes, pas une copie dans les deux fichiers.
+export const LINES = [
   [0, 1, 2],
   [3, 4, 5],
   [6, 7, 8],

@@ -62,5 +62,13 @@ export interface GameModule<S, M> {
   bot?: {
     levels: BotLevel[];
     chooseMove(state: S, level: number): M;
+    // Optionnel : adoucit discrètement le niveau réellement joué en fonction
+    // de la série de défaites d'affilée du joueur humain face au niveau
+    // choisi (`selectedLevel`) — sans jamais changer ce qui est affiché dans
+    // le sélecteur. Le shell appelle toujours cette fonction si elle existe
+    // (générique), mais la logique d'ajustement reste propre au jeu, qui
+    // seul sait ce que chacun de ses niveaux représente (voir
+    // tictactoe/bot.ts). Par défaut (absente) : aucun ajustement.
+    adjustLevel?(selectedLevel: number, lossStreak: number): number;
   };
 }

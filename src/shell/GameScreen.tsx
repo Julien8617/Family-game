@@ -9,6 +9,11 @@ interface GameScreenProps {
   players: Player[];
   seed: number;
   bot?: { playerId: PlayerId; level: number };
+  // Défaites d'affilée du joueur humain face au bot, portées par App.tsx à
+  // travers les parties rejouées — 0 si le jeu n'a pas de bot ou vient d'être
+  // choisi. Transmis tel quel à game.bot.adjustLevel (générique : le shell ne
+  // sait pas ce qu'un jeu en fait, voir games/types.ts).
+  lossStreak: number;
   onGameEnd(result: Result, finalState: any): void;
   onExit(): void;
 }
@@ -28,7 +33,7 @@ const BOT_MIN_DELAY_MS = 600;
 // de bloquer le fil principal sur une recherche synchrone (niveaux 3 et 4).
 const BOT_PAINT_DELAY_MS = 80;
 
-export function GameScreen({ game, players, seed, bot, onGameEnd, onExit }: GameScreenProps) {
+export function GameScreen({ game, players, seed, bot, lossStreak, onGameEnd, onExit }: GameScreenProps) {
   const [transport] = useState(() => createLocalTransport());
   const [state, setState] = useState<any>(() =>
     game.createState(
@@ -88,7 +93,8 @@ export function GameScreen({ game, players, seed, bot, onGameEnd, onExit }: Game
 
     const paintTimer = setTimeout(() => {
       const start = performance.now();
-      const move = game.bot!.chooseMove(state, bot.level);
+      const level = game.bot!.adjustLevel?.(bot.level, lossStreak) ?? bot.level;
+      const move = game.bot!.chooseMove(state, level);
       const elapsed = performance.now() - start;
       const remaining = Math.max(0, BOT_MIN_DELAY_MS - elapsed);
       sendTimer = setTimeout(() => {
@@ -104,7 +110,7 @@ export function GameScreen({ game, players, seed, bot, onGameEnd, onExit }: Game
       if (sendTimer) clearTimeout(sendTimer);
       setThinking(false);
     };
-  }, [state, bot, game, transport]);
+  }, [state, bot, game, transport, lossStreak]);
 
   const turnId = game.currentPlayer(state);
   const turnPlayer = players.find((p) => p.id === turnId) ?? players[0];

@@ -22,9 +22,14 @@ function randomBit(): boolean {
 
 export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenProps) {
   const [players] = useState(() => listPlayers());
-  const [mode, setMode] = useState<Mode>('family');
+  // Un seul profil enregistré, jeu jouable contre l'ordinateur : ce profil et
+  // ce mode sont l'unique choix sensé, pas la peine de le faire taper deux
+  // fois. Reste un point de départ, pas un verrou — les boutons mode/joueur
+  // fonctionnent normalement ensuite.
+  const singlePlayerVsBot = players.length === 1 && Boolean(game.bot);
+  const [mode, setMode] = useState<Mode>(singlePlayerVsBot ? 'computer' : 'family');
   const [phase, setPhase] = useState<Phase>('select');
-  const [selected, setSelected] = useState<PlayerId[]>([]);
+  const [selected, setSelected] = useState<PlayerId[]>(singlePlayerVsBot ? [players[0].id] : []);
   const levels = game.bot?.levels ?? [];
   const [levelId, setLevelId] = useState<number>(() => {
     const stored = getSettings().lastBotLevel;
