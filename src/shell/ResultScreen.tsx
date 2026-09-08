@@ -25,23 +25,23 @@ export function ResultScreen({ result, players, onReplay, onMenu }: ResultScreen
   }, [winner]);
 
   return (
-    <div className="flex h-screen w-screen flex-col items-center justify-center gap-12 bg-board px-12">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-12 bg-board px-4 sm:px-12">
       <div className="flex flex-col items-center gap-6">
         {winner ? (
           <img
             src={winner.photo}
             alt=""
-            className="h-48 w-48 rounded-full object-cover"
+            className="h-32 w-32 rounded-full object-cover sm:h-48 sm:w-48"
             style={{ boxShadow: `0 0 0 6px ${winner.color}` }}
           />
         ) : (
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-4 sm:gap-8">
             {players.map((player) => (
               <img
                 key={player.id}
                 src={player.photo}
                 alt=""
-                className="h-32 w-32 rounded-full object-cover"
+                className="h-24 w-24 rounded-full object-cover sm:h-32 sm:w-32"
                 style={{ boxShadow: `0 0 0 5px ${player.color}` }}
               />
             ))}

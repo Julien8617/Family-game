@@ -15,6 +15,12 @@
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     user-select: none;
+    /* Encoche et barre d'accueil de l'iPhone X (portrait) — 0 sur iPad, qui
+       n'a pas ces zones, donc aucun effet là-bas. */
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
 
   /* Sans ça, un input hérite de user-select:none et WebKit refuse d'y placer

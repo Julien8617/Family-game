@@ -39,7 +39,7 @@ export default defineConfig({
         start_url: '/Family-game/',
         scope: '/Family-game/',
         display: 'fullscreen',
-        orientation: 'landscape',
+        orientation: 'portrait',
         background_color: '#1E3D34',
         theme_color: '#1E3D34',
         icons: [

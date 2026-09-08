@@ -79,7 +79,7 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
 
   if (cropperState) {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center gap-8 bg-board px-12">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-8 bg-board px-4 sm:px-12">
         <h1 className="text-3xl text-piece">Ajuste la photo</h1>
         <PhotoCropper img={cropperState.img} onConfirm={handleCropConfirm} onCancel={handleCropCancel} />
       </div>
@@ -87,13 +87,13 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col items-center gap-4 overflow-y-auto bg-board px-12 py-6">
+    <div className="flex h-full w-full flex-col items-center gap-4 overflow-y-auto bg-board px-4 py-6 sm:px-12">
       <h1 className="text-3xl text-piece">{player ? 'Modifier le joueur' : 'Nouveau joueur'}</h1>
 
       <button
         type="button"
         onClick={() => mode === 'photo' && fileInputRef.current?.click()}
-        className="flex h-36 w-36 items-center justify-center overflow-hidden rounded-full bg-piece/20 text-piece shadow-[0_6px_0_0_rgba(0,0,0,0.25)]"
+        className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-piece/20 text-piece shadow-[0_6px_0_0_rgba(0,0,0,0.25)] sm:h-36 sm:w-36"
       >
         {photo ? (
           <img src={photo} alt="" className="h-full w-full object-cover" />
@@ -152,7 +152,7 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
         autoComplete="off"
         autoCorrect="off"
         autoCapitalize="words"
-        className="h-20 w-80 rounded-2xl bg-piece px-6 text-center text-2xl text-board outline-none"
+        className="h-20 w-full max-w-xs rounded-2xl bg-piece px-6 text-center text-2xl text-board outline-none"
       />
 
       <div className="flex flex-wrap justify-center gap-3">

@@ -39,7 +39,7 @@ export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenP
   const [players] = useState(() => listPlayers());
 
   return (
-    <div className="flex h-screen w-screen flex-col items-center gap-10 bg-board px-12 py-10">
+    <div className="flex h-full w-full flex-col items-center gap-10 bg-board px-4 py-10 sm:px-12">
       <div className="flex w-full items-center justify-between">
         <button type="button" onClick={onBack} className="h-16 rounded-2xl bg-piece/20 px-6 text-lg text-piece">
           ← Menu
@@ -48,7 +48,7 @@ export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenP
         <SoundToggle />
       </div>
 
-      <div className="flex flex-1 flex-wrap items-center justify-center gap-8">
+      <div className="flex flex-1 flex-wrap items-center justify-center gap-4 sm:gap-8">
         {players.map((player) => (
           <button
             key={player.id}
@@ -57,7 +57,7 @@ export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenP
             className="flex flex-col items-center gap-3"
           >
             <span
-              className="block h-40 w-40 overflow-hidden rounded-full"
+              className="block h-24 w-24 overflow-hidden rounded-full sm:h-40 sm:w-40"
               style={{ boxShadow: `0 0 0 5px ${player.color}` }}
             >
               <img src={player.photo} alt="" className="h-full w-full object-cover" />
@@ -69,7 +69,7 @@ export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenP
         <button
           type="button"
           onClick={onCreate}
-          className="flex h-40 w-40 flex-col items-center justify-center rounded-full border-4 border-dashed border-piece/40 text-piece"
+          className="flex h-24 w-24 flex-col items-center justify-center rounded-full border-4 border-dashed border-piece/40 text-piece sm:h-40 sm:w-40"
           aria-label="Ajouter un joueur"
         >
           <span className="text-5xl leading-none">+</span>

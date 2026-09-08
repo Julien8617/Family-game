@@ -91,10 +91,10 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
     const [firstLabel] = game.meta.colorLabels;
 
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center gap-10 bg-board px-12 py-8">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-10 bg-board px-4 py-8 sm:px-12">
         <h1 className="text-4xl text-piece">Qui commence ?</h1>
 
-        <div className="flex flex-wrap items-center justify-center gap-10">
+        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
           {participants.map((participant, index) => {
             const other = participants[1 - index];
             return (
@@ -105,7 +105,7 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
                 className="flex flex-col items-center gap-3"
               >
                 <span
-                  className="block h-36 w-36 overflow-hidden rounded-full"
+                  className="block h-24 w-24 overflow-hidden rounded-full sm:h-36 sm:w-36"
                   style={{ boxShadow: `0 0 0 5px ${participant.color}` }}
                 >
                   <img src={participant.photo} alt="" className="h-full w-full object-cover" />
@@ -145,15 +145,15 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col items-center gap-6 bg-board px-12 py-8">
+    <div className="flex h-full w-full flex-col items-center gap-6 bg-board px-4 py-8 sm:px-12">
       <h1 className="text-4xl text-piece">Qui joue ?</h1>
 
       {game.bot && (
-        <div className="flex gap-4">
+        <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
           <button
             type="button"
             onClick={() => switchMode('family')}
-            className={`h-16 rounded-2xl px-6 text-lg ${
+            className={`h-16 rounded-2xl px-4 text-base sm:px-6 sm:text-lg ${
               mode === 'family' ? 'bg-piece text-board' : 'bg-piece/15 text-piece'
             }`}
           >
@@ -162,7 +162,7 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
           <button
             type="button"
             onClick={() => switchMode('computer')}
-            className={`h-16 rounded-2xl px-6 text-lg ${
+            className={`h-16 rounded-2xl px-4 text-base sm:px-6 sm:text-lg ${
               mode === 'computer' ? 'bg-piece text-board' : 'bg-piece/15 text-piece'
             }`}
           >
@@ -171,7 +171,7 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
         </div>
       )}
 
-      <div className="flex flex-1 flex-wrap items-center justify-center gap-8">
+      <div className="flex flex-1 flex-wrap items-center justify-center gap-4 sm:gap-8">
         {players.map((player) => {
           const rank = selected.indexOf(player.id);
           const isSelected = rank !== -1;
@@ -183,7 +183,7 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
               className="relative flex flex-col items-center gap-3"
             >
               <span
-                className="block h-40 w-40 overflow-hidden rounded-full"
+                className="block h-24 w-24 overflow-hidden rounded-full sm:h-40 sm:w-40"
                 style={{
                   boxShadow: isSelected
                     ? `0 0 0 6px ${player.color}`
@@ -207,7 +207,7 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
       </div>
 
       {mode === 'computer' && (
-        <div className="flex gap-6">
+        <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
           {levels.map((level) => (
             <button
               key={level.id}
@@ -219,7 +219,7 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
               className="flex flex-col items-center gap-2"
             >
               <span
-                className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-3xl"
+                className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl sm:h-24 sm:w-24"
                 style={{
                   boxShadow:
                     levelId === level.id ? '0 0 0 5px #F5A623' : '0 0 0 3px rgba(242,228,201,0.25)',

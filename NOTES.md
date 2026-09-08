@@ -332,6 +332,54 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   n'annule rien côté partie (correct), un maintien franchissant 2 s déclenche
   bien le retour au menu.
 
+## Support iPhone à égalité avec l'iPad (portrait obligatoire sur les deux)
+
+- **Abandon volontaire du verrouillage paysage iPad**, marqué « non négociable »
+  jusqu'ici. Décision explicite de l'utilisateur, confirmée après une question
+  de clarification (la réponse initiale « portrait pour les deux » aurait pu
+  n'être qu'un raccourci sur l'iPhone seul — j'ai vérifié plutôt que de deviner,
+  vu que ça inverse une contrainte marquée non négociable et remet en jeu toute
+  la mise en page déjà validée sur l'iPad réel). L'iPad et l'iPhone (référence :
+  iPhone X, 375×812 pt) sont maintenant deux cibles à égalité, toutes deux
+  verrouillées en portrait via le manifest (`vite.config.ts`, `orientation`).
+- **`width=1024` en dur dans le viewport meta était une hypothèse iPad-only** :
+  sur iPhone, Safari aurait rendu un layout 1024 px puis l'aurait zoomé pour
+  tenir dans 375 pt — aucune mise en page responsive n'aurait pu s'appliquer.
+  Remplacé par `width=device-width` (`index.html`).
+- **Conflit physique tranché avec l'utilisateur** : un échiquier 8×8 plein
+  écran ne peut pas avoir des cases de 80 px sur 375 pt de large (640 px
+  minimum nécessaires). Choix retenu : cases ~44-46 px sur iPhone pour les
+  grilles denses (norme tactile minimale d'Apple, pas un chiffre arbitraire),
+  plutôt que de priver l'iPhone de ce jeu. Exception documentée dans
+  `CLAUDE.md`, limitée aux grilles denses sur écran étroit — le morpion (3×3,
+  ~125 px/case même sur iPhone) n'est pas concerné.
+- **Un seul point de rupture Tailwind (`sm:`, 640px)**, pas de mise en page par
+  appareil : il tombe naturellement entre 375pt (iPhone) et 768pt (iPad
+  portrait), donc `défaut = compact iPhone / sm: = confortable iPad` suffit
+  partout où une taille fixe en px doit changer. Pas de redesign, un ajustement
+  de classes.
+- **`h-screen`/`w-screen` remplacés par `h-full`/`w-full`** sur tous les écrans
+  racines : nécessaire pour que le padding de zone de sécurité posé sur `body`
+  (`env(safe-area-inset-*)`, pour l'encoche et la barre d'accueil de l'iPhone X)
+  ait un effet réel. `100vh`/`100vw` ignorent le padding d'un ancêtre — sans ce
+  changement, le padding ajouté n'aurait rien inséré du tout, les écrans
+  auraient continué à dessiner sous l'encoche.
+- **Formule de taille du plateau (`GameScreen`)** : gardée en `vh` (pas `dvh`,
+  hors baseline Safari 15.0 déclarée dans `CLAUDE.md`) — sans risque de barre
+  d'adresse dynamique puisque l'app tourne en `display: 'fullscreen'` une fois
+  installée. Les insets de sécurité sont ajoutés directement dans le `calc()`
+  de réservation de hauteur, parce que ce calc utilise `100vh` (unité de
+  viewport brute) qui, contrairement au reste de la mise en page, ne bénéficie
+  pas automatiquement du padding posé sur `body`.
+- **Bug préexistant corrigé au passage** : le champ prénom de `PlayerEditor`
+  (`w-80`, 320 px fixes) débordait déjà sur 375 pt d'écran une fois le padding
+  horizontal soustrait — indépendant de ce chantier, mais découvert en
+  l'auditant. Passé en `w-full max-w-xs` (fluide, plafonné à la même largeur).
+- **Vérification** : seulement en Chrome redimensionné (375×812 et 768×1024)
+  à ce stade — pas encore testé sur iPad ni iPhone réels. L'installation PWA,
+  le verrouillage d'orientation effectif et les zones de sécurité ne se
+  vérifient fiablement que sur l'appareil.
+
 ## Process établi avec l'utilisateur
 
 - Avant d'écrire du CSS ou une nouvelle direction visuelle : proposer sa

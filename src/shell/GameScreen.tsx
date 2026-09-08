@@ -126,7 +126,7 @@ export function GameScreen({ game, players, seed, bot, onGameEnd, onExit }: Game
   const dualSided = sharedDevice && Boolean(game.meta.colorLabels);
 
   return (
-    <div className="relative flex h-screen w-screen flex-col items-center bg-board px-6 py-4">
+    <div className="relative flex h-full w-full flex-col items-center bg-board px-6 py-4">
       <ExitButton onExit={onExit} />
 
       {dualSided ? (
@@ -148,7 +148,12 @@ export function GameScreen({ game, players, seed, bot, onGameEnd, onExit }: Game
       <div className="flex flex-1 items-center justify-center overflow-hidden py-2">
         <div
           style={{
-            width: `min(94vw, calc(100vh - ${dualSided ? 168 : 132}px))`,
+            // Réserve la hauteur des badges/barre de tour, plus les zones de
+            // sécurité (encoche/barre d'accueil iPhone X — 0 sur iPad, donc
+            // sans effet là-bas). 100vh, pas 100dvh (hors baseline Safari
+            // 15.0) : l'app tourne en `display: 'fullscreen'` une fois
+            // installée, donc pas de barre d'adresse dynamique à compenser.
+            width: `min(94vw, calc(100vh - ${dualSided ? 168 : 132}px - env(safe-area-inset-top) - env(safe-area-inset-bottom)))`,
             aspectRatio: '1 / 1',
           }}
         >

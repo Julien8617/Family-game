@@ -15,7 +15,7 @@ export function MenuScreen({ onSelectGame, onManagePlayers }: MenuScreenProps) {
 
   if (players.length === 0) {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center gap-8 bg-board px-12">
+      <div className="flex h-full w-full flex-col items-center justify-center gap-8 bg-board px-4 sm:px-12">
         <h1 className="text-4xl tracking-tight text-piece">Jeux de famille</h1>
         <p className="text-xl text-piece/80">Ajoute le premier joueur pour commencer.</p>
         <button
@@ -33,7 +33,7 @@ export function MenuScreen({ onSelectGame, onManagePlayers }: MenuScreenProps) {
   }
 
   return (
-    <div className="relative flex h-screen w-screen flex-col items-center justify-center gap-8 bg-board px-12">
+    <div className="relative flex h-full w-full flex-col items-center justify-center gap-8 bg-board px-4 sm:px-12">
       <button
         type="button"
         onClick={() => {
@@ -47,7 +47,7 @@ export function MenuScreen({ onSelectGame, onManagePlayers }: MenuScreenProps) {
       </button>
 
       <h1 className="text-4xl tracking-tight text-piece">Jeux de famille</h1>
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 sm:gap-6">
         {GAMES.map((game) => {
           // Un jeu contre l'ordinateur n'a besoin que d'un seul profil réel —
           // le bot fabriqué par le shell comble le reste (spec 04).
@@ -64,14 +64,14 @@ export function MenuScreen({ onSelectGame, onManagePlayers }: MenuScreenProps) {
                 onSelectGame(game);
               }}
               className={[
-                'flex h-40 w-40 flex-col items-center justify-center gap-3 rounded-3xl bg-piece text-board shadow-[0_6px_0_0_rgba(0,0,0,0.25)] transition-transform',
+                'flex h-32 w-28 flex-col items-center justify-center gap-1 rounded-3xl bg-piece px-1 text-board shadow-[0_6px_0_0_rgba(0,0,0,0.25)] transition-transform sm:h-40 sm:w-40 sm:gap-3 sm:px-0',
                 available
                   ? 'active:translate-y-1 active:shadow-[0_2px_0_0_rgba(0,0,0,0.25)]'
                   : 'cursor-not-allowed opacity-40',
               ].join(' ')}
             >
-              <img src={game.meta.icon} alt="" className="h-16 w-16" />
-              <span className="text-lg">{game.meta.title}</span>
+              <img src={game.meta.icon} alt="" className="h-10 w-10 sm:h-16 sm:w-16" />
+              <span className="text-center text-xs leading-tight sm:text-lg">{game.meta.title}</span>
               {!available && (
                 <span className="px-2 text-center text-xs leading-tight">
                   Ajoute {missing} joueur{missing > 1 ? 's' : ''}

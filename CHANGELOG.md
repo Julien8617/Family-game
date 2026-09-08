@@ -6,6 +6,13 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 
 ## Non publié
 
+- Support iPhone à égalité avec l'iPad : l'app est maintenant verrouillée en
+  **portrait** sur les deux appareils (avant : iPad uniquement, en paysage).
+  Le mode famille (deux profils, appareil partagé) fonctionne à l'identique
+  sur iPhone. Sur les jeux à grille dense (l'échiquier de la course des
+  poussins), les cases sont plus petites sur iPhone que sur iPad faute de place
+  à l'écran — reste jouable, cible tactile réduite mais conforme au minimum
+  recommandé par Apple.
 - Spec 04 — La course des poussins : premier palier vers les échecs. Vrai
   échiquier 8×8, coordonnées, pièces blanches/noires classiques, avance et
   prise en diagonale. Choix de qui commence (Blancs, Noirs, ou au hasard)

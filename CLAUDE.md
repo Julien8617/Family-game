@@ -14,18 +14,22 @@ Premier jeu livré : morpion (tic-tac-toe).
 
 ## Cible matérielle — non négociable
 
-| | |
-|---|---|
-| Appareil | iPad Air 2 (2015), A8X, 2 Go de RAM |
-| OS | iPadOS 15.8.8 — figé, aucune mise à jour possible |
-| Moteur | Safari / WebKit 15.8 |
-| Écran | 2048×1536 physiques, **1024×768 points**, ratio 4:3 |
-| Orientation | Paysage verrouillée via le manifest |
-| Réseau | **Aucun**. L'appareil doit fonctionner en mode avion, indéfiniment |
+Deux appareils à égalité, tous deux verrouillés en **portrait** via le manifest —
+l'iPad n'est plus paysage, c'est un choix assumé (l'app tournait en paysage
+jusqu'à la spec 04 ; le verrouillage portrait qui suit l'annule volontairement).
 
-Tout le code doit tourner sur ce navigateur. En cas de doute sur une API, vérifier
-sa disponibilité en Safari 15.0 avant de l'utiliser. Ne jamais introduire une
-dépendance sans vérifier sa cible de compilation.
+| | iPad | iPhone |
+|---|---|---|
+| Appareil | iPad Air 2 (2015), A8X, 2 Go de RAM | iPhone X (référence) |
+| OS | iPadOS 15.8.8 — figé, aucune mise à jour possible | iOS 15.x et plus récent |
+| Moteur | Safari / WebKit 15.8 | Safari / WebKit iOS |
+| Écran | 2048×1536 physiques, **768×1024 points** en portrait | 375×812 points |
+| Orientation | Portrait verrouillée via le manifest | Portrait verrouillée via le manifest |
+| Réseau | **Aucun**. L'appareil doit fonctionner en mode avion, indéfiniment | idem |
+
+Tout le code doit tourner sur ces deux navigateurs. En cas de doute sur une API,
+vérifier sa disponibilité en Safari 15.0 avant de l'utiliser. Ne jamais introduire
+une dépendance sans vérifier sa cible de compilation.
 
 ### Disponible
 
@@ -105,6 +109,12 @@ application. Surfaces franches, aplats mats, formes que la main a envie de touch
 Le jeu occupe l'écran ; l'interface se tait autour.
 
 - Cibles tactiles de **80 px minimum**. Un enfant de quatre ans vise mal.
+  Exception documentée : sur iPhone (375 pt de large), une grille dense qui ne
+  peut physiquement pas tenir en 80 px/case (l'échiquier 8×8 de la course des
+  poussins demanderait 640 px) descend jusqu'à ~44-46 px — la norme tactile
+  minimale d'Apple, pas un choix arbitraire. Cette exception ne concerne que les
+  grilles denses sur écran étroit ; partout ailleurs (dont le morpion, 3×3,
+  ~125 px/case même sur iPhone), 80 px reste la règle.
 - Chaque écran doit être navigable **sans savoir lire** : photo du joueur, icône du
   jeu, couleur. Le texte accompagne, il ne porte jamais seul l'information.
 - Les photos des joueurs sont l'élément identitaire principal de l'app. Elles sont
