@@ -11,6 +11,10 @@ Les icônes des 4 niveaux de bot de la course des poussins
 (`chess-race-levels/`, GIF Flaticon) suivent la même règle mais ont leur
 propre fichier de licence : `chess-race-levels/LICENSE.md`.
 
+L'avatar par défaut des profils joueur (`default-avatar/`, PNG Flaticon ou
+similaire) suit la même règle mais a son propre fichier de licence :
+`default-avatar/LICENSE.md`.
+
 ## ZzFX (`zzfx.js`)
 
 - Source : https://github.com/KilledByAPixel/ZzFX (édition « Micro »,

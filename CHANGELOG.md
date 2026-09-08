@@ -6,6 +6,8 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 
 ## Non publié
 
+- Choisir une photo ou un avatar n'est plus obligatoire pour créer un
+  joueur : un avatar par défaut est déjà en place, à remplacer si on veut.
 - Morpion : nouveau mode « Contre l'ordinateur », trois niveaux (Facile,
   Moyen, Imbattable — ce dernier ne perd jamais). Contre l'Imbattable, une
   série de défaites d'affilée adoucit discrètement le niveau réellement joué

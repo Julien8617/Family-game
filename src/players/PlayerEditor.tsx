@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import { AVATARS } from './avatars';
+import { DEFAULT_AVATAR } from './defaultAvatar';
 import { PLAYER_COLORS } from './palette';
 import { PhotoCropper } from './PhotoCropper';
 import { loadImage } from './photo';
@@ -17,7 +18,9 @@ interface PlayerEditorProps {
 export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
   const [id] = useState(() => player?.id ?? crypto.randomUUID());
   const [name, setName] = useState(player?.name ?? '');
-  const [photo, setPhoto] = useState(player?.photo ?? '');
+  // Choisir une photo/un avatar est facultatif : un nouveau joueur démarre
+  // déjà avec l'avatar par défaut, pas un état vide à remplir.
+  const [photo, setPhoto] = useState(player?.photo ?? DEFAULT_AVATAR);
   const [color, setColor] = useState(player?.color ?? '');
   const [mode, setMode] = useState<'photo' | 'avatar'>('photo');
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +57,7 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
   }
 
   const trimmedName = name.trim();
-  const canSave = photo.length > 0 && trimmedName.length >= 1 && trimmedName.length <= 12 && color.length > 0;
+  const canSave = trimmedName.length >= 1 && trimmedName.length <= 12 && color.length > 0;
 
   function handleSave() {
     if (!canSave) return;
@@ -95,11 +98,7 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
         onClick={() => mode === 'photo' && fileInputRef.current?.click()}
         className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-piece/20 text-piece shadow-[0_6px_0_0_rgba(0,0,0,0.25)] sm:h-36 sm:w-36"
       >
-        {photo ? (
-          <img src={photo} alt="" className="h-full w-full object-cover" />
-        ) : (
-          <span className="px-4 text-center text-lg">Ajouter une photo</span>
-        )}
+        <img src={photo} alt="" className="h-full w-full object-cover" />
       </button>
       <input
         ref={fileInputRef}

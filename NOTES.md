@@ -139,6 +139,34 @@ tranché, pourquoi, et les pièges déjà payés une fois. Différent de
   maintenant `sx`/`sy`/`side` explicites au lieu de calculer un centrage fixe
   en interne).
 
+## Avatar par défaut : choisir une photo/un avatar devient facultatif
+
+- Jusqu'ici la photo était devenue facultative (section précédente) mais il
+  fallait quand même choisir *quelque chose* — `photo.length > 0` était une
+  condition de `canSave`. Retiré : un nouveau profil démarre déjà avec un
+  avatar par défaut (silhouette blanche sur fond doré, fourni par
+  l'utilisateur, `idée/utilisateur.png`), pas un état vide à remplir. On peut
+  enregistrer un joueur en ne renseignant que le prénom et la couleur.
+- **Même piège de taille d'inlining Vite** que pour les avatars OpenMoji
+  (section précédente), mais pas la même solution : `?raw` ne marche que
+  pour du texte (SVG), pas pour un PNG binaire. Résolu en pré-encodant une
+  bonne fois en base64 (script Node ponctuel, pas une dépendance de build) et
+  en collant le résultat comme constante `data:image/png;base64,...` dans
+  `players/defaultAvatar.ts` — même intention que `?raw` (un data URI
+  toujours auto-suffisant, quelle que soit la taille), juste sans plugin.
+- Redimensionné 512×512 → 200×200 avant encodage (`sharp-cli` via `npx`,
+  outil ponctuel), comme n'importe quelle photo de profil (`players/photo.ts`)
+  — sinon chaque joueur sans photo alourdirait `localStorage` inutilement,
+  exactement le risque que la règle des 200 px existe déjà pour éviter.
+- Licence Flaticon (ou similaire) déclarée à l'utilisateur avant d'intégrer,
+  même démarche que pour les GIF de niveau de la course des poussins —
+  documentée dans `src/vendor/default-avatar/LICENSE.md`, attribution exacte
+  encore à compléter.
+- Aucun autre écran à toucher : `player.photo` n'est jamais vide, donc `Board`,
+  `GameScreen`, `ResultScreen`, `PlayerPickScreen`, `PlayerListScreen`
+  continuent de l'afficher sans rien savoir de ce changement — même bénéfice
+  que le choix initial de stocker les avatars dans le même champ qu'une photo.
+
 ## Patron réutilisable : vendoriser une librairie ou des assets externes
 
 Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
