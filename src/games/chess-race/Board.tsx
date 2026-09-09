@@ -88,6 +88,7 @@ export function Board({
         const isLight = (row + col) % 2 === 0;
         const occupant = state.board[cell];
         const isSelected = selected === cell;
+        const isLastMove = state.lastMove !== null && (state.lastMove.from === cell || state.lastMove.to === cell);
         const isTarget = legalTargets.includes(cell);
         const isCaptureTarget = isTarget && occupant !== null;
         const labelColor = isLight ? 'text-squareDark/70' : 'text-squareLight/70';
@@ -109,6 +110,13 @@ export function Board({
             aria-label={algebraic(cell)}
             className={`relative flex items-center justify-center ${isLight ? 'bg-squareLight' : 'bg-squareDark'}`}
           >
+            {/* Case de départ/d'arrivée du dernier coup (joueur ou bot) — un
+                lavis discret, sous la pièce et les repères de sélection, pas
+                la couleur victory déjà prise par la sélection/les cases
+                jouables (sinon on ne distinguerait plus « dernier coup » de
+                « coup en cours »). */}
+            {isLastMove && <span className="absolute inset-0 bg-piece/30" />}
+
             {row === SIZE - 1 && (
               <span className={`absolute inset-x-0 h-1.5 bg-chessWhite ${isVisualTopRow ? 'top-0' : 'bottom-0'}`} />
             )}

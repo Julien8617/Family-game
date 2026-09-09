@@ -16,6 +16,9 @@ export interface ChessRaceState {
   players: [PlayerId, PlayerId]; // [blancs, noirs]
   seed: number;
   moveCount: number;
+  // Dernier coup joué (humain ou bot), pour que Board.tsx puisse surligner
+  // sa case de départ et d'arrivée. null avant le premier coup.
+  lastMove: ChessRaceMove | null;
 }
 
 export interface ChessRaceMove {
@@ -54,7 +57,7 @@ export function createState(players: PlayerId[], seed: number): ChessRaceState {
     board[cellOf(1, col)] = white; // rangée 2
     board[cellOf(6, col)] = black; // rangée 7
   }
-  return { board, turn: white, players: [white, black], seed, moveCount: 0 };
+  return { board, turn: white, players: [white, black], seed, moveCount: 0, lastMove: null };
 }
 
 // Cases atteignables depuis `from` pour le joueur au trait — avance sur case
@@ -118,7 +121,7 @@ export function applyMove(state: ChessRaceState, move: ChessRaceMove): ChessRace
   board[move.to] = piece;
   const [white, black] = state.players;
   const turn = state.turn === white ? black : white;
-  return { ...state, board, turn, moveCount: state.moveCount + 1 };
+  return { ...state, board, turn, moveCount: state.moveCount + 1, lastMove: move };
 }
 
 export function currentPlayer(state: ChessRaceState): PlayerId | null {

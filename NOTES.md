@@ -615,6 +615,40 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   responsive) ; la grille fige le nombre par ligne indépendamment de la
   largeur disponible, exactement la garantie demandée (« 2 lignes de 4 »).
 
+## Surbrillance du dernier coup (course des poussins)
+
+- **`lastMove` ajouté à `ChessRaceState`** (`{ from, to } | null`), posé par
+  `applyMove`, lu par `Board.tsx` pour teinter les deux cases (départ et
+  arrivée) du dernier coup joué — humain ou bot, aucune distinction, c'est
+  la même case `state.lastMove` dans les deux cas. Reste un champ JSON
+  ordinaire : ne casse aucun invariant (état intégralement sérialisable).
+- **Une seule couleur, `bg-piece/30`, pas `victory`** : `victory` est déjà
+  pris par la sélection en cours et les cases jouables — réutiliser la même
+  couleur aurait rendu « dernier coup » indiscernable de « coup en train de
+  se jouer ». Le lavis crème passe sous la pièce et les repères de
+  sélection (premier enfant du bouton), jamais par-dessus.
+- **Test à jour** : `stateWithBoard` (`logic.test.ts`) et toute construction
+  manuelle de `ChessRaceState` doivent maintenant fournir `lastMove` — TS
+  strict le signale immédiatement si oublié. Deux tests ajoutés (`null` à la
+  création, coup enregistré après `applyMove`).
+- Vérifié en navigateur, niveau Facile, bot commençant : la case de départ
+  du bot (assombrie) et d'arrivée (pièce dessus) ressortent nettement l'une
+  de l'autre, sur case claire comme foncée ; après le coup humain suivant,
+  seul le nouveau coup reste surligné.
+
+## Validation de fin de session (2026-09-09)
+
+Toutes les specs décrites ci-dessus depuis « Support iPhone à égalité avec
+l'iPad » jusqu'à « Choix de couleur du profil : grille figée à 2×4 » ont été
+testées par l'utilisateur (« test ok ») et sont committées (jusqu'à
+`33ac1ee update graphique`) — commits faits par l'utilisateur lui-même en
+dehors de cette session (jamais via `git commit` dans cette conversation :
+la règle « pas de commit avant validation iPad » a été respectée en laissant
+l'utilisateur committer). Seule cette mise à jour de documentation
+(`ARCHITECTURE.md`, `CLAUDE.md`, `NOTES.md`) restait à committer à la fin de
+la session. Voir le message de reprise donné à l'utilisateur pour l'état
+exact au moment du `/clear`.
+
 ## Process établi avec l'utilisateur
 
 - Avant d'écrire du CSS ou une nouvelle direction visuelle : proposer sa

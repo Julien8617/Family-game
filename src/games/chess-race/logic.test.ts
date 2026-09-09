@@ -21,7 +21,7 @@ function stateWithBoard(
   turn: string = WHITE,
   moveCount = 0,
 ): ChessRaceState {
-  return { board, turn, players: [WHITE, BLACK], seed: 0, moveCount };
+  return { board, turn, players: [WHITE, BLACK], seed: 0, moveCount, lastMove: null };
 }
 
 describe('chess-race logic', () => {
@@ -89,6 +89,18 @@ describe('chess-race logic', () => {
     expect(next.turn).toBe(BLACK);
     expect(next.board[cellOf(2, 0)]).toBe(WHITE);
     expect(next.board[cellOf(1, 0)]).toBeNull();
+  });
+
+  it('has no last move before the first move is played', () => {
+    const state = createState([WHITE, BLACK], 0);
+    expect(state.lastMove).toBeNull();
+  });
+
+  it('records the move just played as lastMove', () => {
+    const state = createState([WHITE, BLACK], 0);
+    const move = { from: cellOf(1, 0), to: cellOf(2, 0) };
+    const next = applyMove(state, move);
+    expect(next.lastMove).toEqual(move);
   });
 
   it('detects a win when a white chick reaches row 8', () => {

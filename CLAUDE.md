@@ -10,7 +10,9 @@ App de jeux familiale, hors ligne, installée en PWA sur l'écran d'accueil d'un
 familial. Menu général, sélection du joueur par photo, jeux ajoutés progressivement.
 Joueurs : deux adultes et deux jeunes enfants (dont un qui ne lit pas encore).
 
-Premier jeu livré : morpion (tic-tac-toe).
+Jeux livrés : morpion (tic-tac-toe) et la course des poussins (dames-échecs
+simplifié). Les deux se jouent en famille (profils réels) ou contre l'ordinateur
+(adversaire artificiel à plusieurs niveaux, jamais persisté comme un vrai joueur).
 
 ## Cible matérielle — non négociable
 
@@ -121,9 +123,11 @@ Le jeu occupe l'écran ; l'interface se tait autour.
   grandes, rondes, et c'est sur elles que tombe l'attention.
 - Le mouvement répond à une action : un pion qui se pose, un tour qui passe, une
   victoire. Rien ne bouge tout seul.
-- Palette de départ, à faire évoluer si tu as mieux :
-  `#1E3D34` plateau · `#F2E4C9` pièces claires · `#C94F3D` joueur 1 ·
-  `#3C6E9F` joueur 2 · `#F5A623` accent de victoire
+- Palette de base : `#1E3D34` plateau · `#F2E4C9` pièces claires ·
+  `#F5A623` accent de victoire (jamais utilisé comme couleur de profil —
+  se confondrait avec la ligne/l'anneau de victoire). Couleur de joueur :
+  8 teintes fixes dans `src/players/palette.ts` (`PLAYER_COLORS`), assignées
+  librement à la création du profil.
 - Une seule famille de caractères, grasse et large. Pas de deuxième typo décorative.
 
 À éviter, ce sont les réflexes par défaut et ils se voient :
@@ -138,7 +142,8 @@ décoratifs.
 |---|---|---|---|
 | Effets sonores | ZzFX | MIT | < 1 ko, sons générés en code, aucun fichier audio |
 | Confettis de victoire | canvas-confetti | ISC | Baisser `particleCount`, respecter `prefers-reduced-motion` |
-| Icônes, badges | OpenMoji | CC BY-SA 4.0 | SVG copiés localement, pas de CDN |
+| Icônes, badges (avatars) | OpenMoji | CC BY-SA 4.0 | SVG copiés localement, pas de CDN |
+| Icônes de niveau, avatar par défaut, icônes de mode | Flaticon (ou similaire) | Gratuite, **attribution obligatoire** | Fournies par l'utilisateur via un dossier `idée/` hors dépôt ; vendorisées avec un `LICENSE.md` par lot (`src/vendor/chess-race-levels/`, `default-avatar/`, `mode-icons/`) — **attribution exacte (auteur/pack, lien) encore à compléter dans chacun** avant toute publication |
 
 ## Ce qu'il ne faut jamais faire
 
