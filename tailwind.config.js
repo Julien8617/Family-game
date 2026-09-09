@@ -40,7 +40,7 @@ export default {
       },
       animation: {
         'win-line': 'win-line 200ms ease-out',
-        'connect4-drop': 'connect4-drop 320ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'connect4-drop': 'connect4-drop 384ms cubic-bezier(0.34, 1.56, 0.64, 1)',
       },
     },
   },
