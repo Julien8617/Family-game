@@ -102,6 +102,19 @@ src/
                           NOTES.md pour la pathologie de recherche rencontrée)
       index.ts, icon.svg
       logic.test.ts, bot.test.ts
+    sound-memory/          « mémoire sonore » — premier jeu solo (pas
+                           d'adversaire), un pad lumineux/sonore par couleur,
+                           séquence à répéter, difficulté = nombre de pads
+      logic.ts           pur, testé, sans React ; le nombre de pads (2/4/6/8)
+                          se choisit dans une phase 'setup' interne à l'état
+                          du jeu, pas dans le shell
+      Board.tsx           lecture de la séquence par timers locaux (aucun
+                          appel à applyMove pendant l'animation), une seule
+                          intention émise en fin de lecture (`sequenceShown`)
+      padColors.ts        8 teintes propres au jeu, distinctes de
+                          PLAYER_COLORS (players/palette.ts)
+      index.ts, icon.svg
+      logic.test.ts
 
   net/
     transport.ts         interface Transport
@@ -137,7 +150,18 @@ du shell, des joueurs réels, ni du transport.
 export type PlayerId = string;
 
 export type Result =
-  | { kind: 'win'; winner: PlayerId }
+  | {
+      kind: 'win';
+      winner: PlayerId;
+      // Facultatif : un jeu solo à score (pas de vraie « victoire » contre un
+      // autre joueur) rapporte sa manche ainsi, `winner` désignant alors
+      // simplement le joueur dont c'est le score. `variant` distingue des
+      // scores qui n'ont pas le même sens (ex. difficulté différente) — clé
+      // opaque pour le shell, qui s'en sert uniquement pour ranger le
+      // meilleur score par (jeu, joueur, variant), voir §5 et
+      // storage/index.ts.
+      score?: { value: number; variant?: string };
+    }
   | { kind: 'draw' };
 
 export interface GameMeta {
@@ -154,6 +178,12 @@ export interface GameMeta {
   // d'autre d'un même appareil). Le shell ne sait toujours pas pourquoi
   // l'ordre compte pour ce jeu en particulier.
   colorLabels?: [string, string];
+  // Facultatif : un jeu solo (sans adversaire artificiel) qui propose un
+  // réglage à choisir avant la partie (ex. une vitesse) réutilise le même
+  // sélecteur visuel « NIVEAU » que game.bot.levels, sans mode « contre
+  // l'ordinateur » ni chooseMove. Le niveau choisi est transmis tel quel à
+  // createState (3ᵉ paramètre) ; le shell ne sait pas ce qu'il signifie.
+  soloLevels?: BotLevel[];
 }
 
 export interface BoardProps<S, M> {
@@ -182,7 +212,10 @@ export interface BotLevel {
 export interface GameModule<S, M> {
   meta: GameMeta;
 
-  createState(players: PlayerId[], seed: number): S;
+  // `options` porte le niveau choisi via GameMeta.soloLevels (facultatif) —
+  // un jeu sans soloLevels ignore ce 3ᵉ paramètre sans rien changer à sa
+  // signature (players, seed).
+  createState(players: PlayerId[], seed: number, options?: { level?: number }): S;
   isValidMove(state: S, move: M): boolean;
   applyMove(state: S, move: M): S;
   currentPlayer(state: S): PlayerId | null;
@@ -285,8 +318,14 @@ Stockage dans `localStorage`, sous deux clés (`src/storage/index.ts`) :
   fusionné avec les valeurs par défaut à la lecture pour qu'un champ ajouté
   après coup n'invalide pas un réglage déjà stocké
 
-Pas de clé `scores` : le palmarès n'a jamais été construit (toujours en
-§10, points à trancher plus tard).
+`scores` — meilleur score par (jeu, joueur, variant), pour un jeu solo à
+score (`Result.score`, voir §4). Un seul entier par clé (le record), pas un
+historique de parties. `variant` (ex. `pads-4`) permet à un jeu comme la
+mémoire sonore de garder un record séparé par niveau de difficulté plutôt
+qu'un seul chiffre qui mélangerait des parties incomparables — décision
+utilisateur, tranchant le point resté ouvert en §10 jusqu'ici. Calculé et
+écrit par le shell (`App.tsx`, générique), jamais par `logic.ts` d'un jeu
+(qui reste pur, sans accès à `localStorage`).
 
 Le quota est de 5 Mo environ, et il est partagé. Une photo iPad brute pèse plusieurs
 mégaoctets : le redimensionnement en canvas avant sérialisation n'est pas une
@@ -385,6 +424,19 @@ l'heuristique simple de ce jeu, une pathologie de minimax connue (voir
 NOTES.md). Palette de couleurs de profil revérifiée contre un plateau à fond
 sombre (les 8 couleurs avaient été choisies pour contraster sur fond clair).
 
+**Phase 2.7 — premier jeu solo, premier jeu à score** ✅ livré
+Mémoire sonore ajoutée : quatrième jeu, mais surtout premier qui n'oppose pas
+des joueurs entre eux (`minPlayers = maxPlayers = 1`, pas de `bot`) et
+premier dont la fin de partie est un score plutôt qu'une victoire/défaite.
+Deux extensions additives du contrat pour l'accueillir, sans toucher aucun
+jeu existant : `GameMeta.soloLevels` (réglage pré-partie réutilisant le
+sélecteur « NIVEAU », sans adversaire) et `Result.score` facultatif sur la
+variante `win` (plutôt qu'un troisième `kind`, qui aurait forcé une
+narrowing supplémentaire dans le code déjà écrit des trois autres jeux —
+voir NOTES.md). Palmarès (`storage.ts`, clé `scores`) construit à cette
+occasion, un seul entier par (jeu, joueur, variant) — le point resté ouvert
+en §10 depuis la phase 1.
+
 **Phase 3 — deux appareils**
 Seulement si un jeu à information cachée le justifie. Implémenter `webrtcTransport`
 derrière l'interface existante. Pas commencé.
@@ -406,7 +458,6 @@ derrière l'interface existante. Pas commencé.
 
 - Sauvegarde d'une partie en cours (l'état est déjà sérialisable, c'est du travail
   d'interface, pas d'architecture).
-- Palmarès : compteur simple ou historique complet des parties.
 - Voie A ou voie B pour le multi-appareils.
 - Attribution exacte (auteur/pack, lien) à compléter dans les 3 `LICENSE.md`
   Flaticon (`chess-race-levels/`, `default-avatar/`, `mode-icons/`) avant

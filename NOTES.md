@@ -750,6 +750,89 @@ trait *sombre*). Un futur jeu à plateau sombre devrait vérifier ses pièces
 contre les 8 couleurs de `PLAYER_COLORS`, pas seulement contre la couleur
 de test du moment.
 
+## Mémoire sonore ajoutée (2026-09-10)
+
+Quatrième jeu, premier solo (Simon/mémoire de séquence) : un pad lumineux et
+sonore par couleur, une séquence à répéter, difficulté = nombre de pads
+(2/4/6/8). Contrairement aux trois précédents, aucun adversaire (réel ou
+artificiel) — le contrat `GameModule` n'avait encore jamais été poussé dans
+cette direction.
+
+- **Où choisir le nombre de pads vs. le rythme — deux mécanismes différents,
+  décidé explicitement avec l'utilisateur** (voir « Process établi »
+  ci-dessous) : le nombre de pads (2/4/6/8) est une phase interne au jeu
+  (`SoundMemoryState.phase === 'setup'`, premier écran du `Board`), zéro
+  changement du shell. Le rythme (lent/normal/rapide/très rapide), en
+  revanche, réutilise explicitement le sélecteur « NIVEAU » existant
+  (`PlayerPickScreen`, la même rangée d'icônes œuf/poussin/poule/coq que les
+  jeux à bot) — demandé tel quel par l'utilisateur plutôt que construit en
+  interne au jeu comme le nombre de pads.
+- **`GameMeta.soloLevels?: BotLevel[]` — nouvelle extension additive du
+  contrat**, parallèle à `bot.levels` mais sans adversaire : `PlayerPickScreen`
+  affiche le même sélecteur « NIVEAU » dès que ce champ existe, indépendamment
+  de `game.bot` (qui reste réservé aux vrais adversaires — mode « contre
+  l'ordinateur », `chooseMove`). Le niveau choisi est transmis à
+  `createState(players, seed, options?: { level? })` — 3ᵉ paramètre optionnel
+  ajouté au contrat, invisible pour les trois jeux existants (une fonction à
+  2 paramètres reste assignable à un type qui en accepte 3, TypeScript
+  n'exige pas que l'implémentation déclare le paramètre facultatif qu'elle
+  ignore).
+- **`Result.score` sur `kind: 'win'`, pas un troisième `kind: 'score'`** :
+  premier essai (un vrai troisième membre d'union) cassait la compilation de
+  `tictactoe/bot.ts`, `chess-race/bot.ts` et les trois fichiers `bot.test.ts`
+  existants — tous accèdent à `result.winner` après avoir seulement exclu
+  `kind === 'draw'`, ce qui suffisait tant que `win`/`draw` étaient les deux
+  seuls membres. Élargir l'union cassait ce raisonnement partout où il
+  apparaissait. Fix : garder exactement les deux `kind` d'origine, et ajouter
+  un champ `score?: { value; variant? }` facultatif sur `win` — `winner`
+  désigne alors simplement le joueur dont c'est le score, pas un gagnant au
+  sens propre. Zéro fichier des trois autres jeux à toucher. Passer par un
+  vrai build (`tsc -b`, pas seulement `tsc --noEmit` qui n'a pas les mêmes
+  réglages de projet) a été nécessaire pour voir l'erreur — leçon pour une
+  future extension du contrat : vérifier avec la même commande que
+  `npm run build`.
+- **Palmarès (`storage.ts`, clé `scores`)** : un entier par
+  `${gameId}:${playerId}:${variant}`, jamais un historique de parties —
+  tranche le point resté ouvert depuis la phase 1 (ARCHITECTURE.md §10).
+  `variant` (ex. `pads-4`) garde un record séparé par nombre de pads, décidé
+  explicitement par l'utilisateur (« un max par difficulté ») : un score à
+  8 pads n'a pas le même sens qu'à 2 pads. Calculé et écrit par `App.tsx`
+  (générique, `computeScoreInfo`), jamais par `sound-memory/logic.ts` — la
+  règle « un seul module accède à localStorage » et la pureté de `logic.ts`
+  interdisaient toutes les deux d'y lire/écrire le record directement.
+- **Séquence : un `useEffect` gardé par référence, pas par un flag manuel** —
+  `Board.tsx` relance son détail de timers (lecture de la séquence) sur
+  `[state.sequence, state.rhythmMs]`. `state.sequence` ne change de référence
+  exactement que lorsqu'une nouvelle manche démarre (`setPadCount` ou manche
+  réussie dans `logic.ts`) ; un tap correct qui ne termine pas la manche, ou
+  `sequenceShown`, renvoient le même tableau. Pas besoin d'un ref
+  `shownForRound` pour éviter un rejeu : la dépendance elle-même ne change
+  que quand on veut vraiment rejouer. `onMove` volontairement absent des
+  dépendances (recréé à chaque rendu du shell, `GameScreen.tsx`) — l'inclure
+  aurait fait repartir l'animation en plein milieu de la lecture à chaque
+  rendu parent, malgré la garde de `state.phase`.
+- **`lastTap` sur `SoundMemoryState`** : même patron que `Connect4State.lastMove`
+  — surligne le pad fautif en phase `gameover` (anneau orange), posé sur
+  *chaque* tap (correct ou non), lu par `Board.tsx` seulement quand
+  `phase === 'gameover'`.
+- **Le son du pad est joué deux fois côté humain (tap + écho générique
+  `move` du shell), accepté tel quel** — même compromis déjà documenté pour
+  morpion/tour (« move et turn sonnent toujours ensemble »). Le son
+  spécifique au pad (`fx/sound.ts`, `playPadTone`, une note fixe par pad,
+  gamme do→do) est joué directement par `Board.tsx` au tap et à la lecture ;
+  le clic générique du shell (`GameScreen`, sur tout coup non terminal) joue
+  par-dessus. Pas de son de « faute » séparé ajouté : le son `draw` déjà
+  joué par le shell sur tout résultat non-`win` sonne comme un buzz
+  descendant, suffisant comme signal de fin de manche.
+- **Testé en navigateur** (Chrome, viewport redimensionné, pas encore sur
+  iPad/iPhone réels) : cycle complet setup → lecture → manche réussie
+  (score 1, préfixe de séquence conservé) → mauvais tap → écran de résultat
+  avec « Nouveau record ! » et confettis (couleur du joueur) ; rejoué ensuite
+  avec un nombre de pads différent (2 au lieu de 4) pour confirmer que le
+  record est bien séparé par `variant` (« Meilleur score : 0 », pas 1, sur
+  la nouvelle difficulté). `npm test`, `npm run lint` et `npm run build`
+  passent tous les trois.
+
 **Cases tactiles sur grille dense — motif réutilisable.** Premier jet :
 un bouton par trou, 7×6 = 42 boutons. Sur iPhone (plateau contraint à
 ~352 px de large par le carré que `GameScreen` réserve, voir §4

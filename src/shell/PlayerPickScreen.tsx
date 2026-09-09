@@ -9,7 +9,7 @@ import { BOT_PLAYER_ID, createBotPlayer } from './bot';
 
 interface PlayerPickScreenProps {
   game: GameModule<any, any>;
-  onConfirm(players: Player[], bot?: { playerId: PlayerId; level: number }): void;
+  onConfirm(players: Player[], bot?: { playerId: PlayerId; level: number }, soloLevel?: number): void;
   onBack(): void;
 }
 
@@ -32,9 +32,12 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
   const [mode, setMode] = useState<Mode>(singlePlayerVsBot ? 'computer' : 'family');
   const [phase, setPhase] = useState<Phase>('select');
   const [selected, setSelected] = useState<PlayerId[]>(singlePlayerVsBot ? [players[0].id] : []);
-  const levels = game.bot?.levels ?? [];
+  // GameMeta.soloLevels : même sélecteur visuel que game.bot.levels, pour un
+  // jeu solo sans adversaire (ex. la vitesse de la mémoire sonore) — les deux
+  // ne coexistent jamais sur un même jeu.
+  const levels = game.bot?.levels ?? game.meta.soloLevels ?? [];
   const [levelId, setLevelId] = useState<number>(() => {
-    const stored = getSettings().lastBotLevel;
+    const stored = game.bot ? getSettings().lastBotLevel : getSettings().lastSoloLevel;
     return levels.find((l) => l.id === stored)?.id ?? levels[0]?.id ?? 1;
   });
 
@@ -79,6 +82,10 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
       const level = levels.find((l) => l.id === levelId) ?? levels[0];
       updateSettings({ lastBotLevel: level.id });
       onConfirm(orderedPlayers, { playerId: BOT_PLAYER_ID, level: level.id });
+    } else if (game.meta.soloLevels) {
+      const level = levels.find((l) => l.id === levelId) ?? levels[0];
+      updateSettings({ lastSoloLevel: level.id });
+      onConfirm(orderedPlayers, undefined, level.id);
     } else {
       onConfirm(orderedPlayers);
     }
@@ -212,7 +219,7 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
         })}
       </div>
 
-      {mode === 'computer' && (
+      {(mode === 'computer' || game.meta.soloLevels) && (
         <div className="flex flex-col items-center gap-3">
           <h2 className="text-xl text-piece/70">NIVEAU</h2>
           <div className="flex flex-wrap justify-center gap-4 sm:gap-6">

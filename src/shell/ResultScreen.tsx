@@ -4,9 +4,19 @@ import { celebrate } from '../fx/confetti';
 import { play } from '../fx/sound';
 import type { Player } from '../players/types';
 
+// Résultat d'un jeu solo à score (Result.score défini), enrichi par App.tsx
+// via storage/index.ts (getHighScore/recordScore) — le shell calcule ça
+// génériquement, sans connaître la signification du score pour le jeu.
+export interface ScoreInfo {
+  value: number;
+  best: number;
+  isNewBest: boolean;
+}
+
 interface ResultScreenProps {
   result: Result;
   players: Player[];
+  scoreInfo?: ScoreInfo;
   onReplay(): void;
   onMenu(): void;
 }
@@ -15,24 +25,30 @@ interface ResultScreenProps {
 // spec 03, critère 9 : ligne, puis photo, puis confettis.
 const CONFETTI_DELAY_MS = 200;
 
-export function ResultScreen({ result, players, onReplay, onMenu }: ResultScreenProps) {
-  const winner = result.kind === 'win' ? players.find((p) => p.id === result.winner) : undefined;
+export function ResultScreen({ result, players, scoreInfo, onReplay, onMenu }: ResultScreenProps) {
+  const resultPlayer = result.kind === 'win' ? players.find((p) => p.id === result.winner) : undefined;
+  // Un jeu solo à score (result.score défini) n'a pas de vraie « victoire » à
+  // fêter en soi — seul un nouveau record en a une (le score en lui-même ne
+  // fait que confirmer une valeur, « rien ne bouge tout seul »).
+  const scorer = result.kind === 'win' && result.score ? resultPlayer : undefined;
+  const winner = scorer ? undefined : resultPlayer;
+  const celebrationColor = winner?.color ?? (scoreInfo?.isNewBest ? scorer?.color : undefined);
 
   useEffect(() => {
-    if (!winner) return; // pas de confettis pour un match nul
-    const timer = setTimeout(() => celebrate(winner.color), CONFETTI_DELAY_MS);
+    if (!celebrationColor) return;
+    const timer = setTimeout(() => celebrate(celebrationColor), CONFETTI_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [winner]);
+  }, [celebrationColor]);
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-12 bg-board px-4 sm:px-12">
       <div className="flex flex-col items-center gap-6">
-        {winner ? (
+        {winner || scorer ? (
           <img
-            src={winner.photo}
+            src={(winner ?? scorer)!.photo}
             alt=""
             className="h-32 w-32 rounded-full object-cover sm:h-48 sm:w-48"
-            style={{ boxShadow: `0 0 0 6px ${winner.color}` }}
+            style={{ boxShadow: `0 0 0 6px ${(winner ?? scorer)!.color}` }}
           />
         ) : (
           <div className="flex items-center gap-4 sm:gap-8">
@@ -47,7 +63,17 @@ export function ResultScreen({ result, players, onReplay, onMenu }: ResultScreen
             ))}
           </div>
         )}
-        <h1 className="text-5xl text-piece">{winner ? `${winner.name} gagne !` : 'Match nul !'}</h1>
+        {scorer && scoreInfo ? (
+          <div className="flex flex-col items-center gap-2">
+            <h1 className="text-5xl text-piece">
+              {scoreInfo.isNewBest ? 'Nouveau record !' : scorer.name}
+            </h1>
+            <p className="text-2xl text-piece/80">Score : {scoreInfo.value}</p>
+            <p className="text-xl text-piece/60">Meilleur score : {scoreInfo.best}</p>
+          </div>
+        ) : (
+          <h1 className="text-5xl text-piece">{winner ? `${winner.name} gagne !` : 'Match nul !'}</h1>
+        )}
       </div>
       <div className="flex gap-6">
         <button

@@ -9,6 +9,10 @@ interface GameScreenProps {
   players: Player[];
   seed: number;
   bot?: { playerId: PlayerId; level: number };
+  // Niveau choisi via GameMeta.soloLevels (jeu solo sans adversaire, voir
+  // games/types.ts) — transmis tel quel à createState, générique pour le
+  // shell. undefined pour tout jeu qui ne déclare pas soloLevels.
+  soloLevel?: number;
   // Défaites d'affilée du joueur humain face au bot, portées par App.tsx à
   // travers les parties rejouées — 0 si le jeu n'a pas de bot ou vient d'être
   // choisi. Transmis tel quel à game.bot.adjustLevel (générique : le shell ne
@@ -33,12 +37,13 @@ const BOT_MIN_DELAY_MS = 600;
 // de bloquer le fil principal sur une recherche synchrone (niveaux 3 et 4).
 const BOT_PAINT_DELAY_MS = 80;
 
-export function GameScreen({ game, players, seed, bot, lossStreak, onGameEnd, onExit }: GameScreenProps) {
+export function GameScreen({ game, players, seed, bot, soloLevel, lossStreak, onGameEnd, onExit }: GameScreenProps) {
   const [transport] = useState(() => createLocalTransport());
   const [state, setState] = useState<any>(() =>
     game.createState(
       players.map((p) => p.id),
       seed,
+      { level: soloLevel },
     ),
   );
   const stateRef = useRef(state);

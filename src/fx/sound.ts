@@ -29,6 +29,22 @@ export function setSoundEnabled(enabled: boolean): void {
   updateSettings({ soundEnabled: enabled });
 }
 
+// Mémoire sonore : une note fixe par pad (jusqu'à 8), gamme de do à do —
+// jouée à la lecture de la séquence et à l'écho de chaque tap, pour que le
+// son porte vraiment l'identité du pad (pas juste sa couleur).
+const PAD_NOTES = [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25];
+
+export function playPadTone(pad: number): void {
+  try {
+    zzfxUnlock();
+    if (!soundEnabled) return;
+    const freq = PAD_NOTES[pad] ?? PAD_NOTES[0];
+    zzfx(0.45, 0.01, freq, 0.01, 0.14, 0.18, 1, 1);
+  } catch {
+    // Un contexte audio indisponible rend l'app silencieuse, jamais cassée.
+  }
+}
+
 // play() est le seul point d'entrée et débloque l'AudioContext au passage.
 // Comme play() n'est jamais appelée hors d'un gestionnaire de tap, le premier
 // appel réel est bien le premier tap du menu — pas besoin d'un déblocage à part.

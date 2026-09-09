@@ -3,10 +3,11 @@ import type { GameModule, PlayerId, Result } from '../games/types';
 import { PlayerEditor } from '../players/PlayerEditor';
 import { PlayerListScreen } from '../players/PlayerListScreen';
 import type { Player } from '../players/types';
+import { getHighScore, recordScore } from '../storage';
 import { GameScreen } from './GameScreen';
 import { MenuScreen } from './MenuScreen';
 import { PlayerPickScreen } from './PlayerPickScreen';
-import { ResultScreen } from './ResultScreen';
+import { ResultScreen, type ScoreInfo } from './ResultScreen';
 
 type BotChoice = { playerId: PlayerId; level: number };
 
@@ -21,6 +22,7 @@ type Screen =
       seed: number;
       players: Player[];
       bot?: BotChoice;
+      soloLevel?: number;
       lossStreak: number;
     }
   | {
@@ -29,8 +31,20 @@ type Screen =
       result: Result;
       players: Player[];
       bot?: BotChoice;
+      soloLevel?: number;
       lossStreak: number;
+      scoreInfo?: ScoreInfo;
     };
+
+// Result.score est générique (games/types.ts) : le shell range le meilleur
+// score par (jeu, joueur, variant) sans connaître la signification de
+// `variant`, puis transmet le résultat enrichi à ResultScreen.
+function computeScoreInfo(gameId: string, result: Result): ScoreInfo | undefined {
+  if (result.kind !== 'win' || !result.score) return undefined;
+  const previousBest = getHighScore(gameId, result.winner, result.score.variant);
+  const best = recordScore(gameId, result.winner, result.score.value, result.score.variant);
+  return { value: result.score.value, best, isNewBest: result.score.value > previousBest };
+}
 
 function randomSeed(): number {
   const bytes = new Uint32Array(1);
@@ -73,8 +87,8 @@ export function App() {
         <PlayerPickScreen
           game={screen.game}
           onBack={() => setScreen({ kind: 'menu' })}
-          onConfirm={(players, bot) =>
-            setScreen({ kind: 'game', game: screen.game, seed: randomSeed(), players, bot, lossStreak: 0 })
+          onConfirm={(players, bot, soloLevel) =>
+            setScreen({ kind: 'game', game: screen.game, seed: randomSeed(), players, bot, soloLevel, lossStreak: 0 })
           }
         />
       );
@@ -87,6 +101,7 @@ export function App() {
           players={screen.players}
           seed={screen.seed}
           bot={screen.bot}
+          soloLevel={screen.soloLevel}
           lossStreak={screen.lossStreak}
           onGameEnd={(result) => {
             // Série de défaites d'affilée du joueur humain face au bot —
@@ -102,7 +117,9 @@ export function App() {
               result,
               players: screen.players,
               bot: screen.bot,
+              soloLevel: screen.soloLevel,
               lossStreak: humanLost ? screen.lossStreak + 1 : 0,
+              scoreInfo: computeScoreInfo(screen.game.meta.id, result),
             });
           }}
           onExit={() => setScreen({ kind: 'menu' })}
@@ -114,6 +131,7 @@ export function App() {
         <ResultScreen
           result={screen.result}
           players={screen.players}
+          scoreInfo={screen.scoreInfo}
           onReplay={() =>
             setScreen({
               kind: 'game',
@@ -121,6 +139,7 @@ export function App() {
               seed: randomSeed(),
               players: screen.players,
               bot: screen.bot,
+              soloLevel: screen.soloLevel,
               lossStreak: screen.lossStreak,
             })
           }

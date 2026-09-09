@@ -3,7 +3,20 @@ import type { Player } from '../players/types';
 
 export type PlayerId = string;
 
-export type Result = { kind: 'win'; winner: PlayerId } | { kind: 'draw' };
+export type Result =
+  | {
+      kind: 'win';
+      winner: PlayerId;
+      // Optionnel : un jeu solo à score (pas de vraie « victoire » contre un
+      // autre joueur, juste une manche terminée) rapporte sa valeur ici,
+      // `winner` désignant alors simplement le joueur dont c'est le score.
+      // `variant` distingue des scores qui n'ont pas le même sens (ex.
+      // difficulté différente) — clé opaque pour le shell, seul le jeu sait
+      // ce qu'elle représente ; le shell s'en sert uniquement pour ranger le
+      // meilleur score par (jeu, joueur, variant), voir storage/index.ts.
+      score?: { value: number; variant?: string };
+    }
+  | { kind: 'draw' };
 
 export interface GameMeta {
   id: string;
@@ -18,6 +31,12 @@ export interface GameMeta {
   // sort) et réordonne les joueurs en conséquence ; il ne sait toujours rien
   // de la raison pour laquelle l'ordre compte.
   colorLabels?: [string, string];
+  // Optionnel : un jeu solo (pas d'adversaire artificiel) qui propose un
+  // réglage à choisir avant la partie (ex. une vitesse) réutilise le même
+  // sélecteur visuel « NIVEAU » que game.bot.levels, sans mode « contre
+  // l'ordinateur » ni chooseMove. Le niveau choisi est transmis tel quel à
+  // createState (3ᵉ paramètre) ; le shell ne sait pas ce qu'il signifie.
+  soloLevels?: BotLevel[];
 }
 
 export interface BoardProps<S, M> {
@@ -49,7 +68,10 @@ export interface BotLevel {
 export interface GameModule<S, M> {
   meta: GameMeta;
 
-  createState(players: PlayerId[], seed: number): S;
+  // `options` porte le niveau choisi via GameMeta.soloLevels (facultatif) —
+  // un jeu sans soloLevels ignore ce 3ᵉ paramètre sans rien changer à sa
+  // signature (players, seed).
+  createState(players: PlayerId[], seed: number, options?: { level?: number }): S;
   isValidMove(state: S, move: M): boolean;
   applyMove(state: S, move: M): S;
   currentPlayer(state: S): PlayerId | null;
