@@ -95,46 +95,34 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
 
   if (phase === 'color' && game.meta.colorLabels) {
     const participants = participantsInOrder();
-    const [firstLabel] = game.meta.colorLabels;
 
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-10 bg-board px-4 py-8 sm:px-12">
+      <div className="flex h-full w-full flex-col items-center gap-10 bg-board px-4 py-8 sm:px-12">
         <h1 className="text-4xl text-piece">Qui commence ?</h1>
 
-        <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
-          {participants.map((participant, index) => {
-            const other = participants[1 - index];
-            return (
-              <button
-                key={participant.id}
-                type="button"
-                onClick={() => finalize([participant, other])}
-                className="flex flex-col items-center gap-3"
-              >
-                <span
-                  className="block h-24 w-24 overflow-hidden rounded-full sm:h-36 sm:w-36"
-                  style={{ boxShadow: `0 0 0 5px ${participant.color}` }}
+        <div className="flex flex-1 flex-col items-center justify-center gap-10">
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10">
+            {participants.map((participant, index) => {
+              const other = participants[1 - index];
+              return (
+                <button
+                  key={participant.id}
+                  type="button"
+                  onClick={() => finalize([participant, other])}
+                  className="flex flex-col items-center gap-3"
                 >
-                  <img src={participant.photo} alt="" className="h-full w-full object-cover" />
-                </span>
-                <span className="text-xl text-piece">{participant.name}</span>
-                <span className="rounded-full bg-piece/15 px-4 py-1 text-lg text-piece">{firstLabel}</span>
-              </button>
-            );
-          })}
-        </div>
+                  <span
+                    className="block h-24 w-24 overflow-hidden rounded-full sm:h-36 sm:w-36"
+                    style={{ boxShadow: `0 0 0 5px ${participant.color}` }}
+                  >
+                    <img src={participant.photo} alt="" className="h-full w-full object-cover" />
+                  </span>
+                  <span className="text-xl text-piece">{participant.name}</span>
+                </button>
+              );
+            })}
+          </div>
 
-        <div className="flex gap-6">
-          <button
-            type="button"
-            onClick={() => {
-              play('tap');
-              setPhase('select');
-            }}
-            className="h-20 rounded-3xl bg-piece/20 px-8 text-xl text-piece"
-          >
-            Retour
-          </button>
           <button
             type="button"
             onClick={() => {
@@ -147,6 +135,17 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
             Au hasard
           </button>
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            play('tap');
+            setPhase('select');
+          }}
+          className="h-20 rounded-3xl bg-piece/20 px-8 text-xl text-piece"
+        >
+          Retour
+        </button>
       </div>
     );
   }

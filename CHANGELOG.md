@@ -7,7 +7,11 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 ## Non publié
 
 - La course des poussins : la case de départ et la case d'arrivée du
-  dernier coup (joueur ou ordinateur) sont maintenant surlignées.
+  dernier coup (joueur ou ordinateur) sont maintenant surlignées, bien
+  visibles sur case claire comme foncée.
+- Écran « Qui commence ? » : plus de mention « Blancs »/« Noirs » sous les
+  photos, et le bouton « Retour » est maintenant séparé d'« Au hasard », en
+  bas de l'écran.
 - Choisir une photo ou un avatar n'est plus obligatoire pour créer un
   joueur : un avatar par défaut est déjà en place, à remplacer si on veut.
 - Morpion : nouveau mode « Contre l'ordinateur », trois niveaux (Facile,

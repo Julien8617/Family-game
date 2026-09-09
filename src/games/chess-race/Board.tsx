@@ -110,12 +110,14 @@ export function Board({
             aria-label={algebraic(cell)}
             className={`relative flex items-center justify-center ${isLight ? 'bg-squareLight' : 'bg-squareDark'}`}
           >
-            {/* Case de départ/d'arrivée du dernier coup (joueur ou bot) — un
-                lavis discret, sous la pièce et les repères de sélection, pas
-                la couleur victory déjà prise par la sélection/les cases
-                jouables (sinon on ne distinguerait plus « dernier coup » de
-                « coup en cours »). */}
-            {isLastMove && <span className="absolute inset-0 bg-piece/30" />}
+            {/* Case de départ/d'arrivée du dernier coup (joueur ou bot) — sous
+                la pièce et les repères de sélection. `bg-piece` (crème) était
+                quasi invisible sur case claire (les deux tons sont trop
+                proches) ; `victory` (orange) tranche nettement sur les deux
+                couleurs de case, et reste distinguable de la sélection/des
+                cases jouables par sa forme (aplat plein bord à bord, pas un
+                anneau ni un point). */}
+            {isLastMove && <span className="absolute inset-0 bg-victory/35" />}
 
             {row === SIZE - 1 && (
               <span className={`absolute inset-x-0 h-1.5 bg-chessWhite ${isVisualTopRow ? 'top-0' : 'bottom-0'}`} />

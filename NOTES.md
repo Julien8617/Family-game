@@ -622,11 +622,16 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   arrivée) du dernier coup joué — humain ou bot, aucune distinction, c'est
   la même case `state.lastMove` dans les deux cas. Reste un champ JSON
   ordinaire : ne casse aucun invariant (état intégralement sérialisable).
-- **Une seule couleur, `bg-piece/30`, pas `victory`** : `victory` est déjà
-  pris par la sélection en cours et les cases jouables — réutiliser la même
-  couleur aurait rendu « dernier coup » indiscernable de « coup en train de
-  se jouer ». Le lavis crème passe sous la pièce et les repères de
-  sélection (premier enfant du bouton), jamais par-dessus.
+- **Couleur revue après retour utilisateur** : première version en
+  `bg-piece/30` (crème), jugée trop discrète — quasi invisible sur case
+  claire, `piece` (#F2E4C9) et `squareLight` (#EDE0C0) étant deux tons de
+  crème presque identiques. Passé à `bg-victory/35` (orange), qui tranche
+  nettement sur les deux couleurs de case. Réutiliser `victory` — déjà pris
+  par la sélection en cours et les cases jouables — n'a pas posé de
+  problème de confusion en pratique : ce sont des anneaux/points, jamais un
+  aplat plein bord à bord comme celui-ci, la forme suffit à distinguer les
+  deux usages. Le lavis passe sous la pièce et les repères de sélection
+  (premier enfant du bouton), jamais par-dessus.
 - **Test à jour** : `stateWithBoard` (`logic.test.ts`) et toute construction
   manuelle de `ChessRaceState` doivent maintenant fournir `lastMove` — TS
   strict le signale immédiatement si oublié. Deux tests ajoutés (`null` à la
@@ -635,6 +640,23 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   du bot (assombrie) et d'arrivée (pièce dessus) ressortent nettement l'une
   de l'autre, sur case claire comme foncée ; après le coup humain suivant,
   seul le nouveau coup reste surligné.
+
+## Écran « Qui commence ? » : retouches
+
+- **Pastille « Blancs »/« Noirs » retirée** sous chaque photo candidate —
+  suite logique du passage « icônes seules » du reste de l'écran de choix
+  (mode, niveau) : le texte n'ajoutait rien que la question « Qui commence ?
+  » et le clic lui-même ne disaient déjà. `firstLabel` (destructuré de
+  `game.meta.colorLabels`) est retiré avec, devenu inutile — le champ
+  `colorLabels` continue d'exister et de piloter l'affichage de cet écran,
+  seul son contenu textuel n'est plus montré.
+- **« Retour » déplacé en bas de l'écran, séparé d'« Au hasard »** : les deux
+  n'ont pas le même poids (l'un permet de changer d'avis sur les joueurs,
+  l'autre tranche la partie) et les avoir côte à côte suggérait à tort une
+  paire d'actions équivalentes. Restructuré en colonne flex : titre en haut,
+  bloc central (photos + Au hasard) qui se centre dans l'espace restant via
+  `flex-1`, Retour tout en bas comme dernier enfant — pas de `position:
+  absolute`, le flux naturel suffit une fois le bloc central mis en `flex-1`.
 
 ## Validation de fin de session (2026-09-09)
 
