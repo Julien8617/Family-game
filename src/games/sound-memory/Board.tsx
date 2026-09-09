@@ -22,14 +22,33 @@ function CountPreview({ count }: { count: PadCount }) {
 }
 
 const WRONG_TAP_RING = '#F5A623';
+const PRESSED_RING = 'rgba(255,255,255,0.85)';
+
+// Pause avant le premier pad d'une série — surtout sensible entre la fin du
+// dernier tap d'une manche réussie et le début de la suivante (logic.ts
+// renvoie 'showing' avec une séquence déjà plus longue, sans transition) :
+// sans ce délai, le premier pad de la nouvelle série s'allumait pendant que
+// le doigt venait tout juste de quitter l'écran, et passait inaperçu.
+const LEAD_IN_MS = 550;
+// Durée du sur-éclairage au tap, plus intense que le simple allumage passif
+// de la lecture — retour tactile immédiat, décorrélé de la lecture pour ne
+// jamais interférer avec elle (voir plus bas, pressedPad séparé de litPad).
+const PRESS_FLASH_MS = 220;
 
 export function Board({ state, onMove }: BoardProps<SoundMemoryState, SoundMemoryMove>) {
-  const [activePad, setActivePad] = useState<number | null>(null);
-  const tapFlashRef = useRef<ReturnType<typeof setTimeout>>();
+  // Deux états d'éclairage volontairement séparés : litPad (lecture de la
+  // séquence, piloté par le seul effet ci-dessous) et pressedPad (retour
+  // immédiat au tap, piloté seulement par handleTap). Les confondre dans un
+  // seul état créait une vraie course : le minuteur d'extinction d'un tap
+  // pouvait retomber pile pendant l'allumage du premier pad de la manche
+  // suivante et l'éteindre prématurément.
+  const [litPad, setLitPad] = useState<number | null>(null);
+  const [pressedPad, setPressedPad] = useState<number | null>(null);
+  const pressFlashRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     return () => {
-      if (tapFlashRef.current) clearTimeout(tapFlashRef.current);
+      if (pressFlashRef.current) clearTimeout(pressFlashRef.current);
     };
   }, []);
 
@@ -48,18 +67,18 @@ export function Board({ state, onMove }: BoardProps<SoundMemoryState, SoundMemor
     const timers: ReturnType<typeof setTimeout>[] = [];
 
     state.sequence.forEach((pad, i) => {
-      const start = i * (onMs + gapMs);
+      const start = LEAD_IN_MS + i * (onMs + gapMs);
       timers.push(
         setTimeout(() => {
-          setActivePad(pad);
+          setLitPad(pad);
           playPadTone(pad);
         }, start),
       );
-      timers.push(setTimeout(() => setActivePad(null), start + onMs));
+      timers.push(setTimeout(() => setLitPad(null), start + onMs));
     });
 
     timers.push(
-      setTimeout(() => onMove({ type: 'sequenceShown' }), state.sequence.length * (onMs + gapMs)),
+      setTimeout(() => onMove({ type: 'sequenceShown' }), LEAD_IN_MS + state.sequence.length * (onMs + gapMs)),
     );
 
     return () => timers.forEach(clearTimeout);
@@ -69,9 +88,9 @@ export function Board({ state, onMove }: BoardProps<SoundMemoryState, SoundMemor
   function handleTap(pad: number) {
     if (state.phase !== 'input') return;
     playPadTone(pad);
-    setActivePad(pad);
-    if (tapFlashRef.current) clearTimeout(tapFlashRef.current);
-    tapFlashRef.current = setTimeout(() => setActivePad(null), 200);
+    setPressedPad(pad);
+    if (pressFlashRef.current) clearTimeout(pressFlashRef.current);
+    pressFlashRef.current = setTimeout(() => setPressedPad(null), PRESS_FLASH_MS);
     onMove({ type: 'tap', pad });
   }
 
@@ -110,7 +129,8 @@ export function Board({ state, onMove }: BoardProps<SoundMemoryState, SoundMemor
         style={{ gridTemplateColumns: 'repeat(2, 1fr)', gridTemplateRows: `repeat(${rows}, 1fr)` }}
       >
         {Array.from({ length: padCount }, (_, pad) => {
-          const isActive = activePad === pad;
+          const isLit = litPad === pad;
+          const isPressed = pressedPad === pad;
           const isWrongTap = state.phase === 'gameover' && state.lastTap === pad;
           return (
             <button
@@ -119,11 +139,17 @@ export function Board({ state, onMove }: BoardProps<SoundMemoryState, SoundMemor
               disabled={!tappable}
               onClick={() => handleTap(pad)}
               aria-label={`Pad ${pad + 1}`}
-              className="rounded-3xl transition-opacity"
+              className="rounded-3xl transition-[opacity,transform,filter] duration-100"
               style={{
                 backgroundColor: PAD_COLORS[pad % PAD_COLORS.length],
-                opacity: isActive || isWrongTap ? 1 : 0.5,
-                boxShadow: isWrongTap ? `0 0 0 6px ${WRONG_TAP_RING}` : undefined,
+                opacity: isLit || isPressed || isWrongTap ? 1 : 0.5,
+                filter: isPressed ? 'brightness(1.4)' : undefined,
+                transform: isPressed ? 'scale(1.04)' : undefined,
+                boxShadow: isWrongTap
+                  ? `0 0 0 6px ${WRONG_TAP_RING}`
+                  : isPressed
+                    ? `0 0 0 6px ${PRESSED_RING}, 0 0 22px 4px ${PRESSED_RING}`
+                    : undefined,
               }}
             />
           );
