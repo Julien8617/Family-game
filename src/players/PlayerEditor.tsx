@@ -154,7 +154,10 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
         className="h-20 w-full max-w-xs rounded-2xl bg-piece px-6 text-center text-2xl text-board outline-none"
       />
 
-      <div className="flex flex-wrap justify-center gap-3">
+      {/* Grille figée à 4 colonnes (8 couleurs = 2 lignes de 4), plutôt qu'un
+          flex-wrap dont le nombre par ligne dépendrait de la largeur de
+          l'écran. */}
+      <div className="grid grid-cols-4 justify-items-center gap-3 sm:gap-4">
         {PLAYER_COLORS.map((swatch) => {
           const isTaken = takenColors.has(swatch) && swatch !== color;
           const isSelected = swatch === color;
@@ -165,7 +168,7 @@ export function PlayerEditor({ player, onDone, onCancel }: PlayerEditorProps) {
               disabled={isTaken}
               onClick={() => setColor(swatch)}
               aria-label={`Couleur ${swatch}`}
-              className="flex h-20 w-20 items-center justify-center rounded-full disabled:opacity-25"
+              className="flex h-16 w-16 items-center justify-center rounded-full disabled:opacity-25 sm:h-20 sm:w-20"
               style={{
                 backgroundColor: swatch,
                 boxShadow: isSelected ? '0 0 0 5px #F2E4C9' : 'none',

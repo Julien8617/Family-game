@@ -157,23 +157,23 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
 
       {game.bot && (
         <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-          <button type="button" onClick={() => switchMode('family')} className="flex flex-col items-center gap-2">
-            <span
-              className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl bg-piece p-3 sm:h-24 sm:w-24 sm:p-4"
-              style={{ boxShadow: mode === 'family' ? '0 0 0 5px #F5A623' : '0 0 0 3px rgba(242,228,201,0.25)' }}
-            >
-              <img src={familyIcon} alt="" className="h-full w-full object-contain" />
-            </span>
-            <span className="text-lg text-piece">En famille</span>
+          <button
+            type="button"
+            onClick={() => switchMode('family')}
+            aria-label="En famille"
+            className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl bg-piece p-3 sm:h-24 sm:w-24 sm:p-4"
+            style={{ boxShadow: mode === 'family' ? '0 0 0 5px #F5A623' : '0 0 0 3px rgba(242,228,201,0.25)' }}
+          >
+            <img src={familyIcon} alt="" className="h-full w-full object-contain" />
           </button>
-          <button type="button" onClick={() => switchMode('computer')} className="flex flex-col items-center gap-2">
-            <span
-              className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl bg-piece p-3 sm:h-24 sm:w-24 sm:p-4"
-              style={{ boxShadow: mode === 'computer' ? '0 0 0 5px #F5A623' : '0 0 0 3px rgba(242,228,201,0.25)' }}
-            >
-              <img src={computerIcon} alt="" className="h-full w-full object-contain" />
-            </span>
-            <span className="text-lg text-piece">Contre l'ordinateur</span>
+          <button
+            type="button"
+            onClick={() => switchMode('computer')}
+            aria-label="Contre l'ordinateur"
+            className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl bg-piece p-3 sm:h-24 sm:w-24 sm:p-4"
+            style={{ boxShadow: mode === 'computer' ? '0 0 0 5px #F5A623' : '0 0 0 3px rgba(242,228,201,0.25)' }}
+          >
+            <img src={computerIcon} alt="" className="h-full w-full object-contain" />
           </button>
         </div>
       )}
@@ -214,18 +214,18 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
       </div>
 
       {mode === 'computer' && (
-        <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
-          {levels.map((level) => (
-            <button
-              key={level.id}
-              type="button"
-              onClick={() => {
-                play('tap');
-                setLevelId(level.id);
-              }}
-              className="flex flex-col items-center gap-2"
-            >
-              <span
+        <div className="flex flex-col items-center gap-3">
+          <h2 className="text-xl text-piece/70">NIVEAU</h2>
+          <div className="flex flex-wrap justify-center gap-4 sm:gap-6">
+            {levels.map((level) => (
+              <button
+                key={level.id}
+                type="button"
+                onClick={() => {
+                  play('tap');
+                  setLevelId(level.id);
+                }}
+                aria-label={level.label}
                 className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-3xl sm:h-24 sm:w-24"
                 style={{
                   boxShadow:
@@ -240,10 +240,9 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
                   alt=""
                   className="h-full w-full"
                 />
-              </span>
-              <span className="text-lg text-piece">{level.label}</span>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

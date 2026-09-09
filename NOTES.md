@@ -586,6 +586,35 @@ Utilisé pour ZzFX, canvas-confetti, et les 20 avatars OpenMoji :
   import Vite classique suffit, `png` était déjà dans `globPatterns` du
   workbox (ajouté pour l'avatar par défaut).
 
+## Écran « Qui joue ? » : icônes seules, sans libellé texte
+
+- Retiré les libellés texte sous les icônes de mode (En famille/Contre
+  l'ordinateur) et de niveau (Facile/Moyen/Imbattable, et pareil pour les
+  niveaux de la course des poussins puisque c'est le même composant
+  générique `PlayerPickScreen`) — demandé explicitement par l'utilisateur.
+  L'icône porte maintenant seule le sens ; un `aria-label` reste posé sur
+  chaque bouton (accessibilité), juste plus affiché à l'écran.
+- **`level.label` n'est pas supprimé du modèle de données** (`BotLevel`,
+  `chess-race/index.ts`, `tictactoe/index.ts`) — seulement plus rendu dans
+  le sélecteur. Toujours utilisé ailleurs : `createBotPlayer()` s'en sert
+  comme nom affiché du bot (barre de tour, écran de résultat), et
+  `aria-label` en dépend aussi désormais.
+- **« NIVEAU » ajouté en en-tête** au-dessus de la rangée d'icônes de niveau,
+  demandé tel quel par l'utilisateur (majuscules). Note pour plus tard :
+  `CLAUDE.md` déconseille en général « les libellés en majuscules
+  espacées au-dessus des titres » comme réflexe visuel par défaut — ici,
+  c'est une demande explicite, pas un réflexe, donc appliqué sans y déroger,
+  mais sans ajouter d'espacement de lettres non plus (pas la peine d'aller
+  plus loin que ce qui a été demandé).
+
+## Choix de couleur du profil : grille figée à 2×4
+
+- `PlayerEditor.tsx` : `flex flex-wrap` remplacé par `grid grid-cols-4` pour
+  les 8 couleurs de `PLAYER_COLORS` — un flex-wrap aurait pu montrer 3, 4 ou
+  5 par ligne selon la largeur d'écran (iPhone vs iPad, post-chantier
+  responsive) ; la grille fige le nombre par ligne indépendamment de la
+  largeur disponible, exactement la garantie demandée (« 2 lignes de 4 »).
+
 ## Process établi avec l'utilisateur
 
 - Avant d'écrire du CSS ou une nouvelle direction visuelle : proposer sa
