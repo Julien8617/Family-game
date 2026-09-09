@@ -241,44 +241,43 @@ export function searchBestMove(state: Connect4State, depth: number): Connect4Mov
   return pickAmong(state, bestMoves);
 }
 
-// ---- niveau 4 — le coq : approfondissement itératif sous budget de temps ----
+const DEPTH_LEVEL_3 = 5;
+
+// ---- niveau 4 — le coq : profondeur du niveau 3, résolution exacte en fin
+// de partie ----
 //
-// Contrairement à chess-race (branchement borné par le nombre de poussins,
-// coût qui croît en douceur d'une profondeur à l'autre), le branchement ici
-// est fixe à 7 colonnes et sans table de transposition : une profondeur de
-// plus peut coûter de 2x à 7-8x la précédente selon la position (mesuré sur
-// plateau vide, machine de développement — voir NOTES.md). Se fier à une
-// seule marge fixe (comme chess-race) risquerait soit de gâcher le budget,
-// soit de le dépasser largement une fois sur deux. À la place : on projette
-// le coût de la prochaine profondeur à partir du coût réel de la précédente
-// (facteur de croissance pessimiste), et on ne la lance que si la projection
-// tient dans le budget. Le budget de 500 ms se vérifie sur l'iPad réel
-// (NOTES.md) — mesuré ici seulement sur machine de dev, bien plus rapide
-// qu'un A8X de 2015.
-const TIME_BUDGET_MS = 500;
-const GROWTH_ESTIMATE = 6;
-const MAX_DEPTH = 12;
+// Chercher simplement plus profond que le niveau 3 a été essayé et abandonné
+// (voir NOTES.md pour le détail) : avec une heuristique aussi simple que la
+// nôtre, un négamax à profondeur fixe s'est révélé *pathologique* ici — 6, 7
+// coups d'avance en profondeur ont joué plus mal que 5, dans des mesures
+// répétées, alors qu'un négamax sans élagage donne exactement le même score
+// que la version alpha-bêta (vérifié directement, donc pas un bug d'élagage :
+// une vraie pathologie de recherche, connue dans la littérature — Nau 1980 —
+// pour apparaître avec des évaluateurs statiques trop simples). Chercher un
+// « bon » palier de profondeur au cas par cas n'a pas de fin.
+//
+// À la place, le niveau 4 ne cherche jamais plus mal que le niveau 3 *par
+// construction*, pas par réglage : même profondeur partout, sauf tout en fin
+// de partie où il reste assez peu de cases vides pour dérouler la recherche
+// jusqu'au bout du plateau — dans ce cas précis, il n'y a plus
+// d'heuristique du tout (evaluate() n'est jamais appelée, la recherche
+// atteint toujours un état terminal), donc plus aucun risque de pathologie :
+// le coup choisi est prouvé optimal, pas estimé. Un solve à 8 cases vides
+// reste bon marché quel que soit l'appareil (peu de colonnes encore
+// jouables à ce stade) — pas besoin de budget de temps ni d'horloge ici.
+const EXACT_SOLVE_EMPTY_CELLS = 8;
 
-function iterativeDeepen(state: Connect4State, budgetMs: number): Connect4Move {
-  const start = performance.now();
-  let depthStart = performance.now();
-  let best = searchBestMove(state, 1);
-  let lastDepthMs = performance.now() - depthStart;
+function emptyCellCount(state: Connect4State): number {
+  return state.board.filter((cell) => cell === null).length;
+}
 
-  for (let depth = 2; depth <= MAX_DEPTH; depth++) {
-    const elapsed = performance.now() - start;
-    const projected = elapsed + lastDepthMs * GROWTH_ESTIMATE;
-    if (projected >= budgetMs) break;
-    depthStart = performance.now();
-    best = searchBestMove(state, depth);
-    lastDepthMs = performance.now() - depthStart;
-  }
-  return best;
+function chooseStrongest(state: Connect4State): Connect4Move {
+  const emptyCells = emptyCellCount(state);
+  const depth = emptyCells <= EXACT_SOLVE_EMPTY_CELLS ? emptyCells : DEPTH_LEVEL_3;
+  return searchBestMove(state, depth);
 }
 
 // ---- point d'entrée du contrat GameModule.bot ----
-
-const DEPTH_LEVEL_3 = 5;
 
 export function chooseMove(state: Connect4State, level: number): Connect4Move {
   switch (level) {
@@ -289,7 +288,7 @@ export function chooseMove(state: Connect4State, level: number): Connect4Move {
     case 3:
       return searchBestMove(state, DEPTH_LEVEL_3);
     case 4:
-      return iterativeDeepen(state, TIME_BUDGET_MS);
+      return chooseStrongest(state);
     default:
       return chooseRandom(state);
   }

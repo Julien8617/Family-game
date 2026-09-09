@@ -682,3 +682,70 @@ exact au moment du `/clear`.
   vérifié qu'en le déployant réellement.
 - À la fin de chaque spec : dire explicitement ce qui a été tranché seul, et
   si le contrat de jeu (`GameModule`) a gêné ou non.
+
+## Puissance 4 ajouté (2026-09-09)
+
+Troisième jeu, envisagé dès la phase 2 (ARCHITECTURE.md) mais reporté à
+l'époque au profit de la course des poussins. Ajouté exactement comme prévu
+par le contrat : un dossier `src/games/connect4/` (`logic.ts`, `bot.ts`,
+`Board.tsx`, `index.ts`, `icon.svg`), une ligne dans `registry.ts` — encore
+une fois aucune autre modification du shell. `colorLabels` réutilisé comme
+pour le morpion (simple ordre de passage, pas deux camps). Icônes de niveau
+du bot réutilisées telles quelles depuis `chess-race-levels/` (œuf → poussin
+→ poule → coq), comme le morpion l'avait déjà fait pour 3 des 4.
+
+**Piège moteur du bot — pathologie de minimax, pas un bug d'élagage.** En
+construisant les niveaux 3/4 (négamax alpha-bêta, même schéma que
+chess-race/bot.ts), une recherche à profondeur fixe plus profonde jouait
+*moins* bien qu'une recherche moins profonde, de façon reproductible et
+parfois franchement lopsided (ex. profondeur 6 n'a gagné que 2 parties sur 20
+face à profondeur 4). Piste vérifiée et écartée : un bug d'élagage alpha-bêta —
+comparé directement contre un minimax exhaustif sans élagage sur 240
+positions (15 seeds × 4 profondeurs de partie × 4 profondeurs de recherche),
+score identique à chaque fois. La cause réelle : une heuristique statique
+trop simple (comptage de fenêtres de 4 cases + bonus colonne centrale)
+combinée à une recherche profonde peut authentiquement produire un jeu plus
+faible — une pathologie de recherche connue (Nau, *Pathology in Game Trees*,
+1980), pas spécifique à cette implémentation. Ajouter un terme « menaces
+prêtes à être jouées » (`immediateThreats`, bot.ts) a atténué l'effet sans
+l'éliminer. Essayé et abandonné : choisir une profondeur « sûre » par
+tâtonnement (profondeurs impaires seulement, avancer par pas de deux) — ne
+généralise pas, la profondeur 7 s'est aussi révélée perdante face à la
+profondeur 5 dans un sweep séparé.
+
+**Solution retenue, correcte par construction plutôt que par réglage** :
+niveau 4 (« le coq ») joue exactement la même profondeur fixe que le niveau
+3 (5) partout, SAUF tout en fin de partie (`EXACT_SOLVE_EMPTY_CELLS = 8`
+cases vides ou moins), où il résout la position à fond — profondeur de
+recherche = nombre de cases vides restantes, donc `evaluate()` n'est plus
+jamais appelée, plus aucune heuristique donc plus aucun risque de
+pathologie : le coup choisi est prouvé optimal. Résultat empirique final
+(30 parties, niveau 4 vs niveau 3) : 13-15-2, un match nul statistique —
+plus jamais le score franchement négatif observé avant ce redesign, mais pas
+non plus une victoire nette : les deux niveaux jouent souvent la partie
+*identique* (même seed, même recherche) jusqu'à ce que la fin de partie
+diverge, ce qui n'arrive pas à chaque fois. Accepté tel quel : le contrat
+réel n'est pas « niveau 4 bat toujours niveau 3 » (chess-race/bot.test.ts ne
+le garantit pas non plus entre ses propres niveaux 3 et 4), c'est « jamais
+nettement pire », qui lui est garanti par construction.
+
+**Pour une session future qui rouvrirait `connect4/bot.ts`** : ne pas
+réintroduire un `TIME_BUDGET_MS`/approfondissement itératif classique sans
+revalider par un sweep empirique (voir la structure de test jetable utilisée
+cette session — un fichier `_debug.test.ts` local, jamais committé, avec des
+matchups `searchBestMove(depthA)` vs `searchBestMove(depthB)` sur 20-30
+parties) : la pathologie est réelle et reproductible avec cette heuristique,
+elle n'était pas due à un facteur de croissance mal calibré.
+
+**Contraste plateau — spécifique à ce jeu.** `PLAYER_COLORS` (palette.ts)
+inclut des teintes sombres/vertes (vert émeraude `#4F8F6B`, ardoise
+`#52707A`) choisies pour contraster sur fond clair (cases crème du morpion,
+pion à trait sombre des échecs). Le plateau puissance 4 est un panneau
+*sombre* à trous — un jeton de ces couleurs-là s'y fondait presque
+entièrement sans un correctif. Fix dans `Board.tsx` : anneau clair
+systématique (`ring-piece/60`) autour de chaque jeton, indépendant de sa
+couleur de remplissage — pas un contour sombre comme `pawnSkin.ts`
+(chess-race), qui suppose l'inverse (fond clair, pièce qui a besoin d'un
+trait *sombre*). Un futur jeu à plateau sombre devrait vérifier ses pièces
+contre les 8 couleurs de `PLAYER_COLORS`, pas seulement contre la couleur
+de test du moment.

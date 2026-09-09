@@ -6,6 +6,9 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 
 ## Non publié
 
+- Nouveau jeu : Puissance 4, en famille ou contre l'ordinateur (quatre
+  niveaux, comme la course des poussins). Plateau à trous sur panneau
+  sombre, jeton qui tombe avec un petit rebond à l'arrivée.
 - La course des poussins : la case de départ et la case d'arrivée du
   dernier coup (joueur ou ordinateur) sont maintenant surlignées, bien
   visibles sur case claire comme foncée.
