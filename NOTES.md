@@ -749,3 +749,19 @@ couleur de remplissage — pas un contour sombre comme `pawnSkin.ts`
 trait *sombre*). Un futur jeu à plateau sombre devrait vérifier ses pièces
 contre les 8 couleurs de `PLAYER_COLORS`, pas seulement contre la couleur
 de test du moment.
+
+**Cases tactiles sur grille dense — motif réutilisable.** Premier jet :
+un bouton par trou, 7×6 = 42 boutons. Sur iPhone (plateau contraint à
+~352 px de large par le carré que `GameScreen` réserve, voir §4
+`ARCHITECTURE.md`), ça descendait à ~42 px de côté — sous le minimum de
+44 px documenté dans `CLAUDE.md`, et une case *carrée* de cette taille est
+un mauvais objectif pour un enfant qui vise mal (peu de tolérance dans les
+deux axes à la fois). Fix : séparer le rendu (grille décorative, `aria-hidden`,
+inchangée) de l'interaction (une seule grille de boutons superposée, un par
+*colonne*, `gridRow: '1 / -1'` — pleine hauteur du plateau). Largeur de case
+inchangée (~42-45 px, toujours sous 80 px mais au-dessus du plancher Apple),
+hauteur ~540 px — un enfant qui vise à peu près la bonne colonne, n'importe
+où verticalement, touche. Un futur jeu à grille dense où le regroupement
+naturel du coup est par ligne ou colonne (pas case par case) devrait
+envisager le même découplage rendu/interaction dès le départ plutôt que d'en
+faire un correctif après coup.

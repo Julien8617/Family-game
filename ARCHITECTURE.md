@@ -87,6 +87,21 @@ src/
                           seule fonction qui lit l'horloge (budget 500 ms)
       index.ts, icon.svg
       logic.test.ts, bot.test.ts
+    connect4/              « puissance 4 » — plateau à trous sur panneau
+                           sombre, jeton qui tombe avec un petit rebond
+      logic.ts           pur, testé, sans React
+      Board.tsx          grille décorative (trous + jetons, aria-hidden) +
+                          grille de cases tactiles séparée, une pleine
+                          hauteur par colonne (voir NOTES.md — un enfant qui
+                          vise mal a besoin de plus qu'une case de ~42 px)
+      bot.ts              4 niveaux, negamax alpha-bêta ; le niveau 4 ne
+                          cherche jamais moins bien que le niveau 3 *par
+                          construction* (même profondeur fixe partout, sauf
+                          en toute fin de partie où il résout à fond — pas
+                          d'approfondissement itératif classique ici, voir
+                          NOTES.md pour la pathologie de recherche rencontrée)
+      index.ts, icon.svg
+      logic.test.ts, bot.test.ts
 
   net/
     transport.ts         interface Transport
@@ -217,19 +232,21 @@ export interface GameModule<S, M> {
 // games/registry.ts
 import { ticTacToe } from './tictactoe';
 import { chessRace } from './chess-race';
+import { connect4 } from './connect4';
 
 export const GAMES: GameModule<any, any>[] = [
   ticTacToe,
   chessRace,
+  connect4,
 ];
 ```
 
 Ajouter un jeu : un dossier, un import, une ligne. Le menu se construit à partir de
 `GAMES`, et la sélection de joueurs lit `minPlayers` / `maxPlayers`. Aucun autre
-fichier du shell ne bouge — confirmé deux fois maintenant : l'ajout de
-`chess-race` (spec 04) puis celui d'un bot sur `tictactoe` derrière le même
-contrat `GameModule.bot` n'ont touché aucun fichier de `shell/` en dehors de
-ce registre.
+fichier du shell ne bouge — confirmé trois fois maintenant : l'ajout de
+`chess-race` (spec 04), puis celui d'un bot sur `tictactoe` derrière le même
+contrat `GameModule.bot`, puis l'ajout de `connect4` n'ont touché aucun
+fichier de `shell/` en dehors de ce registre.
 
 ### La boucle de partie
 
@@ -343,8 +360,9 @@ Shell, profils avec photos, registre, morpion complet, transport local, son, con
 
 **Phase 2 — la preuve de la frontière** ✅ livré
 Deuxième jeu ajouté : « la course des poussins » (dames-échecs simplifié), pas
-puissance 4 comme envisagé initialement — décision prise en cours de route,
-sans conséquence sur le critère de sortie. Aucune modification du shell en
+puissance 4 comme envisagé initialement (puissance 4 est arrivé plus tard,
+voir Phase 2.6) — décision prise en cours de route, sans conséquence sur le
+critère de sortie. Aucune modification du shell en
 dehors d'une ligne dans `registry.ts`. Confirmé une seconde fois par
 l'ajout d'un adversaire artificiel (`GameModule.bot`, facultatif) sur les
 deux jeux, et par la réutilisation telle quelle de `colorLabels` (écran
@@ -357,6 +375,15 @@ difficulté du morpion après une série de défaites, avatar par défaut
 (photo/avatar facultatifs à la création d'un profil), passage à égalité
 iPad/iPhone en portrait. Non prévu à l'origine, construit spec par spec au
 fil des demandes plutôt qu'annoncé à l'avance.
+
+**Phase 2.6 — troisième jeu** ✅ livré
+Puissance 4 ajouté, troisième preuve du contrat `GameModule` (voir §4 « Le
+registre »). Bot niveau 4 conçu pour ne jamais jouer moins bien que le
+niveau 3 par construction plutôt que par réglage empirique — une recherche à
+profondeur fixe plus profonde s'est révélée jouer *moins* bien avec
+l'heuristique simple de ce jeu, une pathologie de minimax connue (voir
+NOTES.md). Palette de couleurs de profil revérifiée contre un plateau à fond
+sombre (les 8 couleurs avaient été choisies pour contraster sur fond clair).
 
 **Phase 3 — deux appareils**
 Seulement si un jeu à information cachée le justifie. Implémenter `webrtcTransport`

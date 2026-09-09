@@ -10,9 +10,10 @@ App de jeux familiale, hors ligne, installée en PWA sur l'écran d'accueil d'un
 familial. Menu général, sélection du joueur par photo, jeux ajoutés progressivement.
 Joueurs : deux adultes et deux jeunes enfants (dont un qui ne lit pas encore).
 
-Jeux livrés : morpion (tic-tac-toe) et la course des poussins (dames-échecs
-simplifié). Les deux se jouent en famille (profils réels) ou contre l'ordinateur
-(adversaire artificiel à plusieurs niveaux, jamais persisté comme un vrai joueur).
+Jeux livrés : morpion (tic-tac-toe), la course des poussins (dames-échecs
+simplifié) et puissance 4. Les trois se jouent en famille (profils réels) ou
+contre l'ordinateur (adversaire artificiel à plusieurs niveaux, jamais
+persisté comme un vrai joueur).
 
 ## Cible matérielle — non négociable
 
