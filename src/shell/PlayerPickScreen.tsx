@@ -22,16 +22,34 @@ function randomBit(): boolean {
   return bytes[0] % 2 === 0;
 }
 
+// Présélection à l'ouverture de l'écran — reste un point de départ, jamais un
+// verrou, les boutons mode/joueur fonctionnent normalement ensuite :
+// - un seul profil enregistré : c'est l'unique choix sensé, pas la peine de
+//   le faire taper ; mode « ordinateur » seulement si ce jeu en propose un.
+// - plusieurs profils : reprend l'équipe (et le mode) de la dernière partie
+//   de CE jeu, si elle existe encore — un profil supprimé depuis est
+//   simplement filtré, jamais ressuscité.
+function computeDefaultSelection(game: GameModule<any, any>, players: Player[]): { mode: Mode; selected: PlayerId[] } {
+  if (players.length === 1) {
+    return { mode: game.bot ? 'computer' : 'family', selected: [players[0].id] };
+  }
+  const stored = getSettings().lastPlayers?.[game.meta.id];
+  if (stored) {
+    const validIds = stored.playerIds.filter((id) => players.some((p) => p.id === id));
+    const mode: Mode = stored.mode === 'computer' && game.bot ? 'computer' : 'family';
+    const maxSelectable = mode === 'computer' ? 1 : game.meta.maxPlayers;
+    const selected = validIds.slice(0, maxSelectable);
+    if (selected.length > 0) return { mode, selected };
+  }
+  return { mode: 'family', selected: [] };
+}
+
 export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenProps) {
   const [players] = useState(() => listPlayers());
-  // Un seul profil enregistré, jeu jouable contre l'ordinateur : ce profil et
-  // ce mode sont l'unique choix sensé, pas la peine de le faire taper deux
-  // fois. Reste un point de départ, pas un verrou — les boutons mode/joueur
-  // fonctionnent normalement ensuite.
-  const singlePlayerVsBot = players.length === 1 && Boolean(game.bot);
-  const [mode, setMode] = useState<Mode>(singlePlayerVsBot ? 'computer' : 'family');
+  const [initialSelection] = useState(() => computeDefaultSelection(game, players));
+  const [mode, setMode] = useState<Mode>(initialSelection.mode);
   const [phase, setPhase] = useState<Phase>('select');
-  const [selected, setSelected] = useState<PlayerId[]>(singlePlayerVsBot ? [players[0].id] : []);
+  const [selected, setSelected] = useState<PlayerId[]>(initialSelection.selected);
   // GameMeta.soloLevels : même sélecteur visuel que game.bot.levels, pour un
   // jeu solo sans adversaire (ex. la vitesse de la mémoire sonore) — les deux
   // ne coexistent jamais sur un même jeu.
@@ -78,6 +96,12 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
 
   function finalize(orderedPlayers: Player[]) {
     play('tap');
+    // Mémorisé depuis `selected` (pas `orderedPlayers`) : en mode ordinateur,
+    // orderedPlayers inclut le faux joueur bot, qui n'a rien à faire dans un
+    // profil réel sauvegardé.
+    updateSettings({
+      lastPlayers: { ...getSettings().lastPlayers, [game.meta.id]: { mode, playerIds: selected } },
+    });
     if (mode === 'computer') {
       const level = levels.find((l) => l.id === levelId) ?? levels[0];
       updateSettings({ lastBotLevel: level.id });

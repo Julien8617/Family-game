@@ -101,6 +101,11 @@ export interface Settings {
   // plat tant qu'un seul jeu solo à niveaux existe, à revoir (clé par jeu) si
   // un second en a besoin.
   lastSoloLevel?: number;
+  // Derniers joueurs (et mode) utilisés, par jeu — pour présélectionner la
+  // même équipe la fois suivante plutôt que de tout retaper. Par jeu (pas un
+  // champ plat comme lastBotLevel) : Alice+Bob au morpion n'a aucune raison
+  // de présélectionner la même paire à la course des poussins.
+  lastPlayers?: Record<string, { mode: 'family' | 'computer'; playerIds: PlayerId[] }>;
 }
 
 const DEFAULT_SETTINGS: Settings = { soundEnabled: true };
@@ -116,7 +121,21 @@ function isSettings(value: unknown): value is Partial<Settings> {
   if (typeof v.soundEnabled !== 'boolean') return false;
   if (v.lastBotLevel !== undefined && typeof v.lastBotLevel !== 'number') return false;
   if (v.lastSoloLevel !== undefined && typeof v.lastSoloLevel !== 'number') return false;
+  if (v.lastPlayers !== undefined && !isLastPlayersMap(v.lastPlayers)) return false;
   return true;
+}
+
+function isLastPlayersMap(value: unknown): value is Settings['lastPlayers'] {
+  if (typeof value !== 'object' || value === null) return false;
+  return Object.values(value as Record<string, unknown>).every((entry) => {
+    if (typeof entry !== 'object' || entry === null) return false;
+    const e = entry as Record<string, unknown>;
+    return (
+      (e.mode === 'family' || e.mode === 'computer') &&
+      Array.isArray(e.playerIds) &&
+      e.playerIds.every((id) => typeof id === 'string')
+    );
+  });
 }
 
 export function getSettings(): Settings {

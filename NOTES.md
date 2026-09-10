@@ -750,6 +750,61 @@ trait *sombre*). Un futur jeu à plateau sombre devrait vérifier ses pièces
 contre les 8 couleurs de `PLAYER_COLORS`, pas seulement contre la couleur
 de test du moment.
 
+## Confort de sélection des joueurs + rejet de la paume (2026-09-10, en cours)
+
+Trois demandes issues d'un usage réel avec un jeune enfant.
+
+- **Présélection à un seul profil, généralisée** : `singlePlayerVsBot`
+  (`players.length === 1 && game.bot`) ne couvrait que le cas bot. Un jeu
+  solo (mémoire sonore) avec un seul profil enregistré obligeait quand même à
+  taper sa photo. Généralisé (`PlayerPickScreen.computeDefaultSelection`) :
+  un seul profil → toujours présélectionné, mode « ordinateur » seulement si
+  `game.bot` existe (un jeu solo n'a pas de mode ordinateur à proposer).
+- **Mémoriser la dernière équipe par jeu** (`storage.ts`, `settings.lastPlayers`,
+  `Record<gameId, { mode; playerIds }>`) — décidé par jeu, pas un champ plat
+  partagé comme `lastBotLevel` : Alice+Bob au morpion n'a aucune raison de
+  présélectionner la même paire à la course des poussins. Lu à l'ouverture de
+  `PlayerPickScreen` (filtré contre `listPlayers()` actuel — un profil
+  supprimé depuis n'est jamais ressuscité ; clampé à `maxPlayers`), écrit dans
+  `finalize()` à partir de `selected` (état du composant), jamais de
+  `orderedPlayers` (qui contient le faux joueur bot en mode ordinateur — un id
+  qui n'existe dans aucun profil réel n'a rien à faire en stockage).
+  Vérifié en navigateur : Alice+Bob sélectionnés au morpion, partie lancée,
+  retour au menu, réouverture du morpion → Alice+Bob déjà cochés (rangs 1/2).
+- **Rejet de la paume — diagnostic seulement, pas encore de correctif.**
+  Écran demandé : la paume de l'enfant touche l'écran en même temps qu'il vise
+  du doigt, empêchant le tap voulu. Deux signaux existent en théorie
+  (`Touch.radiusX`/`radiusY`, `event.touches.length > 1`) mais aucun des deux
+  n'est fiable sans données réelles :
+  - `radiusX`/`radiusY` (extension WebKit du `Touch` standard) : impossible de
+    savoir depuis ici si iPadOS 15.8 y met une vraie géométrie de contact ou
+    une constante — un seuil deviné (`PALM_RADIUS_PX = 35` un temps envisagé)
+    aurait pu couper les vrais taps d'un enfant si le seuil tombait du
+    mauvais côté, un risque pire que le problème d'origine.
+  - `touches.length > 1` (rejeter tout événement multi-touch) : *casse le cas
+    qu'on veut justement réparer* — si la paume reste posée pendant que
+    l'enfant tape du doigt, chaque tap serait alors multi-touch et donc
+    systématiquement rejeté. À la place, il faudrait honorer le point de plus
+    petit rayon parmi les touches actives, pas rejeter tout le geste — mais ça
+    suppose encore que `radiusX`/`radiusY` soit fiable.
+  - **Fix en place : un panneau de diagnostic temporaire**
+    (`players/PlayerListScreen.tsx`, `TouchDiagnostics`) sur l'écran Joueurs —
+    affiche en direct `radiusX`/`radiusY`/`force`/nombre de doigts de chaque
+    toucher (`document.addEventListener('touchstart', ..., {passive:true})`,
+    aucun `preventDefault`, donc zéro risque pour le reste de l'app). Étape
+    suivante : l'utilisateur teste sur l'iPad réel (un tap du doigt, un tap de
+    la paume) et rapporte les chiffres lus ; le vrai correctif (seuil, ou
+    stratégie multi-touch, ou autre) se décide seulement à partir de ces
+    chiffres — jamais d'un seuil deviné. Le panneau est à retirer une fois le
+    correctif validé.
+  - **Portée du futur correctif, notée pour ne pas l'oublier** : un
+    `preventDefault()` global sur `touchstart` toucherait aussi les vrais
+    `<input>`/`<textarea>` (`PlayerEditor`) — piège déjà payé une fois avec
+    `user-select: none` qui bloquait le clavier iPadOS (spec 02, voir plus
+    haut). Le prochain correctif devra explicitement épargner les champs de
+    saisie, et vérifier qu'il ne retarde pas le premier tap qui débloque
+    `AudioContext` (`fx/sound.ts`, `zzfxUnlock`).
+
 ## Mémoire sonore ajoutée (2026-09-10)
 
 Quatrième jeu, premier solo (Simon/mémoire de séquence) : un pad lumineux et
