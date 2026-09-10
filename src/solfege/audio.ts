@@ -51,16 +51,23 @@ export interface PlaybackHandle {
 // direct. `onDone` est appelé une fois la dernière note terminée ;
 // `onInterrupted` si la lecture est coupée par un passage en arrière-plan
 // (critère 8 : la manche en cours s'arrête proprement plutôt que de dériver).
+// `startAt` optionnel : instant absolu (AudioContext.currentTime) auquel
+// poser le premier temps — pour enchaîner sans coupure après un compte à
+// rebours (voir rhythm-tap/Board.tsx), qui calcule la case suivante de sa
+// propre grille plutôt que de laisser ce module reposer un LEAD_IN_SEC qui
+// romprait le rythme. Omis (cas normal, premier son de l'écran) : calculé
+// ici même, comme avant.
 export function playMelody(
   melody: Melody,
   tempoBpm: number,
   onDone: () => void,
   onInterrupted: () => void,
+  startAt?: number,
 ): PlaybackHandle {
   unlockAudioContext();
   const ctx = getAudioContext();
   const secPerBeat = 60 / tempoBpm;
-  const startTime = ctx.currentTime + LEAD_IN_SEC;
+  const startTime = startAt ?? ctx.currentTime + LEAD_IN_SEC;
   const events = scheduleMelody(melody, tempoBpm, startTime);
 
   const scheduler = new LookaheadScheduler(events, {
@@ -104,18 +111,22 @@ export function playMelody(
 // comptes à rebours (« count-in ») — même moteur de lookahead, un simple bip
 // court à chaque temps. `onInterrupted` optionnel (défaut : silencieux) pour
 // les appelants qui n'ont rien de spécial à faire sur un passage en
-// arrière-plan au-delà de l'arrêt déjà automatique.
+// arrière-plan au-delà de l'arrêt déjà automatique. `startAt` optionnel :
+// même rôle que dans playMelody — enchaîner sur la grille d'un compte à
+// rebours précédent plutôt que de reposer un LEAD_IN_SEC (voir
+// CalibrationScreen.tsx, compte à rebours → mesure).
 export function playClickTrack(
   beatCount: number,
   tempoBpm: number,
   onBeat: (beatIndex: number, time: number) => void,
   onDone: () => void,
   onInterrupted: () => void = () => {},
+  startAt?: number,
 ): PlaybackHandle {
   unlockAudioContext();
   const ctx = getAudioContext();
   const secPerBeat = 60 / tempoBpm;
-  const startTime = ctx.currentTime + LEAD_IN_SEC;
+  const startTime = startAt ?? ctx.currentTime + LEAD_IN_SEC;
   const beatTimes = scheduleBeats(beatCount, tempoBpm, startTime);
   const events: ScheduledNote[] = beatTimes.map((time) => ({ time, freq: 880, durationSec: 0.06 }));
 

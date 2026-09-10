@@ -71,6 +71,13 @@ export function CalibrationScreen({ onDone, onCancel }: CalibrationScreenProps) 
     setStage('running');
     setCountInNumber(null);
     beatTimesRef.current = [];
+    // Enchaîne sur la case suivante de la grille du compte à rebours (« 3, 2,
+    // 1 », puis un « 0 » silencieux exactement à l'instant du premier temps
+    // mesuré) plutôt qu'un nouveau LEAD_IN_SEC, qui romprait le rythme entre
+    // le dernier temps compté et le premier temps mesuré — même correctif
+    // que rhythm-tap/Board.tsx, retour utilisateur après test réel.
+    const countIn = handleRef.current;
+    const firstBeatTime = countIn ? countIn.startTime + COUNT_IN_BEATS * countIn.secPerBeat : undefined;
     const handle = playClickTrack(
       BEAT_COUNT,
       TEMPO_BPM,
@@ -87,6 +94,7 @@ export function CalibrationScreen({ onDone, onCancel }: CalibrationScreenProps) 
         finish();
       },
       handleInterrupted,
+      firstBeatTime,
     );
     handleRef.current = handle;
   }

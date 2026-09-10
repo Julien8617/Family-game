@@ -66,11 +66,20 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
       setCountingIn(false);
       setCountInNumber(null);
       const { melody } = getMelody(state.melodyId);
+      // Enchaîne sur la case suivante de la grille du compte à rebours — pas
+      // un nouveau LEAD_IN_SEC, qui romprait le rythme entre le dernier
+      // temps compté et la première note (retour utilisateur après test
+      // réel : l'écart se sentait). Le compte à rebours va de 0 à
+      // COUNT_IN_BEATS - 1 (affichés « 3, 2, 1 ») ; la première note tombe
+      // exactement là où un temps COUNT_IN_BEATS (le « 0 » silencieux)
+      // serait tombé.
+      const firstNoteTime = countInHandle.startTime + COUNT_IN_BEATS * countInHandle.secPerBeat;
       const handle = playMelody(
         melody,
         state.tempoBpm,
         () => onMove({ type: 'melodyDone' }),
         () => onMove({ type: 'restart' }),
+        firstNoteTime,
       );
       playbackRef.current = handle;
       setMetronomeReference(handle.startTime);

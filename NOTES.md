@@ -1197,3 +1197,34 @@ rythmique abstrait (pendule) ne remplace pas un repère explicite (chiffres)
 pour un compte à rebours — les deux ont leur rôle, mais pas pour la même
 phase (chiffres pour « dans combien de temps ça commence », pendule pour
 « cadence le temps pendant que ça joue »).
+
+**Deuxième correctif immédiat : le silence entre « 1 » et le premier son
+était faux** — retour utilisateur, « l'écart entre 1 et le début de la
+chanson est faux, ajoute un 0 invisible qui coïncide avec la première note
+du jeu ». Cause réelle : `startMelody()`/`beginMeasurement()` appelaient
+`playMelody`/`playClickTrack` sans argument de départ, qui retombaient donc
+sur leur propre `LEAD_IN_SEC` (0,4 s) — une **deuxième** pause, sans rapport
+avec la grille du compte à rebours qui venait de jouer, juste après elle.
+Le compte à rebours et la vraie mélodie/mesure jouaient chacun leur propre
+rythme, avec un blanc entre les deux plutôt qu'un enchaînement.
+- **Fix : `playMelody`/`playClickTrack` acceptent maintenant un `startAt`
+  optionnel** (dernier paramètre) — l'appelant calcule la case suivante de
+  la grille déjà en cours (`countIn.startTime + COUNT_IN_BEATS *
+  countIn.secPerBeat`, exactement où un 4ᵉ temps — le « 0 » invisible que
+  l'utilisateur demandait — serait tombé) au lieu de laisser le module
+  reposer un nouveau `LEAD_IN_SEC`. Omis (cas normal, premier son d'un
+  écran), le comportement précédent reste inchangé. Même correctif appliqué
+  aux deux endroits : `rhythm-tap/Board.tsx` (compte à rebours → mélodie) et
+  `CalibrationScreen.tsx` (compte à rebours → mesure des 8 temps) — la même
+  cause existait aux deux endroits, seul le premier avait été signalé.
+- **Pas de « 0 » réellement affiché/joué** : l'utilisateur demandait un 0
+  « invisible » qui coïncide avec la première note — interprété littéralement
+  comme une continuité de grille plutôt qu'un vrai 4ᵉ clic silencieux. La
+  première note de la chanson (ou le premier temps mesuré) occupe elle-même
+  cet emplacement ; rien à jouer ni afficher en plus.
+- Vérifié : `npm run build`/`test`/`lint` verts (122 tests, inchangé — pas de
+  nouvelle branche pure à tester, l'arithmétique de continuité est un
+  one-liner dupliqué deux fois plutôt qu'une abstraction, cohérent avec
+  CLAUDE.md sur ce genre de duplication minime). Écart audible non
+  re-testable par automatisation (même limite déjà documentée) — à confirmer
+  à l'oreille sur l'appareil réel.
