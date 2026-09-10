@@ -34,9 +34,10 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
   // de sound-memory, mais hors de l'état du jeu (ce n'est pas une notion de
   // partie, seulement une propriété d'appareil lue via storage/index.ts).
   const [calibrated, setCalibrated] = useState(() => getCalibrationOffsetMs() !== undefined);
-  // Pendule ou défilement horizontal, au choix depuis l'écran Joueurs — lu
-  // une fois à l'ouverture du jeu, comme `calibrated` : une propriété
-  // d'appareil, pas quelque chose qui doit changer en cours de partie.
+  // Pendule ou défilement horizontal, au choix depuis l'écran « Qui joue ? »
+  // (GameMeta.visualPreference, voir index.ts) — lu une fois à l'ouverture du
+  // jeu, comme `calibrated` : une propriété d'appareil, pas quelque chose qui
+  // doit changer en cours de partie.
   const [visualization] = useState(() => getRhythmVisualization());
   const [flash, setFlash] = useState<'good' | 'early' | 'late' | null>(null);
   // Compte à rebours avant la vraie mélodie : taps ignorés, tapis inerte,

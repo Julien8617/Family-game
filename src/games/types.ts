@@ -49,6 +49,18 @@ export interface GameMeta {
   // groupe représente — un jeu sans groupId s'affiche exactement comme
   // avant, à plat dans le menu principal.
   groupId?: string;
+  // Optionnel : un réglage d'appareil (pas une propriété du joueur ni de la
+  // partie) que le jeu veut rendre visible au moment de jouer plutôt
+  // qu'enterré dans l'écran Joueurs (retour utilisateur : « l'avoir dans les
+  // paramètres va nuire à l'apprentissage »). Le shell affiche `options` en
+  // icônes sur l'écran « Qui joue ? » et appelle `set` au tap ; il ne sait
+  // rien de ce que chaque option signifie, ni où `get`/`set` rangent la
+  // valeur (voir rhythm-tap/index.ts, solfege/visualization.ts).
+  visualPreference?: {
+    options: { id: string; label: string; icon: string }[];
+    get(): string;
+    set(id: string): void;
+  };
 }
 
 export interface BoardProps<S, M> {

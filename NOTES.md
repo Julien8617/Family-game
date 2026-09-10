@@ -1256,9 +1256,9 @@ au premier tour) ; le score en pourcentage plutôt qu'en nombre brut.
 - **`solfege/visualization.ts`** : choix persisté comme la calibration
   (`storage/index.ts`, `Settings.rhythmVisualization`, absent ⇒ `'metronome'`
   — comportement d'origine inchangé pour qui ne touche jamais ce réglage).
-  Sélecteur à deux boutons (`PlayerListScreen.tsx`, `VisualizationChoice`)
-  à côté du bouton de calibration — même famille de réglages d'appareil que
-  le rejet de la paume et le son. `rhythm-tap/Board.tsx` le lit une fois à
+  Sélecteur à deux boutons, initialement posé dans `PlayerListScreen.tsx`
+  à côté du bouton de calibration — **déplacé depuis vers l'écran « Qui
+  joue ? », voir plus bas**. `rhythm-tap/Board.tsx` le lit une fois à
   l'ouverture du jeu (`useState(() => getRhythmVisualization())`), comme
   `calibrated` — une propriété d'appareil, pas quelque chose qui doit
   changer en cours de partie.
@@ -1279,3 +1279,46 @@ au premier tour) ; le score en pourcentage plutôt qu'en nombre brut.
   complète jusqu'au résultat avec « Score : 6 % » / « Meilleur score : 6 % »
   affichés correctement, aucune erreur console. `npm run build`/`test`/`lint`
   verts (126 tests, +4 pour `scrollPosition.ts`).
+
+## Spec 05, retour de test iPad réel (2026-09-11, suite 2) : le choix pendule/défilement quitte l'écran Joueurs
+
+Retour : enterrer le choix pendule/défilement dans l'écran Joueurs (réglages)
+« va nuire à l'apprentissage » — il doit vivre au moment de jouer, pas dans
+un menu séparé qu'un enfant ne pense pas à ouvrir.
+
+- **Pas touché à l'état du jeu.** `solfege/visualization.ts` (get/set,
+  stockage `Settings.rhythmVisualization`) reste identique ; `Board.tsx` le
+  lit toujours une fois à l'ouverture (`useState(() => getRhythmVisualization())`).
+  Seul l'endroit qui *appelle* le setter change — un problème de placement
+  d'écran, pas de modélisation. Éviter la tentation de faire remonter ce
+  choix par `createState`/`RhythmTapState` (comme `tempoBpm`) : `tempoBpm`
+  doit être figé pour planifier l'audio, le repère visuel n'a besoin d'être
+  su qu'au moment où `Board` monte.
+- **Nouveau champ additif générique : `GameMeta.visualPreference`**
+  (`games/types.ts`) — `{ options: {id, label, icon}[], get(), set(id) }`.
+  Même famille que `soloLevels`/`colorLabels`/`groupId` : le shell
+  (`shell/PlayerPickScreen.tsx`) affiche les icônes et appelle `set` au tap,
+  sans savoir ce que chaque `id` signifie ni où `get`/`set` rangent la
+  valeur — c'est le jeu qui fournit sa propre persistance
+  (`rhythm-tap/index.ts` branche ça sur `getRhythmVisualization`/
+  `setRhythmVisualization`). Rendu comme la rangée NIVEAU juste en dessous,
+  avec un état local (`visualChoice`) pour que l'anneau de sélection change
+  au tap sans attendre un nouveau rendu ailleurs.
+- **`PlayerListScreen.tsx`** : `VisualizationChoice` retiré entièrement
+  (plus aucun jeu ne pose de réglage à cet endroit) ; le bouton de
+  calibration et le rejet de la paume restent — ce sont de vrais réglages
+  d'appareil qu'on ne règle pas à chaque partie, contrairement au repère
+  visuel.
+- **Tient sur iPhone (375×812, vérifié)** : avec deux profils et la rangée
+  NIVEAU (rhythm-tap n'a pas de mode « contre l'ordinateur », donc pas de
+  sélecteur famille/ordinateur en plus), le nouvel écran « Qui joue ? »
+  tient sans coupure ni scroll — testé via un iframe 375×812 injecté dans
+  la page (le `resize_window` de l'outil de navigation ne redimensionnait
+  pas réellement la fenêtre dans cet environnement).
+- **Testé au navigateur (build de production)** : tap sur une icône change
+  l'anneau immédiatement, `localStorage.settings.rhythmVisualization`
+  confirmé à `"scroll"` après le tap, persiste après retour au menu.
+  `npx tsc -b`, `npm test` (126 tests), `npm run build`, `npm run lint`
+  tous verts ; dossiers des quatre jeux existants inchangés
+  (`git status --porcelain`) ; toujours une seule instance d'`AudioContext`
+  (`fx/audio-context.ts`).

@@ -58,6 +58,11 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
     const stored = game.bot ? getSettings().lastBotLevel : getSettings().lastSoloLevel;
     return levels.find((l) => l.id === stored)?.id ?? levels[0]?.id ?? 1;
   });
+  // GameMeta.visualPreference : réglage d'appareil qu'un jeu veut rendre
+  // visible au moment de jouer (voir rhythm-tap/index.ts) — état local pour
+  // que l'anneau de sélection réagisse tout de suite au tap, `get()` ne
+  // servant qu'à l'ouverture de l'écran.
+  const [visualChoice, setVisualChoice] = useState<string | undefined>(() => game.meta.visualPreference?.get());
 
   const maxSelectable = mode === 'computer' ? 1 : game.meta.maxPlayers;
 
@@ -273,6 +278,27 @@ export function PlayerPickScreen({ game, onConfirm, onBack }: PlayerPickScreenPr
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {game.meta.visualPreference && (
+        <div className="flex flex-wrap items-center justify-center gap-1 rounded-full bg-piece/10 p-1 text-lg text-piece">
+          {game.meta.visualPreference.options.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => {
+                play('tap');
+                game.meta.visualPreference!.set(option.id);
+                setVisualChoice(option.id);
+              }}
+              aria-pressed={visualChoice === option.id}
+              className="h-14 rounded-full px-4 transition-colors"
+              style={{ backgroundColor: visualChoice === option.id ? '#4F8F6B' : 'transparent' }}
+            >
+              {option.icon} {option.label}
+            </button>
+          ))}
         </div>
       )}
 

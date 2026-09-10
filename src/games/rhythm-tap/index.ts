@@ -13,6 +13,8 @@ import roosterIcon from '../../vendor/chess-race-levels/rooster-static.gif';
 import roosterIconAnimated from '../../vendor/chess-race-levels/rooster-animated.gif';
 import { applyMove, createState, currentPlayer, getResult, isValidMove } from './logic';
 import type { RhythmTapMove, RhythmTapState } from './logic';
+import { getRhythmVisualization, setRhythmVisualization } from '../../solfege/visualization';
+import type { RhythmVisualization } from '../../solfege/visualization';
 
 export const rhythmTap: GameModule<RhythmTapState, RhythmTapMove> = {
   meta: {
@@ -29,6 +31,19 @@ export const rhythmTap: GameModule<RhythmTapState, RhythmTapMove> = {
       { id: 3, label: 'Rapide', icon: henIcon, animatedIcon: henIconAnimated },
       { id: 4, label: 'Très rapide', icon: roosterIcon, animatedIcon: roosterIconAnimated },
     ],
+    // Choix du repère de rythme au moment de jouer plutôt que dans l'écran
+    // Joueurs (retour utilisateur après test réel : enterré dans les
+    // paramètres, ça nuit à l'apprentissage). get/set restent ceux de
+    // solfege/visualization.ts — seul le stockage change de sens, pas
+    // l'endroit où il vit.
+    visualPreference: {
+      options: [
+        { id: 'metronome', label: 'Pendule', icon: '🕰️' },
+        { id: 'scroll', label: 'Défilement', icon: '🎯' },
+      ],
+      get: getRhythmVisualization,
+      set: (id) => setRhythmVisualization(id as RhythmVisualization),
+    },
   },
   createState,
   isValidMove,

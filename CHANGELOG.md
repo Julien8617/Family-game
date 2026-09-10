@@ -12,9 +12,11 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
   dirai-je, maman », « Sur le pont d'Avignon ») dont on tape la pulsation
   sur un grand tapis tactile, quatre tempos du plus lent au plus rapide, un
   repère visuel pour cadencer le temps pendant qu'on tape — au choix un
-  métronome à pendule ou un défilement horizontal (réglable depuis l'écran
-  Joueurs). Le score de fin de partie s'affiche en pourcentage plutôt qu'en
-  nombre brut. Avant la
+  métronome à pendule ou un défilement horizontal, deux icônes à choisir
+  directement sur l'écran « Qui joue ? » avant de lancer la partie (pas
+  besoin d'aller le régler dans l'écran Joueurs, pour ne pas nuire à
+  l'apprentissage). Le score de fin de partie s'affiche en pourcentage
+  plutôt qu'en nombre brut. Avant la
   première partie de rythme, une courte calibration (tapé huit fois sur un
   disque, en rythme) mesure le décalage tactile de l'appareil, aussi
   accessible à tout moment depuis l'écran Joueurs. Un compte à rebours
