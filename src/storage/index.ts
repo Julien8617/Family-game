@@ -106,10 +106,9 @@ export interface Settings {
   // champ plat comme lastBotLevel) : Alice+Bob au morpion n'a aucune raison
   // de présélectionner la même paire à la course des poussins.
   lastPlayers?: Record<string, { mode: 'family' | 'computer'; playerIds: PlayerId[] }>;
-  // Interrupteur de secours (shell/palmRejection.ts) : la détection paume
-  // s'est révélée bloquer de vrais taps sur l'iPad réel, en cours de
-  // diagnostic (voir NOTES.md) — désactivée par défaut (absent ⇒ false) tant
-  // qu'elle n'est pas fiable, activable depuis l'écran Joueurs pour tester.
+  // Interrupteur de secours (shell/palmRejection.ts), validé sur l'iPad réel
+  // (voir NOTES.md) — activé par défaut (absent ⇒ true), désactivable depuis
+  // l'écran Joueurs si un appareil se comporte différemment.
   palmRejectionEnabled?: boolean;
 }
 

@@ -856,17 +856,23 @@ Trois demandes issues d'un usage réel avec un jeune enfant.
     démarrage ; c'est `handleTouchStart` qui vérifie le drapeau à chaque
     appel, pour que le bouton prenne effet immédiatement, sans recharger la
     page.
-  - **Prochaine étape, pas encore faite** : demander dix taps du doigt seul
-    (sans paume), l'un après l'autre, sur l'écran Joueurs, et lire les lignes
-    du panneau de diagnostic — si des lignes manquent, la distribution réelle
-    du rayon d'un doigt dépasse largement l'échantillon unique de 20 px et il
-    faut remonter le seuil en conséquence (avec des vraies données cette
-    fois) ; si les dix lignes apparaissent toutes avec un rayon proche de
-    20 px, alors les taps seuls ne sont pas rejetés par ce mécanisme et le
-    problème observé est autre chose (voir hypothèse de suppression WebKit
-    ci-dessus) — dans les deux cas, ne pas retoucher `PALM_RADIUS_PX` avant
-    d'avoir ce résultat, pour que le test mesure la même version que celle
-    déjà testée.
+  - **Test des dix taps, fait, résultat rassurant** : bouton activé, les
+    dix taps sont tous apparus dans le panneau de diagnostic (aucun manquant),
+    rayon mesuré entre 20 et 42 px selon les taps — confirme que le seuil de
+    50 px ne bloque pas un tap seul, même avec une marge de variation
+    naturelle correcte (42 reste net en dessous de 50). Le tout premier
+    retour (« un vrai tap est bloqué à tort ») date très probablement d'avant
+    l'ajout de l'interrupteur — à ce moment-là le rejet tournait
+    inconditionnellement, sans moyen de le couper pour comparer proprement.
+  - **Confirmé en vraie partie, avec la paume posée à côté** — l'utilisateur
+    a rejoué avec l'interrupteur activé, paume posée pour reproduire le
+    problème d'origine : ça fonctionne. `PALM_RADIUS_PX = 50` reste tel quel.
+    `palmRejectionEnabled` passé à **activé par défaut** (`?? true`,
+    `palmRejection.ts` et `storage.ts`) — plus la peine que chaque famille le
+    découvre et l'active à la main. L'interrupteur reste sur l'écran Joueurs
+    comme filet de sécurité (un autre appareil pourrait mesurer la géométrie
+    de contact différemment), mais `TouchDiagnostics` (le panneau de mesure)
+    est retiré — son rôle s'arrêtait au diagnostic, maintenant terminé.
 
 ## Clavier décalé en paysage (2026-09-10, observation non vérifiée)
 

@@ -1,65 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { isSoundEnabled, setSoundEnabled } from '../fx/sound';
 import { isPalmRejectionEnabled, setPalmRejectionEnabled } from '../shell/palmRejection';
 import { listPlayers } from '../storage';
 import type { Player } from './types';
 
-// Diagnostic temporaire (rejet de la paume) — à retirer dès qu'on a lu les
-// vrais chiffres radiusX/radiusY sur l'iPad. Sans ça, un seuil de détection
-// serait deviné plutôt que mesuré, avec le risque de rendre l'app sourde à
-// un vrai doigt d'enfant si le seuil est mal calé.
-interface TouchSample {
-  x: number;
-  y: number;
-  radiusX: number | undefined;
-  radiusY: number | undefined;
-  force: number | undefined;
-  touchCount: number;
-}
-
-function TouchDiagnostics() {
-  const [samples, setSamples] = useState<TouchSample[]>([]);
-
-  useEffect(() => {
-    function handleTouchStart(event: TouchEvent) {
-      const changed = Array.from(event.changedTouches).map((t) => ({
-        x: Math.round(t.clientX),
-        y: Math.round(t.clientY),
-        radiusX: (t as Touch & { radiusX?: number }).radiusX,
-        radiusY: (t as Touch & { radiusY?: number }).radiusY,
-        force: (t as Touch & { force?: number }).force,
-        touchCount: event.touches.length,
-      }));
-      setSamples((prev) => [...changed, ...prev].slice(0, 6));
-    }
-    document.addEventListener('touchstart', handleTouchStart, { passive: true });
-    return () => document.removeEventListener('touchstart', handleTouchStart);
-  }, []);
-
-  return (
-    <div className="w-full max-w-md rounded-2xl bg-piece/10 p-4 text-xs text-piece/60">
-      <p className="mb-2">
-        Diagnostic tactile (temporaire) — touchez l'écran avec un doigt, puis avec la paume, et notez
-        radiusX/radiusY pour chaque cas.
-      </p>
-      {samples.length === 0 ? (
-        <p>En attente d'un toucher…</p>
-      ) : (
-        samples.map((s, i) => (
-          <p key={i} className="font-mono">
-            x{s.x} y{s.y} — radiusX {s.radiusX ?? '?'} radiusY {s.radiusY ?? '?'} force{' '}
-            {s.force?.toFixed(2) ?? '?'} — {s.touchCount} doigt(s)
-          </p>
-        ))
-      )}
-    </div>
-  );
-}
-
 // Interrupteur de secours pour le rejet de la paume (shell/palmRejection.ts)
-// — désactivé par défaut, en cours de diagnostic (voir NOTES.md). Toggle
-// texte plutôt qu'icône seule comme SoundToggle : contrairement au son, rien
-// ne rend cette fonctionnalité reconnaissable d'un coup d'œil.
+// — validé sur l'iPad réel et activé par défaut (voir NOTES.md), gardé
+// désactivable ici au cas où un appareil se comporterait différemment.
+// Toggle texte plutôt qu'icône seule comme SoundToggle : contrairement au
+// son, rien ne rend cette fonctionnalité reconnaissable d'un coup d'œil.
 function PalmRejectionToggle() {
   const [enabled, setEnabled] = useState(() => isPalmRejectionEnabled());
 
@@ -75,7 +24,7 @@ function PalmRejectionToggle() {
       className="flex h-16 items-center gap-3 rounded-full px-5 text-lg text-piece transition-colors"
       style={{ backgroundColor: enabled ? '#4F8F6B' : 'rgba(242,228,201,0.2)' }}
     >
-      <span>🖐️ Rejet de la paume (bêta)</span>
+      <span>🖐️ Rejet de la paume</span>
       <span className="font-bold">{enabled ? 'Activé' : 'Désactivé'}</span>
     </button>
   );
@@ -155,7 +104,6 @@ export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenP
       </div>
 
       <PalmRejectionToggle />
-      <TouchDiagnostics />
 
       {/* Repère de version pour vérifier qu'un déploiement est bien arrivé sur
           l'appareil — voir CHANGELOG.md. */}

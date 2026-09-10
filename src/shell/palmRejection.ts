@@ -2,21 +2,20 @@ import { getSettings, updateSettings } from '../storage';
 
 // Rejet de la paume : un enfant qui tape du doigt pose souvent aussi la paume
 // sur l'écran, ce qui génère un toucher parasite. Mesuré sur iPad Air 2 réel
-// (iPadOS 15.8, voir NOTES.md) : un doigt fait ~20 px de rayon de contact
-// (`Touch.radiusX`/`radiusY`, extension WebKit du Touch standard), une paume
-// ~73 px. Seuil choisi à mi-chemin en penchant du côté sûr (plus proche de la
-// paume que du doigt) : mieux vaut laisser passer une paume occasionnelle que
-// bloquer un vrai tap d'enfant. À retoucher si l'usage réel montre l'inverse
-// dans un sens ou l'autre — un seul nombre à changer.
+// (iPadOS 15.8, voir NOTES.md) : un doigt fait 20 à 42 px de rayon de contact
+// selon les taps (`Touch.radiusX`/`radiusY`, extension WebKit du Touch
+// standard), une paume ~73 px. Seuil à 50 : au-dessus de la variation réelle
+// d'un doigt observée (confirmée sur dix taps de suite, aucun faux rejet),
+// en dessous de la paume mesurée — validé en conditions réelles de jeu, avec
+// la paume posée à côté (voir NOTES.md).
 const PALM_RADIUS_PX = 50;
 
-// Interrupteur de secours : un premier essai sur l'iPad réel a bloqué de
-// vrais taps (voir NOTES.md), donc désactivé par défaut tant que le
-// diagnostic n'est pas terminé — activable depuis l'écran Joueurs pour
-// continuer à tester sans priver l'enfant du jeu entre-temps. Même patron que
-// `soundEnabled` dans fx/sound.ts : lu une fois, mis à jour uniquement par le
-// setter, pour ne pas reparser le stockage à chaque toucher.
-let palmRejectionEnabled = getSettings().palmRejectionEnabled ?? false;
+// Interrupteur de secours, gardé après validation plutôt que retiré : un
+// filet en cas d'appareil ou de version WebKit qui mesurerait la géométrie de
+// contact différemment. Activé par défaut. Même patron que `soundEnabled`
+// dans fx/sound.ts : lu une fois, mis à jour uniquement par le setter, pour
+// ne pas reparser le stockage à chaque toucher.
+let palmRejectionEnabled = getSettings().palmRejectionEnabled ?? true;
 
 export function isPalmRejectionEnabled(): boolean {
   return palmRejectionEnabled;
