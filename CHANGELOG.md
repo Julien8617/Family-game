@@ -10,10 +10,13 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
   ouvre un sous-menu de mini-jeux. Premier jeu : « Tape avec moi », une
   comptine (« Au clair de la lune », « Frère Jacques », « Ah ! vous
   dirai-je, maman », « Sur le pont d'Avignon ») dont on tape la pulsation
-  sur un grand tapis tactile, quatre tempos du plus lent au plus rapide.
-  Avant la première partie de rythme, une courte calibration (tapé huit
-  fois sur un disque, en rythme) mesure le décalage tactile de l'appareil,
-  aussi accessible à tout moment depuis l'écran Joueurs.
+  sur un grand tapis tactile, quatre tempos du plus lent au plus rapide, un
+  métronome à pendule pour cadencer le temps pendant qu'on tape. Avant la
+  première partie de rythme, une courte calibration (tapé huit fois sur un
+  disque, en rythme) mesure le décalage tactile de l'appareil, aussi
+  accessible à tout moment depuis l'écran Joueurs. Un compte à rebours au
+  même tempo précède désormais aussi bien la calibration que chaque
+  chanson, le temps de se caler avant que les taps comptent vraiment.
 - Rejet de la paume : un enfant qui pose la paume sur l'écran en tapant du
   doigt n'empêche plus le jeu de répondre. Activé par défaut ; interrupteur
   de secours sur l'écran Joueurs si besoin de le désactiver.

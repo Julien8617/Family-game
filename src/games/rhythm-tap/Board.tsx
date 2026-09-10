@@ -2,13 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import type { BoardProps } from '../types';
 import { play } from '../../fx/sound';
 import { CalibrationScreen } from '../../solfege/CalibrationScreen';
-import { audioNow, playMelody } from '../../solfege/audio';
+import { Metronome } from '../../solfege/Metronome';
+import { audioNow, playClickTrack, playMelody } from '../../solfege/audio';
 import type { PlaybackHandle } from '../../solfege/audio';
 import { getCalibrationOffsetMs } from '../../solfege/calibration';
 import { getMelody } from '../../solfege/music';
 import type { RhythmTapMove, RhythmTapState } from './logic';
 
 const FEEDBACK_FLASH_MS = 260;
+
+// Compte à rebours avant la chanson, au même tempo qu'elle (retour
+// utilisateur après test réel sur iPad) : le temps de se caler sur le rythme
+// avant que les temps ne comptent vraiment.
+const COUNT_IN_BEATS = 4;
 
 // Jamais de rouge/croix (CLAUDE.md : « pas d'échec sec ») — « en avance »/
 // « en retard » ont le même traitement visuel discret, seul « bien » se
@@ -26,6 +32,12 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
   // partie, seulement une propriété d'appareil lue via storage/index.ts).
   const [calibrated, setCalibrated] = useState(() => getCalibrationOffsetMs() !== undefined);
   const [flash, setFlash] = useState<'good' | 'early' | 'late' | null>(null);
+  // Compte à rebours avant la vraie mélodie : taps ignorés, tapis inerte, le
+  // pendule (Metronome) porte seul l'anticipation. `metronomeReference` suit
+  // toujours l'instant de départ de la lecture en cours (compte à rebours
+  // puis mélodie), pour que le pendule reste en phase avec le son réel.
+  const [countingIn, setCountingIn] = useState(false);
+  const [metronomeReference, setMetronomeReference] = useState<number | null>(null);
   const playbackRef = useRef<PlaybackHandle | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -36,26 +48,45 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
     };
   }, []);
 
-  // Lance la mélodie à chaque entrée en phase 'playing' — un aller simple.
-  // state.phase ne change qu'au 'start'/'restart'/'melodyDone', jamais sur un
-  // tap (qui ne touche que claimedBeats/lastTapResult/tapCount), donc cet
-  // effet ne relance jamais la lecture en cours de manche — même garantie que
-  // sound-memory/Board.tsx pour sa lecture de séquence. `onMove` absent des
-  // dépendances pour la même raison que là-bas (recréé à chaque rendu du
-  // shell).
+  // Lance le compte à rebours puis la mélodie à chaque entrée en phase
+  // 'playing' — un aller simple. state.phase ne change qu'au
+  // 'start'/'restart'/'melodyDone', jamais sur un tap (qui ne touche que
+  // claimedBeats/lastTapResult/tapCount), donc cet effet ne relance jamais la
+  // lecture en cours de manche — même garantie que sound-memory/Board.tsx
+  // pour sa lecture de séquence. `onMove` absent des dépendances pour la
+  // même raison que là-bas (recréé à chaque rendu du shell).
   useEffect(() => {
     if (state.phase !== 'playing') return undefined;
-    const { melody } = getMelody(state.melodyId);
-    const handle = playMelody(
-      melody,
+    setCountingIn(true);
+
+    function startMelody() {
+      setCountingIn(false);
+      const { melody } = getMelody(state.melodyId);
+      const handle = playMelody(
+        melody,
+        state.tempoBpm,
+        () => onMove({ type: 'melodyDone' }),
+        () => onMove({ type: 'restart' }),
+      );
+      playbackRef.current = handle;
+      setMetronomeReference(handle.startTime);
+    }
+
+    const countInHandle = playClickTrack(
+      COUNT_IN_BEATS,
       state.tempoBpm,
-      () => onMove({ type: 'melodyDone' }),
-      () => onMove({ type: 'restart' }),
+      () => {},
+      startMelody,
+      () => onMove({ type: 'restart' }), // arrière-plan pendant le compte à rebours
     );
-    playbackRef.current = handle;
+    playbackRef.current = countInHandle;
+    setMetronomeReference(countInHandle.startTime);
+
     return () => {
-      handle.stop();
+      playbackRef.current?.stop();
       playbackRef.current = null;
+      setCountingIn(false);
+      setMetronomeReference(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.phase]);
@@ -80,7 +111,7 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
   }
 
   function handleTap() {
-    if (state.phase !== 'playing') return;
+    if (state.phase !== 'playing' || countingIn) return;
     const handle = playbackRef.current;
     if (!handle) return;
     // Lu de façon synchrone, dans ce même geste — pas performance.now() : le
@@ -130,21 +161,29 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
       </div>
 
       {/* Tout l'espace de jeu est la cible — « un tapis large, pas de petites
-          cibles » (spec 05) — pas une grille de pads comme sound-memory. */}
+          cibles » (spec 05) — pas une grille de pads comme sound-memory. Le
+          pendule cadence le temps par-dessus, muet pendant le compte à
+          rebours (tapis inerte, `disabled`), continue pendant la mélodie. */}
       <button
         type="button"
-        disabled={state.phase !== 'playing'}
+        disabled={state.phase !== 'playing' || countingIn}
         onTouchStart={handleTap}
         onPointerDown={(e) => {
           if (e.pointerType === 'mouse') handleTap();
         }}
         aria-label="Taper le rythme"
-        className="flex-1 rounded-3xl transition-[background-color,transform] duration-100"
+        className="relative flex-1 rounded-3xl transition-[background-color,transform] duration-100"
         style={{
-          backgroundColor: flash ? FEEDBACK_COLORS[flash] : 'rgba(242,228,201,0.12)',
+          backgroundColor: flash ? FEEDBACK_COLORS[flash] : countingIn ? 'rgba(242,228,201,0.06)' : 'rgba(242,228,201,0.12)',
           transform: flash === 'good' ? 'scale(0.99)' : 'scale(1)',
         }}
-      />
+      >
+        {metronomeReference !== null && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <Metronome tempoBpm={state.tempoBpm} referenceTime={metronomeReference} running />
+          </div>
+        )}
+      </button>
     </div>
   );
 }

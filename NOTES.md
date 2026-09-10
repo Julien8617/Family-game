@@ -1117,3 +1117,65 @@ arrière-plan iOS (pas seulement l'événement `visibilitychange` simulé), et
 persistance de la calibration après un redémarrage complet de l'app. Rien de
 tout ça n'est vérifiable en navigateur de bureau ; c'est le sens même de ces
 critères.
+
+## Spec 05, retour de test iPad réel (2026-09-11) : compte à rebours, métronome
+
+Premier vrai test avec l'enfant : ça fonctionne, trois améliorations
+demandées — un compte à rebours avant la calibration, un compte à rebours au
+même tempo avant chaque chanson, et un meilleur repère visuel du temps
+pendant qu'on tape (deux pistes proposées : défilement horizontal façon jeu
+de rythme, ou métronome ; **métronome retenu**, plus léger sur l'iPad Air 2
+(2 Go de RAM, A8X) qu'une animation continue de plusieurs repères).
+
+- **Le compte à rebours réutilise `playClickTrack` telle quelle** — c'est
+  déjà exactement « N temps, un bip, onBeat, onDone » ; pas de nouvelle
+  fonction moteur. Calibration : `start()` enchaîne un `playClickTrack` de 4
+  temps (`COUNT_IN_BEATS`) dont le `onDone` déclenche le `playClickTrack` de
+  8 temps déjà existant (mesure réelle). `rhythm-tap/Board.tsx` : même
+  patron, le `onDone` du compte à rebours déclenche `playMelody`. Aucun
+  changement à `RhythmTapState`/`logic.ts` — le compte à rebours est un
+  aller simple purement côté Board (`countingIn`, état local), les taps
+  reçus pendant restent simplement ignorés (`handleTap` retourne tôt), sans
+  qu'`isValidMove`/`applyMove` aient besoin de le savoir.
+- **`playClickTrack` gagne un `onInterrupted` optionnel**, par symétrie avec
+  `playMelody` — jusqu'ici un passage en arrière-plan pendant la calibration
+  se contentait d'arrêter le clic sans le dire à l'écran, qui restait bloqué
+  sur « Suis le rythme… ». Corrigé au passage : `CalibrationScreen` revient
+  à `'intro'` (pas `'retry'` — ce n'est pas une mesure ratée, juste
+  interrompue) ; `rhythm-tap/Board.tsx` envoie `{type:'restart'}` comme pour
+  une interruption pendant la vraie mélodie, même chemin de code que ce soit
+  le compte à rebours ou la chanson qui est coupée.
+- **`solfege/Metronome.tsx` + `solfege/pendulum.ts`** (calcul de l'angle,
+  pur, testé) : un pendule qui atteint une extrémité *exactement* à chaque
+  temps (`cos` de la phase, jamais une approximation), piloté par
+  `requestAnimationFrame` + mutation DOM directe (pas de `setState` par
+  frame) — même patron que `shell/GameScreen.tsx` (`ExitButton`). Son
+  `referenceTime` est toujours `PlaybackHandle.startTime` de la lecture en
+  cours (compte à rebours ou mélodie), jamais un instant approximatif pris
+  au montage — le pendule reste en phase avec le son réel même si le
+  composant se remonte.
+- **Piège de nommage Windows** : `Metronome.tsx` (composant) et
+  `metronome.ts` (calcul pur) ne différaient que par la casse — invisible en
+  `ls` sur ce système de fichiers, mais TypeScript refuse de compiler
+  (`TS1261`/`TS1149`, portabilité vers un système de fichiers insensible à
+  la casse). Renommé le fichier pur en `pendulum.ts` (nom de sa fonction,
+  `pendulumAngle`) plutôt que de contourner l'avertissement.
+- **Le métronome tourne aussi pendant la vraie mélodie**, pas seulement le
+  compte à rebours — superposé au tapis de jeu (`pointer-events-none`, les
+  taps traversent jusqu'au bouton), qui garde son flash de couleur bien/à
+  côté par-dessous. `referenceTime` bascule de l'instant de départ du compte
+  à rebours à celui de la mélodie une fois celle-ci lancée (`startMelody`,
+  dans le `onDone` du compte à rebours) — le pendule ne saute jamais
+  visuellement puisque les deux tournent au même tempo, seule la référence
+  de phase change en interne.
+- **Calibration : le métronome remplace le disque uniquement pendant le
+  compte à rebours**, pas pendant la mesure des 8 temps — le disque reste le
+  seul point de tap (mesure réelle), déjà validé sur l'iPad ; pas de raison
+  de retoucher ce qui marche pour une demande qui portait sur « Tape avec
+  moi ».
+- **Testé au navigateur (build de production, pas le serveur de dev)** :
+  compte à rebours visible et animé dans les deux écrans, transition propre
+  vers la mesure/la mélodie, aucune erreur console, `npm run
+  build`/`test`/`lint` verts (122 tests, +5 pour `pendulum.ts`). Précision
+  du minutage réel non re-testable par automatisation, pour la raison déjà
+  documentée plus haut (le temps qui passe entre deux appels d'outil).

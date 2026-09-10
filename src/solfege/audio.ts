@@ -100,13 +100,17 @@ export function playMelody(
   return { startTime, secPerBeat, stop };
 }
 
-// Grille de pulsation nue (sans notes), pour le clic de calibration — même
-// moteur de lookahead, un simple bip court à chaque temps.
+// Grille de pulsation nue (sans notes), pour le clic de calibration et les
+// comptes à rebours (« count-in ») — même moteur de lookahead, un simple bip
+// court à chaque temps. `onInterrupted` optionnel (défaut : silencieux) pour
+// les appelants qui n'ont rien de spécial à faire sur un passage en
+// arrière-plan au-delà de l'arrêt déjà automatique.
 export function playClickTrack(
   beatCount: number,
   tempoBpm: number,
   onBeat: (beatIndex: number, time: number) => void,
   onDone: () => void,
+  onInterrupted: () => void = () => {},
 ): PlaybackHandle {
   unlockAudioContext();
   const ctx = getAudioContext();
@@ -132,7 +136,10 @@ export function playClickTrack(
   scheduler.tick();
 
   function handleVisibilityChange() {
-    if (document.visibilityState === 'hidden') stop();
+    if (document.visibilityState === 'hidden') {
+      stop();
+      onInterrupted();
+    }
   }
   document.addEventListener('visibilitychange', handleVisibilityChange);
 
