@@ -771,39 +771,46 @@ Trois demandes issues d'un usage réel avec un jeune enfant.
   qui n'existe dans aucun profil réel n'a rien à faire en stockage).
   Vérifié en navigateur : Alice+Bob sélectionnés au morpion, partie lancée,
   retour au menu, réouverture du morpion → Alice+Bob déjà cochés (rangs 1/2).
-- **Rejet de la paume — diagnostic seulement, pas encore de correctif.**
-  Écran demandé : la paume de l'enfant touche l'écran en même temps qu'il vise
-  du doigt, empêchant le tap voulu. Deux signaux existent en théorie
-  (`Touch.radiusX`/`radiusY`, `event.touches.length > 1`) mais aucun des deux
-  n'est fiable sans données réelles :
-  - `radiusX`/`radiusY` (extension WebKit du `Touch` standard) : impossible de
-    savoir depuis ici si iPadOS 15.8 y met une vraie géométrie de contact ou
-    une constante — un seuil deviné (`PALM_RADIUS_PX = 35` un temps envisagé)
-    aurait pu couper les vrais taps d'un enfant si le seuil tombait du
-    mauvais côté, un risque pire que le problème d'origine.
-  - `touches.length > 1` (rejeter tout événement multi-touch) : *casse le cas
-    qu'on veut justement réparer* — si la paume reste posée pendant que
-    l'enfant tape du doigt, chaque tap serait alors multi-touch et donc
-    systématiquement rejeté. À la place, il faudrait honorer le point de plus
-    petit rayon parmi les touches actives, pas rejeter tout le geste — mais ça
-    suppose encore que `radiusX`/`radiusY` soit fiable.
-  - **Fix en place : un panneau de diagnostic temporaire**
-    (`players/PlayerListScreen.tsx`, `TouchDiagnostics`) sur l'écran Joueurs —
-    affiche en direct `radiusX`/`radiusY`/`force`/nombre de doigts de chaque
-    toucher (`document.addEventListener('touchstart', ..., {passive:true})`,
-    aucun `preventDefault`, donc zéro risque pour le reste de l'app). Étape
-    suivante : l'utilisateur teste sur l'iPad réel (un tap du doigt, un tap de
-    la paume) et rapporte les chiffres lus ; le vrai correctif (seuil, ou
-    stratégie multi-touch, ou autre) se décide seulement à partir de ces
-    chiffres — jamais d'un seuil deviné. Le panneau est à retirer une fois le
-    correctif validé.
-  - **Portée du futur correctif, notée pour ne pas l'oublier** : un
-    `preventDefault()` global sur `touchstart` toucherait aussi les vrais
-    `<input>`/`<textarea>` (`PlayerEditor`) — piège déjà payé une fois avec
-    `user-select: none` qui bloquait le clavier iPadOS (spec 02, voir plus
-    haut). Le prochain correctif devra explicitement épargner les champs de
-    saisie, et vérifier qu'il ne retarde pas le premier tap qui débloque
-    `AudioContext` (`fx/sound.ts`, `zzfxUnlock`).
+- **Rejet de la paume — mesuré sur l'iPad réel, puis corrigé.** Diagnostic
+  temporaire (`TouchDiagnostics`, voir plus bas) testé par l'utilisateur sur
+  l'iPad Air 2 réel (iPadOS 15.8) : `Touch.radiusX`/`radiusY` (extension
+  WebKit du `Touch` standard) sont bien de la vraie géométrie de contact, pas
+  une constante — doigt ≈ 20 px de rayon, paume ≈ 73 px. Un écart net (>3×),
+  largement suffisant pour distinguer les deux de façon fiable.
+  - **`src/shell/palmRejection.ts`, `installPalmRejection()`** — un seul
+    écouteur `touchstart` posé sur `document` en phase de capture
+    (`{capture: true, passive: false}`, nécessaire pour `preventDefault()`),
+    appelé une fois au démarrage (`main.tsx`, à côté de
+    `registerServiceWorker()`). `PALM_RADIUS_PX = 50` : à mi-chemin entre les
+    deux mesures, penché côté paume plutôt que côté doigt — mieux vaut
+    laisser passer une paume occasionnelle que bloquer un vrai tap d'enfant.
+    Un seul nombre à retoucher si l'usage réel montre l'inverse.
+  - **Pourquoi `changedTouches`, pas `touches`, résout le cas réel sans
+    complexité multi-touch** : le scénario rapporté est une paume *déjà
+    posée* pendant que l'enfant vise ensuite du doigt — au moment du
+    `touchstart` du doigt, la paume est un toucher *en cours*, absente de
+    `event.changedTouches` (qui ne contient que les touchers qui démarrent
+    dans cet événement précis). Le doigt est donc évalué seul, jamais
+    contaminé par la paume à côté de lui ; c'est la paume elle-même, au
+    moment où *elle* se pose, qui déclenche son propre `touchstart` et se
+    fait bloquer alors. Pas besoin de « choisir le toucher au plus petit
+    rayon parmi plusieurs » — l'idée initialement envisagée avant la
+    mesure — puisque `TouchEvent.preventDefault()` s'applique à tout
+    l'événement et ne peut de toute façon pas cibler un seul point parmi
+    plusieurs touchers simultanés.
+  - **`<input>`/`<textarea>` explicitement exemptés** (`isTextInput`,
+    `target.closest('input, textarea')`) — un `preventDefault()` sur un champ
+    de saisie bloquerait le clavier iPadOS, le même piège que
+    `user-select: none` déjà documenté (spec 02, plus haut). Dégrade en
+    silence si `radiusX`/`radiusY` sont absents (navigateur sans cette
+    extension) : jamais de rejet plutôt qu'un rejet mal informé.
+  - **Panneau de diagnostic gardé pour l'instant** (`players/PlayerListScreen.tsx`,
+    `TouchDiagnostics`, écran Joueurs) plutôt que retiré tout de suite : comme
+    il écoute en phase bulle sur `document`, un toucher que
+    `installPalmRejection` bloque (capture + `stopPropagation`) n'atteint
+    plus jamais son écouteur — le panneau sert donc aussi de vérification
+    après coup (une paume qui n'apparaît plus dans le diagnostic = bien
+    rejetée). À retirer une fois confirmé sur l'appareil réel.
 
 ## Mémoire sonore ajoutée (2026-09-10)
 
