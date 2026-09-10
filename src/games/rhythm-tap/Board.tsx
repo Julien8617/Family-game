@@ -11,10 +11,11 @@ import type { RhythmTapMove, RhythmTapState } from './logic';
 
 const FEEDBACK_FLASH_MS = 260;
 
-// Compte à rebours avant la chanson, au même tempo qu'elle (retour
-// utilisateur après test réel sur iPad) : le temps de se caler sur le rythme
-// avant que les temps ne comptent vraiment.
-const COUNT_IN_BEATS = 4;
+// Compte à rebours « 3, 2, 1 » avant la chanson, au même tempo qu'elle
+// (retour utilisateur après test réel sur iPad — un pendule seul ne
+// suffisait pas, il fallait de vrais chiffres) : le temps de se caler sur le
+// rythme avant que les temps ne comptent vraiment.
+const COUNT_IN_BEATS = 3;
 
 // Jamais de rouge/croix (CLAUDE.md : « pas d'échec sec ») — « en avance »/
 // « en retard » ont le même traitement visuel discret, seul « bien » se
@@ -32,11 +33,13 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
   // partie, seulement une propriété d'appareil lue via storage/index.ts).
   const [calibrated, setCalibrated] = useState(() => getCalibrationOffsetMs() !== undefined);
   const [flash, setFlash] = useState<'good' | 'early' | 'late' | null>(null);
-  // Compte à rebours avant la vraie mélodie : taps ignorés, tapis inerte, le
-  // pendule (Metronome) porte seul l'anticipation. `metronomeReference` suit
-  // toujours l'instant de départ de la lecture en cours (compte à rebours
-  // puis mélodie), pour que le pendule reste en phase avec le son réel.
+  // Compte à rebours avant la vraie mélodie : taps ignorés, tapis inerte,
+  // « 3, 2, 1 » affiché en chiffres (countInNumber). Une fois la mélodie
+  // lancée, le pendule (Metronome) prend le relai pour cadencer le temps.
+  // `metronomeReference` suit l'instant de départ de la mélodie, pour que le
+  // pendule reste en phase avec le son réel.
   const [countingIn, setCountingIn] = useState(false);
+  const [countInNumber, setCountInNumber] = useState<number | null>(null);
   const [metronomeReference, setMetronomeReference] = useState<number | null>(null);
   const playbackRef = useRef<PlaybackHandle | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -61,6 +64,7 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
 
     function startMelody() {
       setCountingIn(false);
+      setCountInNumber(null);
       const { melody } = getMelody(state.melodyId);
       const handle = playMelody(
         melody,
@@ -75,17 +79,17 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
     const countInHandle = playClickTrack(
       COUNT_IN_BEATS,
       state.tempoBpm,
-      () => {},
+      (beatIndex) => setCountInNumber(COUNT_IN_BEATS - beatIndex),
       startMelody,
       () => onMove({ type: 'restart' }), // arrière-plan pendant le compte à rebours
     );
     playbackRef.current = countInHandle;
-    setMetronomeReference(countInHandle.startTime);
 
     return () => {
       playbackRef.current?.stop();
       playbackRef.current = null;
       setCountingIn(false);
+      setCountInNumber(null);
       setMetronomeReference(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -161,9 +165,10 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
       </div>
 
       {/* Tout l'espace de jeu est la cible — « un tapis large, pas de petites
-          cibles » (spec 05) — pas une grille de pads comme sound-memory. Le
-          pendule cadence le temps par-dessus, muet pendant le compte à
-          rebours (tapis inerte, `disabled`), continue pendant la mélodie. */}
+          cibles » (spec 05) — pas une grille de pads comme sound-memory.
+          Pendant le compte à rebours (tapis inerte, `disabled`) : « 3, 2, 1 »
+          en chiffres. Une fois la mélodie lancée : le pendule cadence le
+          temps par-dessus. */}
       <button
         type="button"
         disabled={state.phase !== 'playing' || countingIn}
@@ -178,7 +183,14 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
           transform: flash === 'good' ? 'scale(0.99)' : 'scale(1)',
         }}
       >
-        {metronomeReference !== null && (
+        {countingIn && countInNumber !== null && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <span key={countInNumber} className="animate-count-in-pulse text-8xl font-extrabold text-piece sm:text-9xl">
+              {countInNumber}
+            </span>
+          </div>
+        )}
+        {!countingIn && metronomeReference !== null && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <Metronome tempoBpm={state.tempoBpm} referenceTime={metronomeReference} running />
           </div>

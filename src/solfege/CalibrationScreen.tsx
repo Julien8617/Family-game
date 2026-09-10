@@ -3,16 +3,16 @@ import { audioNow, playClickTrack } from './audio';
 import { computeCalibration, setCalibrationOffsetMs } from './calibration';
 import type { CalibrationSample } from './calibration';
 import type { PlaybackHandle } from './audio';
-import { Metronome } from './Metronome';
 
 // Tempo fixe du clic de calibration — pas un réglage, la mesure n'a pas
 // besoin de varier avec le niveau choisi ensuite pour un jeu de rythme.
 const TEMPO_BPM = 90;
 const BEAT_COUNT = 8;
-// Compte à rebours avant la mesure elle-même (retour utilisateur après test
-// réel sur iPad) : le temps de se caler sur le tempo avant que les 8 taps
+// Compte à rebours « 3, 2, 1 » avant la mesure elle-même (retour utilisateur
+// après test réel sur iPad — un pendule seul ne suffisait pas, il fallait de
+// vrais chiffres) : le temps de se caler sur le tempo avant que les 8 taps
 // mesurés ne commencent, au même tempo que la mesure qui suit.
-const COUNT_IN_BEATS = 4;
+const COUNT_IN_BEATS = 3;
 const PULSE_FLASH_MS = 140;
 const SUCCESS_HOLD_MS = 1100;
 
@@ -30,6 +30,7 @@ interface CalibrationScreenProps {
 export function CalibrationScreen({ onDone, onCancel }: CalibrationScreenProps) {
   const [stage, setStage] = useState<Stage>('intro');
   const [pulse, setPulse] = useState(false);
+  const [countInNumber, setCountInNumber] = useState<number | null>(null);
   const samplesRef = useRef<CalibrationSample[]>([]);
   const beatTimesRef = useRef<number[]>([]);
   const handleRef = useRef<PlaybackHandle | null>(null);
@@ -49,18 +50,26 @@ export function CalibrationScreen({ onDone, onCancel }: CalibrationScreenProps) 
   function handleInterrupted() {
     handleRef.current = null;
     setStage('intro');
+    setCountInNumber(null);
   }
 
   function start() {
     handleRef.current?.stop(); // au cas où : un essai précédent n'a pas fini de lui-même
     samplesRef.current = [];
     setStage('counting-in');
-    const handle = playClickTrack(COUNT_IN_BEATS, TEMPO_BPM, () => {}, beginMeasurement, handleInterrupted);
+    const handle = playClickTrack(
+      COUNT_IN_BEATS,
+      TEMPO_BPM,
+      (beatIndex) => setCountInNumber(COUNT_IN_BEATS - beatIndex),
+      beginMeasurement,
+      handleInterrupted,
+    );
     handleRef.current = handle;
   }
 
   function beginMeasurement() {
     setStage('running');
+    setCountInNumber(null);
     beatTimesRef.current = [];
     const handle = playClickTrack(
       BEAT_COUNT,
@@ -106,37 +115,42 @@ export function CalibrationScreen({ onDone, onCancel }: CalibrationScreenProps) 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-10 bg-board px-6 py-10">
       <div className="relative flex flex-1 items-center justify-center">
-        {stage === 'counting-in' ? (
-          <Metronome tempoBpm={TEMPO_BPM} referenceTime={handleRef.current?.startTime ?? 0} running />
-        ) : (
-          <button
-            type="button"
-            onTouchStart={(e) => {
-              e.preventDefault();
-              if (stage === 'intro' || stage === 'retry') start();
-              else handleTap();
-            }}
-            onPointerDown={(e) => {
-              if (e.pointerType !== 'mouse') return; // le vrai tap vient de onTouchStart sur iOS
-              if (stage === 'intro' || stage === 'retry') start();
-              else handleTap();
-            }}
-            aria-label={stage === 'running' ? 'Taper le rythme' : 'Commencer la calibration'}
-            className="flex h-56 w-56 items-center justify-center rounded-full transition-transform duration-100 sm:h-72 sm:w-72"
-            style={{
-              backgroundColor: stage === 'success' ? '#4F8F6B' : '#F2E4C9',
-              transform: pulse ? 'scale(1.08)' : 'scale(1)',
-              boxShadow:
-                stage === 'success'
-                  ? '0 0 0 8px rgba(79,143,107,0.4)'
-                  : '0 6px 0 0 rgba(0,0,0,0.25)',
-            }}
-          />
-        )}
+        <button
+          type="button"
+          onTouchStart={(e) => {
+            e.preventDefault();
+            if (stage === 'intro' || stage === 'retry') start();
+            else handleTap();
+          }}
+          onPointerDown={(e) => {
+            if (e.pointerType !== 'mouse') return; // le vrai tap vient de onTouchStart sur iOS
+            if (stage === 'intro' || stage === 'retry') start();
+            else handleTap();
+          }}
+          aria-label={stage === 'running' ? 'Taper le rythme' : 'Commencer la calibration'}
+          className="flex h-56 w-56 items-center justify-center rounded-full transition-transform duration-100 sm:h-72 sm:w-72"
+          style={{
+            backgroundColor: stage === 'success' ? '#4F8F6B' : '#F2E4C9',
+            transform: pulse ? 'scale(1.08)' : 'scale(1)',
+            boxShadow:
+              stage === 'success'
+                ? '0 0 0 8px rgba(79,143,107,0.4)'
+                : '0 6px 0 0 rgba(0,0,0,0.25)',
+          }}
+        >
+          {/* `key` sur le chiffre : force le rejeu de l'animation à chaque
+              temps, même deux chiffres identiques ne se suivent jamais ici
+              (3, 2, 1), mais garde le même patron que rhythm-tap/Board.tsx. */}
+          {stage === 'counting-in' && countInNumber !== null && (
+            <span key={countInNumber} className="animate-count-in-pulse text-7xl font-extrabold text-board sm:text-8xl">
+              {countInNumber}
+            </span>
+          )}
+        </button>
       </div>
 
       {stage === 'intro' && <p className="text-xl text-piece/80">Tape en rythme sur le disque.</p>}
-      {stage === 'counting-in' && <p className="text-xl text-piece/80">Écoute le tempo…</p>}
+      {stage === 'counting-in' && <p className="text-xl text-piece/80">Prépare-toi…</p>}
       {stage === 'running' && <p className="text-xl text-piece/80">Suis le rythme…</p>}
       {stage === 'retry' && <p className="text-xl text-piece/80">On refait un tour, en tapant bien en rythme.</p>}
       {stage === 'success' && <p className="text-xl text-piece/80">Parfait !</p>}

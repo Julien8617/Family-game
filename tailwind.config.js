@@ -37,10 +37,19 @@ export default {
           '0%': { transform: 'translateY(calc(var(--fall, 0) * -100%))' },
           '100%': { transform: 'translateY(0%)' },
         },
+        // Chaque chiffre du compte à rebours (3, 2, 1) apparaît en un petit
+        // sursaut plutôt qu'en fondu plat — rejoué à chaque chiffre via une
+        // `key` React qui change (spec 05), pas une boucle continue.
+        'count-in-pulse': {
+          '0%': { transform: 'scale(1.5)', opacity: '0' },
+          '60%': { transform: 'scale(1)', opacity: '1' },
+          '100%': { transform: 'scale(1)', opacity: '1' },
+        },
       },
       animation: {
         'win-line': 'win-line 200ms ease-out',
         'connect4-drop': 'connect4-drop 461ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+        'count-in-pulse': 'count-in-pulse 220ms ease-out',
       },
     },
   },

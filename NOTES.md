@@ -1179,3 +1179,21 @@ de rythme, ou métronome ; **métronome retenu**, plus léger sur l'iPad Air 2
   build`/`test`/`lint` verts (122 tests, +5 pour `pendulum.ts`). Précision
   du minutage réel non re-testable par automatisation, pour la raison déjà
   documentée plus haut (le temps qui passe entre deux appels d'outil).
+
+**Correctif immédiat : le pendule seul ne suffisait pas, retour utilisateur
+après ce premier essai** — « je n'ai pas le compte à rebours 3-2-1 au rythme
+de tape avant le début de l'exercice ». Le pendule cadençait bien le compte à
+rebours, mais sans repère chiffré un enfant ne « voit » pas le décompte.
+Corrigé : `COUNT_IN_BEATS` passé de 4 à 3 (pour matcher « 3, 2, 1 » à la
+lettre), le pendule ne s'affiche plus que pendant la vraie mélodie/la vraie
+mesure ; le compte à rebours affiche maintenant un grand chiffre qui
+apparaît en sursaut sur chaque temps (`onBeat` de `playClickTrack`, déjà
+disponible, juste ignoré jusque-là), via une nouvelle animation Tailwind
+(`count-in-pulse`, `key={countInNumber}` pour la rejouer à chaque chiffre —
+même patron que le flash de retour de `rhythm-tap/Board.tsx`). Vérifié au
+navigateur : « 3 » puis « 2 » bien capturés en écran, dans les deux points
+d'entrée (calibration et « Tape avec moi »). Leçon retenue : un repère
+rythmique abstrait (pendule) ne remplace pas un repère explicite (chiffres)
+pour un compte à rebours — les deux ont leur rôle, mais pas pour la même
+phase (chiffres pour « dans combien de temps ça commence », pendule pour
+« cadence le temps pendant que ça joue »).
