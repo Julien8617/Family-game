@@ -1228,3 +1228,54 @@ rythme, avec un blanc entre les deux plutôt qu'un enchaînement.
   CLAUDE.md sur ce genre de duplication minime). Écart audible non
   re-testable par automatisation (même limite déjà documentée) — à confirmer
   à l'oreille sur l'appareil réel.
+
+## Spec 05, retour de test iPad réel (2026-09-11, suite) : défilement, score en %
+
+« Beaucoup mieux » sur le compte à rebours et la continuité, mais deux
+demandes de plus : le pendule est difficile à suivre pour certains — donner
+le choix entre pendule et défilement horizontal (jusque-là seulement proposé
+comme option, jamais construit — spec 05 avait tranché pour le pendule seul
+au premier tour) ; le score en pourcentage plutôt qu'en nombre brut.
+
+- **`solfege/ScrollingBeats.tsx` + `solfege/scrollPosition.ts`** (calcul de
+  position, pur, testé) : un couloir horizontal, une ligne de frappe fixe
+  près du bord gauche (14 %), chaque temps de la mélodie apparaît à droite
+  `LOOKAHEAD_BEATS` (4) temps à l'avance et glisse linéairement jusqu'à
+  tomber pile sur la ligne à son instant prévu — puis continue au-delà,
+  jamais figé. Piloté par `requestAnimationFrame` + mutation directe de
+  `style.left` sur chaque repère (jusqu'à 32, un par temps de la mélodie),
+  pas de `setState` par frame — même patron que `Metronome.tsx`. Le repère
+  se colore (orange) une fois son temps réclamé (`claimedBeats[i]`), sinon
+  reste crème discret — jamais de croix, cohérent avec le reste du jeu.
+- **Le couloir remplace la rangée de points de progression, ne s'ajoute pas
+  à elle** — les deux racontent la même chose (quels temps sont réclamés),
+  superposer aurait été redondant. Le pendule, lui, reste dans le tapis de
+  jeu (zone de tap) : en mode défilement, le tapis n'affiche plus que le
+  flash de couleur au tap, le couloir au-dessus suffit comme repère
+  d'anticipation.
+- **`solfege/visualization.ts`** : choix persisté comme la calibration
+  (`storage/index.ts`, `Settings.rhythmVisualization`, absent ⇒ `'metronome'`
+  — comportement d'origine inchangé pour qui ne touche jamais ce réglage).
+  Sélecteur à deux boutons (`PlayerListScreen.tsx`, `VisualizationChoice`)
+  à côté du bouton de calibration — même famille de réglages d'appareil que
+  le rejet de la paume et le son. `rhythm-tap/Board.tsx` le lit une fois à
+  l'ouverture du jeu (`useState(() => getRhythmVisualization())`), comme
+  `calibrated` — une propriété d'appareil, pas quelque chose qui doit
+  changer en cours de partie.
+- **Score en pourcentage : extension additive de `Result.score`**
+  (`maxValue?: number`), pas un changement de `ScoreInfo`/`ResultScreen`
+  local à rhythm-tap. `rhythm-tap/logic.ts` renseigne
+  `maxValue: state.totalBeats` ; `App.tsx` (`computeScoreInfo`) le
+  transmet tel quel sans savoir ce qu'il représente ; `ResultScreen.tsx`
+  affiche `value/maxValue` arrondi et suivi de « % » **seulement** si
+  `maxValue` est présent, sinon le nombre brut comme avant — la mémoire
+  sonore (pas de plafond naturel à sa séquence qui grandit) n'est pas
+  concernée et continue d'afficher un nombre. Même patron que `variant`
+  (`games/types.ts`) : le shell reste générique, chaque jeu choisit s'il a
+  un maximum qui a du sens.
+- **Testé au navigateur (build de production)** : bascule pendule ↔
+  défilement visible et persistée, couloir animé (repère observé en
+  mouvement entre deux captures, franchissant la ligne de frappe), manche
+  complète jusqu'au résultat avec « Score : 6 % » / « Meilleur score : 6 % »
+  affichés correctement, aucune erreur console. `npm run build`/`test`/`lint`
+  verts (126 tests, +4 pour `scrollPosition.ts`).

@@ -45,7 +45,12 @@ function computeScoreInfo(gameId: string, result: Result): ScoreInfo | undefined
   if (result.kind !== 'win' || !result.score) return undefined;
   const previousBest = getHighScore(gameId, result.winner, result.score.variant);
   const best = recordScore(gameId, result.winner, result.score.value, result.score.variant);
-  return { value: result.score.value, best, isNewBest: result.score.value > previousBest };
+  return {
+    value: result.score.value,
+    best,
+    isNewBest: result.score.value > previousBest,
+    maxValue: result.score.maxValue,
+  };
 }
 
 function randomSeed(): number {

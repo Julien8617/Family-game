@@ -11,7 +11,10 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
   comptine (« Au clair de la lune », « Frère Jacques », « Ah ! vous
   dirai-je, maman », « Sur le pont d'Avignon ») dont on tape la pulsation
   sur un grand tapis tactile, quatre tempos du plus lent au plus rapide, un
-  métronome à pendule pour cadencer le temps pendant qu'on tape. Avant la
+  repère visuel pour cadencer le temps pendant qu'on tape — au choix un
+  métronome à pendule ou un défilement horizontal (réglable depuis l'écran
+  Joueurs). Le score de fin de partie s'affiche en pourcentage plutôt qu'en
+  nombre brut. Avant la
   première partie de rythme, une courte calibration (tapé huit fois sur un
   disque, en rythme) mesure le décalage tactile de l'appareil, aussi
   accessible à tout moment depuis l'écran Joueurs. Un compte à rebours

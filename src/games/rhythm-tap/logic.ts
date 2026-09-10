@@ -144,6 +144,9 @@ export function getResult(state: RhythmTapState): Result | null {
   return {
     kind: 'win',
     winner: state.player,
-    score: { value: score, variant: `tempo${state.tempoLevel}-${state.melodyId}` },
+    // maxValue = le nombre de temps de la mélodie choisie : le shell en fait
+    // un pourcentage plutôt qu'un nombre brut (retour utilisateur, spec 05)
+    // sans avoir besoin de savoir ce qu'un « temps » signifie ici.
+    score: { value: score, variant: `tempo${state.tempoLevel}-${state.melodyId}`, maxValue: state.totalBeats },
   };
 }

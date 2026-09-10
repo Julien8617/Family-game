@@ -114,6 +114,11 @@ export interface Settings {
   // propriété de l'appareil, pas d'un joueur (spec 05). Absent tant que la
   // calibration n'a jamais réussi ; un jeu de rythme la redemande dans ce cas.
   calibrationOffsetMs?: number;
+  // Repère visuel pendant un jeu de rythme (solfege/visualization.ts) —
+  // propriété de l'appareil, comme palmRejectionEnabled : un enfant peut
+  // trouver le pendule difficile à suivre, un autre le défilement. Absent ⇒
+  // 'metronome' (comportement d'origine, spec 05).
+  rhythmVisualization?: 'metronome' | 'scroll';
 }
 
 const DEFAULT_SETTINGS: Settings = { soundEnabled: true };
@@ -132,6 +137,12 @@ function isSettings(value: unknown): value is Partial<Settings> {
   if (v.lastPlayers !== undefined && !isLastPlayersMap(v.lastPlayers)) return false;
   if (v.palmRejectionEnabled !== undefined && typeof v.palmRejectionEnabled !== 'boolean') return false;
   if (v.calibrationOffsetMs !== undefined && typeof v.calibrationOffsetMs !== 'number') return false;
+  if (
+    v.rhythmVisualization !== undefined &&
+    v.rhythmVisualization !== 'metronome' &&
+    v.rhythmVisualization !== 'scroll'
+  )
+    return false;
   return true;
 }
 

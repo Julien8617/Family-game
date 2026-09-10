@@ -3,10 +3,12 @@ import type { BoardProps } from '../types';
 import { play } from '../../fx/sound';
 import { CalibrationScreen } from '../../solfege/CalibrationScreen';
 import { Metronome } from '../../solfege/Metronome';
+import { ScrollingBeats } from '../../solfege/ScrollingBeats';
 import { audioNow, playClickTrack, playMelody } from '../../solfege/audio';
 import type { PlaybackHandle } from '../../solfege/audio';
 import { getCalibrationOffsetMs } from '../../solfege/calibration';
 import { getMelody } from '../../solfege/music';
+import { getRhythmVisualization } from '../../solfege/visualization';
 import type { RhythmTapMove, RhythmTapState } from './logic';
 
 const FEEDBACK_FLASH_MS = 260;
@@ -32,15 +34,19 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
   // de sound-memory, mais hors de l'état du jeu (ce n'est pas une notion de
   // partie, seulement une propriété d'appareil lue via storage/index.ts).
   const [calibrated, setCalibrated] = useState(() => getCalibrationOffsetMs() !== undefined);
+  // Pendule ou défilement horizontal, au choix depuis l'écran Joueurs — lu
+  // une fois à l'ouverture du jeu, comme `calibrated` : une propriété
+  // d'appareil, pas quelque chose qui doit changer en cours de partie.
+  const [visualization] = useState(() => getRhythmVisualization());
   const [flash, setFlash] = useState<'good' | 'early' | 'late' | null>(null);
   // Compte à rebours avant la vraie mélodie : taps ignorés, tapis inerte,
   // « 3, 2, 1 » affiché en chiffres (countInNumber). Une fois la mélodie
-  // lancée, le pendule (Metronome) prend le relai pour cadencer le temps.
-  // `metronomeReference` suit l'instant de départ de la mélodie, pour que le
-  // pendule reste en phase avec le son réel.
+  // lancée, le pendule ou le défilement (selon `visualization`) prend le
+  // relai pour cadencer le temps. `beatReference` suit l'instant de départ
+  // de la mélodie, pour que le repère visuel reste en phase avec le son réel.
   const [countingIn, setCountingIn] = useState(false);
   const [countInNumber, setCountInNumber] = useState<number | null>(null);
-  const [metronomeReference, setMetronomeReference] = useState<number | null>(null);
+  const [beatReference, setBeatReference] = useState<number | null>(null);
   const playbackRef = useRef<PlaybackHandle | null>(null);
   const flashTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
@@ -82,7 +88,7 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
         firstNoteTime,
       );
       playbackRef.current = handle;
-      setMetronomeReference(handle.startTime);
+      setBeatReference(handle.startTime);
     }
 
     const countInHandle = playClickTrack(
@@ -99,7 +105,7 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
       playbackRef.current = null;
       setCountingIn(false);
       setCountInNumber(null);
-      setMetronomeReference(null);
+      setBeatReference(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.phase]);
@@ -163,21 +169,35 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
 
   return (
     <div className="relative flex h-full w-full flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-full bg-piece/10 px-3 py-2">
-        {state.claimedBeats.map((claimed, i) => (
-          <span
-            key={i}
-            className="h-2.5 w-2.5 rounded-full sm:h-3 sm:w-3"
-            style={{ backgroundColor: claimed ? '#F5A623' : 'rgba(242,228,201,0.25)' }}
-          />
-        ))}
-      </div>
+      {/* Repère de progression : la rangée de points (pendule) ou le couloir
+          de défilement lui-même (qui colore déjà chaque repère atteint) —
+          jamais les deux, ça doublonnerait. */}
+      {visualization === 'scroll' ? (
+        <ScrollingBeats
+          totalBeats={state.totalBeats}
+          claimedBeats={state.claimedBeats}
+          tempoBpm={state.tempoBpm}
+          referenceTime={beatReference ?? 0}
+          running={!countingIn && beatReference !== null}
+        />
+      ) : (
+        <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-full bg-piece/10 px-3 py-2">
+          {state.claimedBeats.map((claimed, i) => (
+            <span
+              key={i}
+              className="h-2.5 w-2.5 rounded-full sm:h-3 sm:w-3"
+              style={{ backgroundColor: claimed ? '#F5A623' : 'rgba(242,228,201,0.25)' }}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Tout l'espace de jeu est la cible — « un tapis large, pas de petites
           cibles » (spec 05) — pas une grille de pads comme sound-memory.
           Pendant le compte à rebours (tapis inerte, `disabled`) : « 3, 2, 1 »
           en chiffres. Une fois la mélodie lancée : le pendule cadence le
-          temps par-dessus. */}
+          temps par-dessus (le défilement, lui, se suffit dans la rangée du
+          dessus). */}
       <button
         type="button"
         disabled={state.phase !== 'playing' || countingIn}
@@ -199,9 +219,9 @@ export function Board({ state, onMove }: BoardProps<RhythmTapState, RhythmTapMov
             </span>
           </div>
         )}
-        {!countingIn && metronomeReference !== null && (
+        {!countingIn && visualization === 'metronome' && beatReference !== null && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-            <Metronome tempoBpm={state.tempoBpm} referenceTime={metronomeReference} running />
+            <Metronome tempoBpm={state.tempoBpm} referenceTime={beatReference} running />
           </div>
         )}
       </button>

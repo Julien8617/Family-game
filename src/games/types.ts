@@ -14,7 +14,13 @@ export type Result =
       // difficulté différente) — clé opaque pour le shell, seul le jeu sait
       // ce qu'elle représente ; le shell s'en sert uniquement pour ranger le
       // meilleur score par (jeu, joueur, variant), voir storage/index.ts.
-      score?: { value: number; variant?: string };
+      // `maxValue` optionnel : quand le score a un maximum atteignable connu
+      // (ex. le nombre de temps d'une mélodie), le shell affiche un
+      // pourcentage (`value`/`maxValue`) plutôt que le nombre brut — sans
+      // savoir ce que `value` représente. Absent (ex. mémoire sonore, une
+      // séquence qui grandit sans plafond) : affichage du nombre brut,
+      // comportement inchangé.
+      score?: { value: number; variant?: string; maxValue?: number };
     }
   | { kind: 'draw' };
 

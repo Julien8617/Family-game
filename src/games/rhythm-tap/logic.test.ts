@@ -99,7 +99,7 @@ describe('rhythm-tap logic', () => {
     expect(result).toEqual({
       kind: 'win',
       winner: PLAYER,
-      score: { value: 2, variant: `tempo${state.tempoLevel}-${state.melodyId}` },
+      score: { value: 2, variant: `tempo${state.tempoLevel}-${state.melodyId}`, maxValue: state.totalBeats },
     });
   });
 

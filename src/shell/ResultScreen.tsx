@@ -11,6 +11,10 @@ export interface ScoreInfo {
   value: number;
   best: number;
   isNewBest: boolean;
+  // Optionnel (Result.score.maxValue, games/types.ts) : quand présent, le
+  // score s'affiche en pourcentage plutôt qu'en nombre brut — le shell ne
+  // sait toujours pas ce qu'une « unité » de score représente pour ce jeu.
+  maxValue?: number;
 }
 
 interface ResultScreenProps {
@@ -24,6 +28,10 @@ interface ResultScreenProps {
 // Laisse la photo du gagnant s'afficher un instant avant les confettis —
 // spec 03, critère 9 : ligne, puis photo, puis confettis.
 const CONFETTI_DELAY_MS = 200;
+
+function toPercent(value: number, maxValue: number): number {
+  return Math.round((value / maxValue) * 100);
+}
 
 export function ResultScreen({ result, players, scoreInfo, onReplay, onMenu }: ResultScreenProps) {
   const resultPlayer = result.kind === 'win' ? players.find((p) => p.id === result.winner) : undefined;
@@ -68,8 +76,19 @@ export function ResultScreen({ result, players, scoreInfo, onReplay, onMenu }: R
             <h1 className="text-5xl text-piece">
               {scoreInfo.isNewBest ? 'Nouveau record !' : scorer.name}
             </h1>
-            <p className="text-2xl text-piece/80">Score : {scoreInfo.value}</p>
-            <p className="text-xl text-piece/60">Meilleur score : {scoreInfo.best}</p>
+            {scoreInfo.maxValue ? (
+              <>
+                <p className="text-2xl text-piece/80">Score : {toPercent(scoreInfo.value, scoreInfo.maxValue)} %</p>
+                <p className="text-xl text-piece/60">
+                  Meilleur score : {toPercent(scoreInfo.best, scoreInfo.maxValue)} %
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-2xl text-piece/80">Score : {scoreInfo.value}</p>
+                <p className="text-xl text-piece/60">Meilleur score : {scoreInfo.best}</p>
+              </>
+            )}
           </div>
         ) : (
           <h1 className="text-5xl text-piece">{winner ? `${winner.name} gagne !` : 'Match nul !'}</h1>

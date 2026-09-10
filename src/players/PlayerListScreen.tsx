@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { isSoundEnabled, setSoundEnabled } from '../fx/sound';
 import { isPalmRejectionEnabled, setPalmRejectionEnabled } from '../shell/palmRejection';
+import { getRhythmVisualization, setRhythmVisualization } from '../solfege/visualization';
+import type { RhythmVisualization } from '../solfege/visualization';
 import { listPlayers } from '../storage';
 import type { Player } from './types';
 
@@ -51,6 +53,44 @@ function CalibrationButton({ onCalibrate }: { onCalibrate(): void }) {
     >
       <span>🎵 Calibrer le rythme</span>
     </button>
+  );
+}
+
+// Choix du repère visuel pendant un jeu de rythme (solfege/visualization.ts)
+// — propriété de l'appareil, à côté du bouton de calibration : retour
+// utilisateur après test réel, le pendule ne convient pas à tout le monde.
+// Deux options mutuellement exclusives plutôt qu'un interrupteur simple
+// (comme PalmRejectionToggle) puisqu'il y a plus de deux états possibles à
+// terme si un troisième repère est ajouté un jour.
+function VisualizationChoice() {
+  const [choice, setChoice] = useState<RhythmVisualization>(() => getRhythmVisualization());
+
+  function choose(next: RhythmVisualization) {
+    setRhythmVisualization(next);
+    setChoice(next);
+  }
+
+  return (
+    <div className="flex h-16 items-center gap-1 rounded-full bg-piece/10 p-1 text-lg text-piece">
+      <button
+        type="button"
+        onClick={() => choose('metronome')}
+        aria-pressed={choice === 'metronome'}
+        className="h-full rounded-full px-4 transition-colors"
+        style={{ backgroundColor: choice === 'metronome' ? '#4F8F6B' : 'transparent' }}
+      >
+        🕰️ Pendule
+      </button>
+      <button
+        type="button"
+        onClick={() => choose('scroll')}
+        aria-pressed={choice === 'scroll'}
+        className="h-full rounded-full px-4 transition-colors"
+        style={{ backgroundColor: choice === 'scroll' ? '#4F8F6B' : 'transparent' }}
+      >
+        🎯 Défilement
+      </button>
+    </div>
   );
 }
 
@@ -124,6 +164,7 @@ export function PlayerListScreen({ onBack, onEdit, onCreate, onCalibrate }: Play
       <div className="flex flex-wrap items-center justify-center gap-4">
         <PalmRejectionToggle />
         <CalibrationButton onCalibrate={onCalibrate} />
+        <VisualizationChoice />
       </div>
 
       {/* Repère de version pour vérifier qu'un déploiement est bien arrivé sur
