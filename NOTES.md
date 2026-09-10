@@ -811,6 +811,81 @@ Trois demandes issues d'un usage réel avec un jeune enfant.
     plus jamais son écouteur — le panneau sert donc aussi de vérification
     après coup (une paume qui n'apparaît plus dans le diagnostic = bien
     rejetée). À retirer une fois confirmé sur l'appareil réel.
+  - **Premier essai sur l'iPad réel : régression, pas une amélioration** — le
+    seuil de 50 px a bloqué de vrais taps du doigt (« un vrai tap du doigt
+    est bloqué à tort », retour direct de l'utilisateur), pas seulement des
+    paumes. Le seul échantillon de doigt mesuré (20 px, un tap posé
+    volontairement pour le diagnostic) ne représente visiblement pas toute la
+    variance réelle d'un tap d'enfant en train de jouer — vitesse, angle,
+    pression tout autres. Piste explorée puis abandonnée : ajouter
+    `touchmove`/`touchend` en plus de `touchstart` pour rattraper une
+    géométrie de contact pas encore stabilisée — revert immédiat sans même
+    être testée sur l'appareil, parce qu'elle ne fait qu'ajouter des
+    occasions supplémentaires de faux positif sans donnée pour la justifier,
+    dans un sens qu'on sait déjà être le mauvais (trop de rejet, pas trop
+    peu). Piste explorée puis écartée par le raisonnement seul (donc jamais
+    codée) : n'évaluer le rayon que quand `event.touches.length > 1` (au
+    moins un autre toucher déjà actif) pour ne jamais rejeter un tap seul —
+    séduisant, mais la paume qui se pose *en premier* est elle-même seule à
+    l'instant où elle touche l'écran, donc ce garde-fou l'aurait laissée
+    passer systématiquement : il aurait supprimé la régression en
+    supprimant la fonctionnalité.
+  - **Hypothèse non vérifiée, plus probable que « seuil mal calé »** : la
+    plainte initiale (« la paume touche l'écran, donc il ne peut plus appuyer
+    sur les jeux ») décrit peut-être une *suppression* du tap par WebKit
+    lui-même en présence de multi-touch (la synthèse de `click` à partir de
+    `touchend` peut ne pas se déclencher du tout quand plusieurs touchers
+    sont actifs simultanément, sur certaines versions), pas des clics
+    accidentels de la paume. Si c'est le cas, `installPalmRejection` — qui ne
+    fait qu'empêcher la paume de déclencher *son propre* clic — ne
+    s'attaquait pas au bon problème depuis le début, et le vrai correctif
+    demanderait de contourner la synthèse de clic native (gérer `touchend`
+    directement sur les éléments interactifs plutôt que compter sur
+    `onClick`) — un chantier bien plus large, pas entrepris tant que
+    l'hypothèse n'est pas confirmée.
+  - **Décision : interrupteur de secours plutôt qu'un nouveau réglage de
+    seuil deviné.** `settings.palmRejectionEnabled` (`storage.ts`), lu/écrit
+    comme `soundEnabled` (`fx/sound.ts`) — variable de module mise à jour par
+    le setter, pas reparsée à chaque toucher. **Désactivé par défaut**
+    (absent ⇒ `false`) : tant que le diagnostic n'est pas terminé, un enfant
+    qui ne peut plus jouer du tout est pire que l'absence de rejet de la
+    paume. Bouton texte dédié sur l'écran Joueurs
+    (`PlayerListScreen.tsx`, `PalmRejectionToggle`, à côté de
+    `TouchDiagnostics`) pour l'activer/tester sans avoir à redéployer.
+    `installPalmRejection()` pose l'écouteur inconditionnellement au
+    démarrage ; c'est `handleTouchStart` qui vérifie le drapeau à chaque
+    appel, pour que le bouton prenne effet immédiatement, sans recharger la
+    page.
+  - **Prochaine étape, pas encore faite** : demander dix taps du doigt seul
+    (sans paume), l'un après l'autre, sur l'écran Joueurs, et lire les lignes
+    du panneau de diagnostic — si des lignes manquent, la distribution réelle
+    du rayon d'un doigt dépasse largement l'échantillon unique de 20 px et il
+    faut remonter le seuil en conséquence (avec des vraies données cette
+    fois) ; si les dix lignes apparaissent toutes avec un rayon proche de
+    20 px, alors les taps seuls ne sont pas rejetés par ce mécanisme et le
+    problème observé est autre chose (voir hypothèse de suppression WebKit
+    ci-dessus) — dans les deux cas, ne pas retoucher `PALM_RADIUS_PX` avant
+    d'avoir ce résultat, pour que le test mesure la même version que celle
+    déjà testée.
+
+## Clavier décalé en paysage (2026-09-10, observation non vérifiée)
+
+Rapporté par l'utilisateur en testant l'**app installée sur l'écran d'accueil**
+(pas un onglet Safari — écarte l'explication la plus simple, le verrouillage
+portrait du manifest ne s'applique de toute façon qu'à l'app installée).
+Le clavier iPadOS « n'est pas à la bonne place » quand l'app se retrouve en
+paysage. Hypothèse la plus probable, pas encore confirmée : le *contenu* de
+la page reste verrouillé en portrait (le manifest fait son travail pour la
+mise en page), mais le *clavier logiciel* — un élément d'interface système,
+pas du DOM — se positionne d'après l'orientation physique réelle de
+l'appareil plutôt que d'après l'orientation verrouillée de la page,
+produisant un décalage. Pas creusé davantage dans cette session : interaction
+rare et ponctuelle (un adulte qui tape un prénom à la création d'un profil),
+sans commune mesure avec l'urgence du rejet de la paume (qui touche chaque
+tap de chaque partie). Question restée sans réponse, à poser en priorité à la
+prochaine session si ça revient : la mise en page elle-même tourne-t-elle en
+paysage (photos/boutons de travers), ou seulement le clavier semble décalé
+pendant que le reste de l'écran reste en portrait ?
 
 ## Mémoire sonore ajoutée (2026-09-10)
 

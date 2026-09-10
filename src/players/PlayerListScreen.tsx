@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { isSoundEnabled, setSoundEnabled } from '../fx/sound';
+import { isPalmRejectionEnabled, setPalmRejectionEnabled } from '../shell/palmRejection';
 import { listPlayers } from '../storage';
 import type { Player } from './types';
 
@@ -52,6 +53,31 @@ function TouchDiagnostics() {
         ))
       )}
     </div>
+  );
+}
+
+// Interrupteur de secours pour le rejet de la paume (shell/palmRejection.ts)
+// — désactivé par défaut, en cours de diagnostic (voir NOTES.md). Toggle
+// texte plutôt qu'icône seule comme SoundToggle : contrairement au son, rien
+// ne rend cette fonctionnalité reconnaissable d'un coup d'œil.
+function PalmRejectionToggle() {
+  const [enabled, setEnabled] = useState(() => isPalmRejectionEnabled());
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        const next = !enabled;
+        setPalmRejectionEnabled(next);
+        setEnabled(next);
+      }}
+      aria-pressed={enabled}
+      className="flex h-16 items-center gap-3 rounded-full px-5 text-lg text-piece transition-colors"
+      style={{ backgroundColor: enabled ? '#4F8F6B' : 'rgba(242,228,201,0.2)' }}
+    >
+      <span>🖐️ Rejet de la paume (bêta)</span>
+      <span className="font-bold">{enabled ? 'Activé' : 'Désactivé'}</span>
+    </button>
   );
 }
 
@@ -128,6 +154,7 @@ export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenP
         </button>
       </div>
 
+      <PalmRejectionToggle />
       <TouchDiagnostics />
 
       {/* Repère de version pour vérifier qu'un déploiement est bien arrivé sur

@@ -106,6 +106,11 @@ export interface Settings {
   // champ plat comme lastBotLevel) : Alice+Bob au morpion n'a aucune raison
   // de présélectionner la même paire à la course des poussins.
   lastPlayers?: Record<string, { mode: 'family' | 'computer'; playerIds: PlayerId[] }>;
+  // Interrupteur de secours (shell/palmRejection.ts) : la détection paume
+  // s'est révélée bloquer de vrais taps sur l'iPad réel, en cours de
+  // diagnostic (voir NOTES.md) — désactivée par défaut (absent ⇒ false) tant
+  // qu'elle n'est pas fiable, activable depuis l'écran Joueurs pour tester.
+  palmRejectionEnabled?: boolean;
 }
 
 const DEFAULT_SETTINGS: Settings = { soundEnabled: true };
@@ -122,6 +127,7 @@ function isSettings(value: unknown): value is Partial<Settings> {
   if (v.lastBotLevel !== undefined && typeof v.lastBotLevel !== 'number') return false;
   if (v.lastSoloLevel !== undefined && typeof v.lastSoloLevel !== 'number') return false;
   if (v.lastPlayers !== undefined && !isLastPlayersMap(v.lastPlayers)) return false;
+  if (v.palmRejectionEnabled !== undefined && typeof v.palmRejectionEnabled !== 'boolean') return false;
   return true;
 }
 
