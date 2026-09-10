@@ -1,7 +1,5 @@
 export declare const zzfxV: number;
 
-export declare function zzfxUnlock(): void;
-
 export declare function zzfx(
   volume?: number,
   randomness?: number,

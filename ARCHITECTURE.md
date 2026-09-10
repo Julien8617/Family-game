@@ -44,10 +44,17 @@ src/
                           ne connaît aucune règle de jeu
     GameScreen.tsx       hôte de partie : détient l'état, valide, applique,
                           orchestre le bot (délai minimum, budget d'affichage)
-    ResultScreen.tsx     fin de partie, confettis, rejouer
+    ResultScreen.tsx     fin de partie, confettis, rejouer ; affiche aussi un
+                          score générique (valeur + meilleur) si
+                          result.score est défini, voir §4
     bot.ts               createBotPlayer() — adversaire artificiel comme un
                           Player normal (photo = icône du niveau), jamais
                           persisté dans le stockage des joueurs
+    palmRejection.ts     installPalmRejection() — écouteur touchstart global
+                          (capture) qui bloque un toucher de la taille d'une
+                          paume (Touch.radiusX/radiusY, extension WebKit) ;
+                          activé par défaut, interrupteur de secours sur
+                          l'écran Joueurs — voir NOTES.md pour la calibration
     settings-icon.svg    icône du bouton discret vers l'écran Joueurs
 
   players/
@@ -60,7 +67,8 @@ src/
                           facultatif, pas un champ vide à gérer en aval
     PhotoCropper.tsx      glisser pour recentrer, curseur de zoom ×1–×3
     PlayerEditor.tsx     création et modification d'un profil (photo ou avatar)
-    PlayerListScreen.tsx liste des profils + interrupteur son + repère de version
+    PlayerListScreen.tsx liste des profils + interrupteur son + interrupteur
+                          rejet de la paume + repère de version
 
   storage/
     index.ts              SEUL point d'accès à localStorage (joueurs + réglages, versionnés séparément)
@@ -115,6 +123,42 @@ src/
                           PLAYER_COLORS (players/palette.ts)
       index.ts, icon.svg
       logic.test.ts
+    rhythm-tap/             « Tape avec moi » — premier jeu du groupe
+                            « musique » (GameMeta.groupId), premier jeu de
+                            rythme, solo comme sound-memory
+      logic.ts            pur, testé, sans React ; reçoit { atBeat } déjà
+                           corrigé de l'offset de calibration, classe le tap
+                           (avance/à l'heure/retard) contre la grille des
+                           temps de la mélodie choisie au seed
+      Board.tsx            tient l'ordonnanceur (solfege/audio.ts), lit
+                            l'horloge, convertit chaque tap en position
+                            musicale ; calibration obligatoire affichée en
+                            phase interne si aucun offset n'est enregistré
+      index.ts, icon.svg
+      logic.test.ts
+
+  solfege/                socle musical — pas un jeu, le shell ne le connaît
+                           pas ; les jeux de musique s'en servent
+    music.ts               pur, testé : noms latins (do ré mi fa sol la si,
+                            sans accent en code), conversion nom ↔ fréquence
+                            sur une octave, bibliothèque de 4 comptines du
+                            domaine public encodées en notes (hauteur + durée
+                            en temps, pas en ms)
+    schedule.ts             pur, testé : instants absolus d'une mélodie à
+                            partir d'un tempo et d'un instant de départ, et
+                            l'ordonnanceur générique à lookahead (horloge et
+                            émission injectables — testable sans navigateur)
+    audio.ts                moteur réel : branche schedule.ts sur
+                            l'AudioContext partagé (fx/audio-context.ts),
+                            synthèse par oscillateur (aucun échantillon),
+                            arrêt propre sur passage en arrière-plan
+    calibration.ts           mesure du décalage tactile : médiane robuste des
+                            écarts sur 8 taps (2 premiers ignorés), persistée
+                            via storage/index.ts (propriété d'appareil, pas de
+                            joueur)
+    CalibrationScreen.tsx    écran partagé, utilisé à la fois comme route
+                            depuis l'écran Joueurs et embarqué dans
+                            rhythm-tap/Board.tsx
 
   net/
     transport.ts         interface Transport
@@ -122,7 +166,11 @@ src/
     webrtcTransport.ts   phase 3, RTCDataChannel — pas encore construit
 
   fx/
-    sound.ts             ZzFX, déblocage AudioContext, table des sons
+    audio-context.ts     seul propriétaire de l'AudioContext pour toute
+                          l'app (création paresseuse, déblocage unique) —
+                          ZzFX et le moteur musical (solfege/audio.ts) s'y
+                          branchent tous les deux, jamais un second contexte
+    sound.ts             ZzFX, table des sons
     confetti.ts          canvas-confetti, réglages économes
 
   vendor/                dépendances et assets copiés localement, jamais de CDN
@@ -184,6 +232,11 @@ export interface GameMeta {
   // l'ordinateur » ni chooseMove. Le niveau choisi est transmis tel quel à
   // createState (3ᵉ paramètre) ; le shell ne sait pas ce qu'il signifie.
   soloLevels?: BotLevel[];
+  // Facultatif : identifiant d'un groupe déclaré dans games/registry.ts
+  // (GAME_GROUPS). Le shell regroupe les jeux qui le partagent sous une
+  // tuile de sous-menu dans MenuScreen, sans savoir ce que le groupe
+  // représente — un jeu sans groupId s'affiche exactement comme avant.
+  groupId?: string;
 }
 
 export interface BoardProps<S, M> {
@@ -266,20 +319,62 @@ export interface GameModule<S, M> {
 import { ticTacToe } from './tictactoe';
 import { chessRace } from './chess-race';
 import { connect4 } from './connect4';
+import { rhythmTap } from './rhythm-tap';
+import { soundMemory } from './sound-memory';
 
 export const GAMES: GameModule<any, any>[] = [
   ticTacToe,
   chessRace,
   connect4,
+  soundMemory,
+  rhythmTap,
 ];
+
+export const GAME_GROUPS: Record<string, { title: string; icon: string }> = {
+  music: { title: 'Musique', icon: musicGroupIcon },
+};
 ```
 
 Ajouter un jeu : un dossier, un import, une ligne. Le menu se construit à partir de
 `GAMES`, et la sélection de joueurs lit `minPlayers` / `maxPlayers`. Aucun autre
-fichier du shell ne bouge — confirmé trois fois maintenant : l'ajout de
+fichier du shell ne bouge — confirmé cinq fois maintenant : l'ajout de
 `chess-race` (spec 04), puis celui d'un bot sur `tictactoe` derrière le même
-contrat `GameModule.bot`, puis l'ajout de `connect4` n'ont touché aucun
-fichier de `shell/` en dehors de ce registre.
+contrat `GameModule.bot`, puis l'ajout de `connect4`, puis celui de
+`sound-memory` (premier jeu sans `bot` du tout), puis celui de `rhythm-tap`
+(spec 05, premier jeu regroupé) n'ont touché aucun fichier de `shell/` en
+dehors de ce registre et de `MenuScreen.tsx` (extension additive et générique,
+voir plus bas). `sound-memory` avait demandé deux extensions additives du
+contrat lui-même (`soloLevels`, `Result.score`) ; `rhythm-tap` n'en a demandé
+qu'une (`GameMeta.groupId`) — pas une exception à la règle, juste le contrat
+qui grandit, voir §4.
+
+`GAME_GROUPS` est une table à côté de `GAMES`, pas dans le contrat : un jeu
+avec `groupId: 'music'` est regroupé sous la tuile « Musique » dans
+`MenuScreen`, qui affiche alors un sous-menu (mêmes tuiles, un bouton
+« Retour » comme partout ailleurs) plutôt que la grille plate habituelle. État
+(quel sous-menu est ouvert) tenu localement dans `MenuScreen`, aucun ajout à
+`Screen` dans `App.tsx` — c'est une fonctionnalité de menu, pas une règle de
+jeu qui remonte dans le shell.
+
+### Présélection des joueurs, mémorisée par jeu
+
+`PlayerPickScreen` présélectionne les joueurs à l'ouverture plutôt que de
+partir d'un écran vide, sans jamais verrouiller le choix (les boutons restent
+utilisables normalement ensuite) :
+
+- **Un seul profil enregistré** : toujours présélectionné (mode « ordinateur »
+  en plus si `game.bot` existe) — généralisation de ce qui n'existait
+  jusqu'ici que pour les jeux à bot.
+- **Plusieurs profils** : reprend l'équipe (et le mode) de la dernière partie
+  de *ce* jeu — `settings.lastPlayers`, une entrée par `game.meta.id`, jamais
+  un champ plat partagé entre tous les jeux (Alice+Bob au morpion n'a aucune
+  raison de présélectionner la même paire à la course des poussins). Écrit
+  dans `finalize()` à partir de `selected` (l'état du composant), jamais de
+  la liste de joueurs déjà réordonnée envoyée à `onConfirm` — en mode
+  ordinateur, cette dernière contient le faux joueur bot, qui n'a rien à
+  faire en stockage. Lu au montage, filtré contre `listPlayers()` actuel (un
+  profil supprimé depuis n'est jamais ressuscité) et plafonné à
+  `game.meta.maxPlayers`.
 
 ### La boucle de partie
 
@@ -314,9 +409,10 @@ export interface Player {
 Stockage dans `localStorage`, sous deux clés (`src/storage/index.ts`) :
 
 - `players` — le tableau des profils
-- `settings` — réglages (son activé, dernier niveau de bot choisi...),
-  fusionné avec les valeurs par défaut à la lecture pour qu'un champ ajouté
-  après coup n'invalide pas un réglage déjà stocké
+- `settings` — réglages (son activé, rejet de la paume activé, dernier
+  niveau de bot/solo choisi, derniers joueurs par jeu...), fusionné avec les
+  valeurs par défaut à la lecture pour qu'un champ ajouté après coup
+  n'invalide pas un réglage déjà stocké
 
 `scores` — meilleur score par (jeu, joueur, variant), pour un jeu solo à
 score (`Result.score`, voir §4). Un seul entier par clé (le record), pas un
@@ -387,10 +483,19 @@ paramètres, aucun fichier audio à mettre en cache. Table centralisée dans
 `fx/sound.ts` : pion posé, coup invalide, tour qui passe, victoire, égalité.
 
 L'`AudioContext` reste muet tant qu'il n'y a pas eu de vraie interaction tactile. Il
-est débloqué au premier tap sur le menu, pas au chargement.
+est débloqué au premier tap sur le menu, pas au chargement. Depuis la spec 05,
+`fx/audio-context.ts` en est le seul propriétaire pour toute l'app — ZzFX et le
+moteur musical du socle solfège (`src/solfege/audio.ts`, §3 de l'arborescence)
+partagent le même contexte, jamais deux instances (iOS le tolère mal, et deux
+horloges divergeraient).
 
 **canvas-confetti** pour la victoire. Sur un A8X, baisser `particleCount` autour de
 80 et activer `disableForReducedMotion`.
+
+**Le socle solfège** (`src/solfege/`) synthétise ses sons par oscillateur (aucun
+échantillon), ordonnancés en lookahead sur l'horloge de l'`AudioContext`
+partagé — jamais par `setTimeout` direct, qui dériverait sur un A8X. Détail dans
+`src/solfege/audio.ts` et `NOTES.md` (spec 05).
 
 ## 8. Feuille de route
 
@@ -437,6 +542,29 @@ voir NOTES.md). Palmarès (`storage.ts`, clé `scores`) construit à cette
 occasion, un seul entier par (jeu, joueur, variant) — le point resté ouvert
 en §10 depuis la phase 1.
 
+**Phase 2.8 — confort de sélection des joueurs, rejet de la paume** ✅ livré
+Trois demandes d'usage réel avec un jeune enfant. Présélection des joueurs
+généralisée et mémorisée par jeu (voir §4 « Présélection des joueurs »).
+Rejet de la paume (`shell/palmRejection.ts`) : un toucher dont le rayon de
+contact (`Touch.radiusX`/`radiusY`) dépasse celui d'un doigt est neutralisé
+avant qu'il puisse déclencher quoi que ce soit — calibré sur mesures réelles
+prises sur l'iPad Air 2 (doigt 20–42 px, paume ~73 px, voir NOTES.md), activé
+par défaut avec un interrupteur de secours sur l'écran Joueurs. Un premier
+essai plus agressif (`touchmove`/`touchend` en plus de `touchstart`) a
+bloqué de vrais taps sur l'appareil réel et a été retiré sans être publié —
+rappel que ce genre de réglage ne se devine pas, il se mesure (NOTES.md, le
+détail du diagnostic).
+
+**Phase 2.9 — socle musical, calibration, premier jeu de rythme** livré, pas encore
+testé sur iPad réel (spec 05)
+Ouverture de la partie « musique » : `src/solfege/` (modèle musical pur, moteur
+audio à lookahead, calibration du décalage tactile) et un premier jeu,
+« Tape avec moi » (`games/rhythm-tap/`). Deux extensions additives du contrat :
+`GameMeta.groupId` (regroupement de jeux dans le menu, `GAME_GROUPS` dans
+`registry.ts`) et la propriété unique de l'`AudioContext` extraite dans
+`fx/audio-context.ts` (ZzFX et le moteur musical le partagent). Détail des
+décisions dans `NOTES.md`.
+
 **Phase 3 — deux appareils**
 Seulement si un jeu à information cachée le justifie. Implémenter `webrtcTransport`
 derrière l'interface existante. Pas commencé.
@@ -462,3 +590,6 @@ derrière l'interface existante. Pas commencé.
 - Attribution exacte (auteur/pack, lien) à compléter dans les 3 `LICENSE.md`
   Flaticon (`chess-race-levels/`, `default-avatar/`, `mode-icons/`) avant
   toute publication qui l'exigerait formellement.
+- Clavier iPadOS mal positionné quand l'app installée se retrouve en
+  paysage (observation utilisateur, pas encore reproduite/diagnostiquée) —
+  voir NOTES.md, section « Clavier décalé en paysage ».

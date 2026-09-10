@@ -26,17 +26,26 @@ licence : `mode-icons/LICENSE.md`.
 - Version d'origine : 1.3.2
 - Licence : MIT — Copyright (c) 2019 Frank Force
 
-**Modification par rapport à l'original** : le `AudioContext` (`zzfxX`) est créé
-paresseusement au premier usage (fonction interne `zzfxContext()`), au lieu
-d'une instanciation `const zzfxX = new AudioContext` au chargement du module.
-Deux raisons :
+**Modification par rapport à l'original (spec 03)** : le `AudioContext`
+(`zzfxX`) est créé paresseusement au premier usage (fonction interne
+`zzfxContext()`), au lieu d'une instanciation `const zzfxX = new AudioContext`
+au chargement du module. Deux raisons :
 
 1. L'original casse tout import sous Node/Vitest (`AudioContext` n'existe pas
    dans l'environnement de test `node`).
 2. Ça rend la règle CLAUDE.md « l'`AudioContext` se débloque au premier tap,
    jamais au chargement » vraie mécaniquement, plutôt que vraie par chance.
 
-Le reste — l'algorithme de synthèse — est inchangé.
+**Modification supplémentaire (spec 05)** : la création paresseuse elle-même
+(`zzfxContext()`/`zzfxX`) est retirée de ce fichier. `zzfx()` prend maintenant
+son contexte via `getAudioContext()` (`src/fx/audio-context.ts`), qui en
+devient le seul propriétaire pour toute l'app — nécessaire pour que le moteur
+musical du socle solfège (`src/solfege/audio.ts`) partage le même contexte que
+les effets sonores plutôt que d'en ouvrir un second (iOS le tolère mal, et
+deux contextes feraient diverger l'horloge musicale des effets). `zzfxUnlock()`
+est retiré avec : `fx/sound.ts` appelle directement `unlockAudioContext()`
+depuis ce même module partagé. Le reste — l'algorithme de synthèse — est
+inchangé.
 
 Texte de licence complet :
 

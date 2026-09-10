@@ -3,24 +3,13 @@
 // MIT License - Copyright 2019 Frank Force
 //
 // Vendored and lightly modified for this project — see ../vendor/LICENSES.md
-// for what changed and why (lazy AudioContext creation).
+// for what changed and why (shared AudioContext, owned by fx/audio-context.ts).
 
 'use strict';
 
+import { getAudioContext } from '../fx/audio-context';
+
 export const zzfxV = .3; // volume
-
-let zzfxX; // audio context, created lazily — see LICENSES.md
-
-function zzfxContext() {
-  return zzfxX || (zzfxX = new AudioContext());
-}
-
-// Resumes the (lazily created) audio context. Call this from a real user
-// gesture handler — iOS keeps the context suspended until then.
-export function zzfxUnlock() {
-  const ctx = zzfxContext();
-  if (ctx.state === 'suspended') ctx.resume();
-}
 
 export const zzfx = // generate and play samples
 (
@@ -67,7 +56,7 @@ export const zzfx = // generate and play samples
         f,             // wave frequency
 
         // source and buffer
-        ctx = zzfxContext(),
+        ctx = getAudioContext(),
         source = ctx.createBufferSource(),
         buffer,
 

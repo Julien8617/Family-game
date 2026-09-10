@@ -34,6 +34,24 @@ interface PlayerListScreenProps {
   onBack(): void;
   onEdit(player: Player): void;
   onCreate(): void;
+  onCalibrate(): void;
+}
+
+// Bouton vers l'écran de calibration (solfege/CalibrationScreen.tsx) — une
+// propriété de l'appareil, pas du joueur (spec 05), donc à côté des autres
+// réglages d'appareil de cet écran plutôt que dans un profil. Même style de
+// bouton texte que PalmRejectionToggle : rien ne rend cette fonctionnalité
+// reconnaissable d'un coup d'œil, contrairement au son.
+function CalibrationButton({ onCalibrate }: { onCalibrate(): void }) {
+  return (
+    <button
+      type="button"
+      onClick={onCalibrate}
+      className="flex h-16 items-center gap-3 rounded-full bg-piece/10 px-5 text-lg text-piece"
+    >
+      <span>🎵 Calibrer le rythme</span>
+    </button>
+  );
 }
 
 function SoundToggle() {
@@ -62,7 +80,7 @@ function SoundToggle() {
   );
 }
 
-export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenProps) {
+export function PlayerListScreen({ onBack, onEdit, onCreate, onCalibrate }: PlayerListScreenProps) {
   const [players] = useState(() => listPlayers());
 
   return (
@@ -103,7 +121,10 @@ export function PlayerListScreen({ onBack, onEdit, onCreate }: PlayerListScreenP
         </button>
       </div>
 
-      <PalmRejectionToggle />
+      <div className="flex flex-wrap items-center justify-center gap-4">
+        <PalmRejectionToggle />
+        <CalibrationButton onCalibrate={onCalibrate} />
+      </div>
 
       {/* Repère de version pour vérifier qu'un déploiement est bien arrivé sur
           l'appareil — voir CHANGELOG.md. */}

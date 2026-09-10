@@ -3,6 +3,7 @@ import type { GameModule, PlayerId, Result } from '../games/types';
 import { PlayerEditor } from '../players/PlayerEditor';
 import { PlayerListScreen } from '../players/PlayerListScreen';
 import type { Player } from '../players/types';
+import { CalibrationScreen } from '../solfege/CalibrationScreen';
 import { getHighScore, recordScore } from '../storage';
 import { GameScreen } from './GameScreen';
 import { MenuScreen } from './MenuScreen';
@@ -15,6 +16,7 @@ type Screen =
   | { kind: 'menu' }
   | { kind: 'players' }
   | { kind: 'editPlayer'; player?: Player }
+  | { kind: 'calibration' }
   | { kind: 'pick'; game: GameModule<any, any> }
   | {
       kind: 'game';
@@ -70,6 +72,15 @@ export function App() {
           onBack={() => setScreen({ kind: 'menu' })}
           onEdit={(player) => setScreen({ kind: 'editPlayer', player })}
           onCreate={() => setScreen({ kind: 'editPlayer' })}
+          onCalibrate={() => setScreen({ kind: 'calibration' })}
+        />
+      );
+
+    case 'calibration':
+      return (
+        <CalibrationScreen
+          onDone={() => setScreen({ kind: 'players' })}
+          onCancel={() => setScreen({ kind: 'players' })}
         />
       );
 

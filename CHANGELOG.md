@@ -6,6 +6,25 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 
 ## Non publié
 
+- Ouverture de la partie « musique » : une tuile « Musique » dans le menu
+  ouvre un sous-menu de mini-jeux. Premier jeu : « Tape avec moi », une
+  comptine (« Au clair de la lune », « Frère Jacques », « Ah ! vous
+  dirai-je, maman », « Sur le pont d'Avignon ») dont on tape la pulsation
+  sur un grand tapis tactile, quatre tempos du plus lent au plus rapide.
+  Avant la première partie de rythme, une courte calibration (tapé huit
+  fois sur un disque, en rythme) mesure le décalage tactile de l'appareil,
+  aussi accessible à tout moment depuis l'écran Joueurs.
+- Rejet de la paume : un enfant qui pose la paume sur l'écran en tapant du
+  doigt n'empêche plus le jeu de répondre. Activé par défaut ; interrupteur
+  de secours sur l'écran Joueurs si besoin de le désactiver.
+- Écran « Qui joue ? » : avec plusieurs profils enregistrés, présélectionne
+  maintenant l'équipe (et le mode) de la dernière partie jouée à *ce* jeu,
+  pas seulement quand il n'y a qu'un seul profil.
+- Nouveau jeu : Mémoire sonore, premier jeu solo (pas besoin d'un deuxième
+  joueur ni d'un adversaire). Une séquence de pads lumineux et sonores à
+  répéter, de plus en plus longue ; difficulté = nombre de pads (2, 4, 6 ou
+  8) et vitesse (lent à très rapide). Score de la partie et meilleur score
+  affichés en fin de partie, gardés séparément par nombre de pads.
 - Nouveau jeu : Puissance 4, en famille ou contre l'ordinateur (quatre
   niveaux, comme la course des poussins). Plateau à trous sur panneau
   sombre, jeton qui tombe avec un petit rebond à l'arrivée.

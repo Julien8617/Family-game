@@ -11,9 +11,13 @@ familial. Menu général, sélection du joueur par photo, jeux ajoutés progress
 Joueurs : deux adultes et deux jeunes enfants (dont un qui ne lit pas encore).
 
 Jeux livrés : morpion (tic-tac-toe), la course des poussins (dames-échecs
-simplifié) et puissance 4. Les trois se jouent en famille (profils réels) ou
-contre l'ordinateur (adversaire artificiel à plusieurs niveaux, jamais
-persisté comme un vrai joueur).
+simplifié), puissance 4, et la mémoire sonore. Les trois premiers se jouent
+en famille (profils réels) ou contre l'ordinateur (adversaire artificiel à
+plusieurs niveaux, jamais persisté comme un vrai joueur). La mémoire sonore
+est le premier jeu solo (un seul profil, pas d'adversaire) : on y répète une
+séquence de pads lumineux/sonores, la difficulté est le nombre de pads
+(2/4/6/8), et la fin de partie est un score plutôt qu'une victoire — voir
+`GameMeta.soloLevels` et `Result.score` dans `ARCHITECTURE.md` §4.
 
 ## Cible matérielle — non négociable
 

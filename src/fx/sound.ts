@@ -1,4 +1,5 @@
-import { zzfx, zzfxUnlock } from '../vendor/zzfx';
+import { zzfx } from '../vendor/zzfx';
+import { unlockAudioContext } from './audio-context';
 import { getSettings, updateSettings } from '../storage';
 
 export type SoundName = 'move' | 'invalid' | 'turn' | 'win' | 'draw' | 'tap';
@@ -36,7 +37,7 @@ const PAD_NOTES = [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25]
 
 export function playPadTone(pad: number): void {
   try {
-    zzfxUnlock();
+    unlockAudioContext();
     if (!soundEnabled) return;
     const freq = PAD_NOTES[pad] ?? PAD_NOTES[0];
     zzfx(0.45, 0.01, freq, 0.01, 0.14, 0.18, 1, 1);
@@ -50,7 +51,7 @@ export function playPadTone(pad: number): void {
 // appel réel est bien le premier tap du menu — pas besoin d'un déblocage à part.
 export function play(name: SoundName): void {
   try {
-    zzfxUnlock();
+    unlockAudioContext();
     if (!soundEnabled) return;
     zzfx(...SOUNDS[name]);
   } catch {

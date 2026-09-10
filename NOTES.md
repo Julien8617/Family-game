@@ -750,7 +750,7 @@ trait *sombre*). Un futur jeu à plateau sombre devrait vérifier ses pièces
 contre les 8 couleurs de `PLAYER_COLORS`, pas seulement contre la couleur
 de test du moment.
 
-## Confort de sélection des joueurs + rejet de la paume (2026-09-10, en cours)
+## Confort de sélection des joueurs + rejet de la paume (2026-09-10)
 
 Trois demandes issues d'un usage réel avec un jeune enfant.
 
@@ -991,3 +991,129 @@ où verticalement, touche. Un futur jeu à grille dense où le regroupement
 naturel du coup est par ligne ou colonne (pas case par case) devrait
 envisager le même découplage rendu/interaction dès le départ plutôt que d'en
 faire un correctif après coup.
+
+## Spec 05 — Socle musical, calibration, premier jeu de rythme (2026-09-10)
+
+Ouverture de la partie « musique » : socle audio (`src/solfege/`), calibration
+du décalage tactile, premier jeu de rythme (« Tape avec moi »). Code livré,
+tests/build/lint verts, **pas encore testé sur iPad réel** — voir « Ce qui
+reste à vérifier sur l'appareil » plus bas.
+
+- **Propriété unique de l'`AudioContext` extraite** (`src/fx/audio-context.ts`) :
+  ZzFX (`vendor/zzfx.js`, déjà modifié en spec 03 pour la création paresseuse)
+  perd sa propre logique de contexte et importe `getAudioContext()` — une
+  vendorisation modifiée un peu plus, documentée dans `vendor/LICENSES.md`
+  comme les fois précédentes. `fx/sound.ts` appelle directement
+  `unlockAudioContext()` au lieu de `zzfxUnlock()` (retiré du fichier
+  vendorisé). Nécessaire pour que le moteur musical partage la même horloge
+  que les effets sonores, sans quoi une seconde horloge dériverait de la
+  première sur une session longue.
+- **Lire l'horloge du tap de façon synchrone dans le gestionnaire tactile,
+  jamais `performance.now()`** — décision structurante de toute la
+  calibration et du jeu de rythme. Corréler `performance.now()` (horodatage
+  du `TouchEvent`) avec `AudioContext.currentTime` (horloge de lecture)
+  aurait demandé un ancrage entre deux horloges différentes, source d'erreur
+  supplémentaire. En lisant `getAudioContext().currentTime` directement dans
+  le handler (`solfege/audio.ts`, `audioNow()`), le seul biais qui reste est
+  la latence constante du geste tactile lui-même — exactement ce que la
+  calibration mesure et soustrait. Les deux (calibration et jeu) utilisent
+  la même technique, donc le même biais s'annule des deux côtés.
+- **`onTouchStart`, pas `onClick`/`onPointerDown`, pour le tap réel** — deux
+  raisons : `click` est synthétisé après `touchend` (jitter de plusieurs
+  dizaines de ms, inacceptable pour classer un tap avance/à l'heure/retard),
+  et `palmRejection.ts` (spec 04) bloque une paume en phase *capture* sur
+  `touchstart` avec `stopPropagation()` — seul un écouteur `touchstart` en
+  phase bulle (React `onTouchStart`) en bénéficie. `onPointerDown` reste
+  branché en secours, filtré sur `pointerType === 'mouse'`, pour pouvoir
+  tester au clavier/souris en navigateur sans compter double sur iOS.
+- **Ordonnanceur à lookahead scindé en deux couches, pour rester testable
+  sans navigateur** (critère de la spec) : `solfege/schedule.ts` porte le
+  calcul pur des instants (`scheduleMelody`, `scheduleBeats`) et un
+  `LookaheadScheduler` générique dont l'horloge (`clock.now()`) et
+  l'émission (`onEvent`) sont injectables — les tests lui donnent un
+  compteur simulé, jamais un vrai `AudioContext`. `solfege/audio.ts` (non
+  testé, volontairement mince) ne fait que brancher ces deux fonctions sur
+  `getAudioContext().currentTime` et de vrais oscillateurs.
+- **Fuite corrigée avant même le premier test navigateur** : le timer de
+  l'ordonnanceur (`setInterval`) et l'écouteur `visibilitychange` ne
+  s'arrêtaient que si l'appelant pensait à appeler `stop()` — une fin
+  naturelle de lecture (`onDone`) ne le faisait pas d'elle-même. Fix :
+  `playMelody`/`playClickTrack` s'auto-arrêtent dans leur propre callback
+  `onDone`, en plus du nettoyage fait par l'appelant (Board, CalibrationScreen)
+  à son démontage — le module reste correct par lui-même, sans dépendre de
+  la discipline de l'appelant.
+- **Calibration : médiane des écarts sur 8 taps, 2 premiers ignorés,
+  dispersion (MAD) rejetée sans jamais dire « échec »** — `computeCalibration`
+  (pur, testé) reçoit des paires `{expectedTime, actualTime}` dans la même
+  base de temps (secondes audio) et renvoie soit `{ok:true, offsetMs}` soit
+  `{ok:false}` ; rien n'est stocké dans ce second cas, l'écran repropose un
+  tour (« On refait un tour »), jamais un message d'erreur. Persisté via
+  `storage/index.ts` (`Settings.calibrationOffsetMs`), propriété de
+  l'appareil — deux points d'entrée (`solfege/CalibrationScreen.tsx`) :
+  bouton dans `PlayerListScreen` (nouvel écran `App.tsx`, `{kind:
+  'calibration'}`) et phase interne à `rhythm-tap/Board.tsx` (gate local,
+  pas dans `RhythmTapState` — la calibration n'est pas une notion de partie,
+  `logic.ts` n'en sait rien).
+- **`RhythmTapState.phase`, `'ready' | 'playing' | 'done'`, le
+  redémarrage après arrière-plan est une transition d'état pure, pas un
+  correctif d'affichage** — sur `visibilitychange` → `hidden`, le moteur
+  arrête proprement la lecture (`onInterrupted`) et `Board.tsx` envoie
+  `{type:'restart'}`, qui ramène `logic.ts` en phase `'ready'` (claimedBeats
+  remis à zéro). Recommandé explicitement par la relecture avant
+  implémentation : garder ce redémarrage dans le contrat pur (`applyMove`)
+  plutôt qu'un état local de `Board` évite toute divergence entre ce que
+  l'écran montre et ce que la manche a réellement enregistré.
+- **Tolérance fixe en fraction de temps, pas un paramètre par niveau** —
+  `GOOD_TOLERANCE_BEATS = 0.22` (temps, pas ms) devient mécaniquement plus
+  stricte en millisecondes à mesure que le tempo augmente, ce qui réalise
+  « généreuse, et resserrée avec le niveau » sans code supplémentaire.
+- **`Result.score.variant` inclut la mélodie, pas seulement le tempo**
+  (`` `tempo${tempoLevel}-${melodyId}` ``) : la mélodie est tirée du seed à
+  chaque partie (4 airs, longueurs différentes — 26 à 32 temps), donc deux
+  scores au même tempo mais sur des mélodies différentes n'ont pas le même
+  score maximal possible. Même philosophie que `pads-N` pour la mémoire
+  sonore, juste une clé composée cette fois.
+- **Mélodies re-voicées pour tenir dans une seule octave** (do→si, sans note
+  sous le do ni au-dessus du si) : le motif « Ding, ding, dong » de « Frère
+  Jacques » descend d'ordinaire vers un sol *sous* le do tonique — remonté
+  d'une quinte plutôt qu'abaissé d'une quarte pour rester dans l'octave
+  disponible. Acceptable : le jeu de rythme ne se sert que du nombre et de
+  la durée des temps, pas de la justesse note à note (hors périmètre de
+  cette spec — oreille, hauteur nommée).
+- **Regroupement du menu, entièrement local à `MenuScreen`** :
+  `GameMeta.groupId` + `GAME_GROUPS` (`registry.ts`) ; `MenuScreen` garde un
+  `useState<string | null>` pour le sous-menu ouvert, aucun ajout à `Screen`
+  dans `App.tsx`. Un `GameTile` extrait est réutilisé à l'identique pour les
+  jeux à plat et les jeux d'un sous-menu — vérifié que les 4 jeux existants
+  (sans `groupId`) s'affichent pixel pour pixel comme avant.
+- **Icônes maison, pas vendorisées** (`shell/music-group-icon.svg`,
+  `rhythm-tap/icon.svg`) — même geste que les premières icônes de niveau de
+  la course des poussins avant leur remplacement par les GIF Flaticon : deux
+  formes simples (double croche liée, pulsation concentrique), aucune
+  licence à documenter puisque rien n'est emprunté.
+
+**Piège de session — le temps réel qui passe entre deux appels d'outil fausse
+un diagnostic de timing audio.** En testant « Tape avec moi » par automatisation
+du navigateur, une manche semblait se terminer en moins d'une seconde avec un
+score de 0 — panique légitime (30 s de mélodie ne peuvent pas finir en moins
+d'une seconde). Deux heures de fausses pistes (horloge gelée, double montage
+React, service worker d'un tout autre projet servi par erreur sur le port de
+preview réutilisé) avant la vraie explication : le temps réel écoulé entre
+deux appels d'outil (lecture des logs, rédaction du prochain appel) n'a aucun
+rapport avec les délais `wait` explicitement demandés — la mélodie, elle,
+continue de jouer pour de vrai dans l'onglet pendant tout ce temps « invisible ».
+Confirmé en ajoutant un log dans `applyMove` : un seul `{type:'start'}` suivi,
+bien plus tard que prévu, d'un `{type:'melodyDone'}` légitime. Leçon pour une
+future session qui testerait un minutage audio par automatisation : soit
+enchaîner les taps dans un seul `browser_batch` sans pause de réflexion entre
+eux, soit accepter que seul un humain sur l'appareil réel peut juger un
+minutage à l'oreille — l'automatisation prouve la structure (états, rendu),
+pas la précision temporelle.
+
+**Ce qui reste à vérifier sur l'appareil réel avant de committer** (voir
+critères d'acceptation 7 à 9 de la spec) : absence de dérive audible sur une
+mélodie de 30 s, premier son non avalé, comportement après un vrai passage en
+arrière-plan iOS (pas seulement l'événement `visibilitychange` simulé), et
+persistance de la calibration après un redémarrage complet de l'app. Rien de
+tout ça n'est vérifiable en navigateur de bureau ; c'est le sens même de ces
+critères.

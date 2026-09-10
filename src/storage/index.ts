@@ -110,6 +110,10 @@ export interface Settings {
   // (voir NOTES.md) — activé par défaut (absent ⇒ true), désactivable depuis
   // l'écran Joueurs si un appareil se comporte différemment.
   palmRejectionEnabled?: boolean;
+  // Décalage tactile mesuré (solfege/calibration.ts), en millisecondes —
+  // propriété de l'appareil, pas d'un joueur (spec 05). Absent tant que la
+  // calibration n'a jamais réussi ; un jeu de rythme la redemande dans ce cas.
+  calibrationOffsetMs?: number;
 }
 
 const DEFAULT_SETTINGS: Settings = { soundEnabled: true };
@@ -127,6 +131,7 @@ function isSettings(value: unknown): value is Partial<Settings> {
   if (v.lastSoloLevel !== undefined && typeof v.lastSoloLevel !== 'number') return false;
   if (v.lastPlayers !== undefined && !isLastPlayersMap(v.lastPlayers)) return false;
   if (v.palmRejectionEnabled !== undefined && typeof v.palmRejectionEnabled !== 'boolean') return false;
+  if (v.calibrationOffsetMs !== undefined && typeof v.calibrationOffsetMs !== 'number') return false;
   return true;
 }
 

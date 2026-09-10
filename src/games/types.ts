@@ -37,6 +37,12 @@ export interface GameMeta {
   // l'ordinateur » ni chooseMove. Le niveau choisi est transmis tel quel à
   // createState (3ᵉ paramètre) ; le shell ne sait pas ce qu'il signifie.
   soloLevels?: BotLevel[];
+  // Optionnel : identifiant d'un groupe déclaré dans games/registry.ts
+  // (GAME_GROUPS). Le shell regroupe les jeux qui le partagent sous une
+  // tuile de sous-menu dans MenuScreen, mais ne sait rien de ce que le
+  // groupe représente — un jeu sans groupId s'affiche exactement comme
+  // avant, à plat dans le menu principal.
+  groupId?: string;
 }
 
 export interface BoardProps<S, M> {
