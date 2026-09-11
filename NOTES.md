@@ -1322,3 +1322,81 @@ un menu séparé qu'un enfant ne pense pas à ouvrir.
   tous verts ; dossiers des quatre jeux existants inchangés
   (`git status --porcelain`) ; toujours une seule instance d'`AudioContext`
   (`fx/audio-context.ts`).
+
+## Nouveau jeu en cours : Mémoire musicale (note-memory) — logique posée, en attente des sons réels (2026-09-11)
+
+Cinquième jeu du groupe « Musique » : retrouver les paires de cartes dont le
+son est identique (vrais échantillons d'instrument, pas du ZzFX synthétisé).
+Trois niveaux d'aide (facile = couleur, normal = nom de la note en majuscule,
+difficile = aucune) et le choix de l'instrument (piano, xylophone, guitare,
+trompette, flûte pour commencer) à l'écran « Qui joue ? ». De 1 à 4 joueurs :
+solo à score, ou en famille à tour de rôle (qui trouve une paire rejoue,
+comme le vrai jeu de mémoire).
+
+- **Décisions clarifiées avec l'utilisateur avant d'écrire du code** : 3
+  niveaux (pas 2, malgré la formulation initiale) ; les fichiers audio sont
+  fournis par l'utilisateur via le dossier `idée/` (même pipeline que les
+  icônes), pas cherchés par Claude ; 1 à 4 joueurs, à tour de rôle au-delà
+  d'un seul.
+- **`solfege/music.ts`** : `PITCH_ORDER` et `pitchLabel()` exportés (avant,
+  `PITCH_ORDER` était un détail interne du module) — note-memory réutilise
+  directement les 7 hauteurs et leurs noms français affichables (« RÉ »,
+  accent compris ; les identifiants de code restent ASCII, `re`) plutôt que
+  de dupliquer une liste de notes.
+- **6 paires (12 cartes), pas 7 (14)** : `shell/GameScreen.tsx` contraint le
+  plateau de jeu dans un **carré** (`width: min(94vw, 100vh - 132px - safe
+  areas)`, `aspectRatio: 1/1`), pas la largeur d'écran complète comme les
+  écrans de sélection testés au tour précédent. Sur iPhone (375×812), ce
+  carré fait environ 350×350 px — 12 cartes tiennent en 4×3 à ~80 px de
+  cible (la règle CLAUDE.md, pas l'exception grille dense), 14 tomberait à
+  ~43 px en 7×2. Les 6 hauteurs jouées sont tirées parmi les 7 disponibles
+  (mulberry32, seed de la partie) : pas toujours les mêmes d'une partie à
+  l'autre, mais un enfant croise quand même les sept noms sur plusieurs
+  parties.
+- **Score solo en efficacité, pas en tentatives brutes** : `storage/index.ts`
+  (`recordScore`) ne retient un nouveau record que si `value` augmente — un
+  compteur de tentatives où *moins* est *mieux* aurait cassé ce mécanisme
+  (piégé en y réfléchissant avant d'écrire le code, voir l'appel à l'outil
+  conseiller de cette session). `value = round(100 × paires / tentatives)`,
+  `maxValue = 100` fixe : le pourcentage est déjà calculé dans `getResult`,
+  comme rhythm-tap. `variant: level-${niveau}` pour un record séparé par
+  difficulté.
+- **Retrouver une paire fait rejouer le même joueur** (règle classique du
+  memory) : `turnIndex` ne change qu'à `resolveMismatch`, jamais au 2ᵉ flip
+  d'une paire trouvée. En famille à 3-4 joueurs, une égalité du nombre de
+  paires trouvées donne `{ kind: 'draw' }` — testé explicitement (pas
+  seulement le cas à 2 joueurs, qui ne peut pas être à égalité selon les
+  règles de retour de tour... en fait si, mais moins probable à tester par
+  hasard).
+- **Le dépareillage n'est jamais résolu dans `logic.ts`** (CLAUDE.md règle
+  2 : pas d'horloge dans la logique pure) : après un 2ᵉ flip qui ne
+  correspond pas, les deux cartes restent dans `revealed` jusqu'à ce que
+  `Board.tsx` envoie `resolveMismatch` après un délai de présentation (pas
+  encore écrit, voir plus bas) — même patron que `rhythm-tap/Board.tsx` pour
+  son compte à rebours.
+- **`Board.tsx` volontairement pas encore écrit.** Conseil du conseiller
+  suivi : le mécanisme central du jeu (taper une carte, entendre un son,
+  décider si ça correspond) ne peut pas être vérifié sans les vrais sons —
+  construire l'écran autour d'un `playNote()` factice aurait figé des choix
+  (format de fichier, minutage du décodage, poids sur un iPad 2 Go de RAM)
+  avant d'avoir vu un seul fichier. `logic.ts` + `logic.test.ts` sont
+  entièrement indépendants du son (18 tests, tous verts) ; le reste attend
+  les fichiers audio dans `idée/`.
+- **Icônes du sélecteur d'instrument** : pas d'emoji (pas de xylophone dans
+  Unicode) ni de réutilisation du champ `visualPreference` de rhythm-tap
+  (déjà livré, approuvé par l'utilisateur — le renommer ou changer son rendu
+  aurait touché un écran qui marche déjà pour un bénéfice de cohérence que
+  personne n'a demandé). Un second champ `GameMeta` séparé, dédié aux icônes
+  d'instrument (options avec vraie image, comme `BotLevel`), à poser une
+  fois les assets audio arrivés et les icônes dessinées.
+- **Reste à faire une fois les fichiers audio reçus (`idée/`)** : vérifier
+  licence/origine, vendoriser dans `src/vendor/instrument-samples/` avec un
+  `LICENSE.md`, écrire le module de lecture (Web Audio, `AudioContext`
+  partagé de `fx/audio-context.ts`, pas le moteur de lookahead de
+  `solfege/audio.ts` qui sert à la lecture musicale programmée — ici il
+  suffit de déclencher un échantillon au tap), dessiner les icônes
+  (5 instruments + 3 niveaux d'aide + la tuile du jeu), écrire `Board.tsx`,
+  ajouter `note-memory` à `registry.ts`.
+- Fichiers demandés à l'utilisateur : un son par hauteur (do, ré, mi, fa,
+  sol, la, si — une octave, cohérent avec `solfege/music.ts`) pour chacun
+  des 5 instruments, soit 35 fichiers courts (une seule note, pas d'accord).

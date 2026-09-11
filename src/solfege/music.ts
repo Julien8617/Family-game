@@ -33,7 +33,9 @@ const PITCH_FREQUENCIES: Record<PitchName, number> = {
   si: 493.88,
 };
 
-const PITCH_ORDER: PitchName[] = ['do', 're', 'mi', 'fa', 'sol', 'la', 'si'];
+// Exporté : réutilisé par tout module qui a besoin de l'ensemble des hauteurs
+// disponibles (ex. games/note-memory/logic.ts, une paire par hauteur).
+export const PITCH_ORDER: PitchName[] = ['do', 're', 'mi', 'fa', 'sol', 'la', 'si'];
 
 export function noteToFrequency(pitch: PitchName): number {
   return PITCH_FREQUENCIES[pitch];
@@ -51,6 +53,23 @@ export function frequencyToNote(frequency: number): PitchName | null {
     if (Math.abs(frequency - ref) / ref <= MATCH_TOLERANCE) return pitch;
   }
   return null;
+}
+
+// Libellé affiché (français, avec accent) pour une hauteur — identifiants du
+// code toujours en ASCII (CLAUDE.md), l'accent n'apparaît que dans ce qui est
+// montré à l'écran (ex. l'indice « nom de la note » de note-memory).
+const PITCH_LABELS: Record<PitchName, string> = {
+  do: 'DO',
+  re: 'RÉ',
+  mi: 'MI',
+  fa: 'FA',
+  sol: 'SOL',
+  la: 'LA',
+  si: 'SI',
+};
+
+export function pitchLabel(pitch: PitchName): string {
+  return PITCH_LABELS[pitch];
 }
 
 export function melodyLengthInBeats(melody: Melody): number {
