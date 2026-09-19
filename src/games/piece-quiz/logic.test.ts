@@ -11,8 +11,16 @@ import {
 } from './logic';
 import type { PieceQuizMove, PieceQuizState } from './logic';
 import type { PieceQuizQuestion } from './generate';
+import { QUESTIONS_PER_LEVEL } from './generate';
 
 const PLAYER = 'p1';
+
+// Patrons de réussite/échec pour un niveau à QUESTIONS_PER_LEVEL (3)
+// questions — réussi exige les trois correctes, « d'affilée » (retour
+// utilisateur, spec 06 suite) : plus de seuil à 80 % avec de la marge.
+const PASS: boolean[] = Array(QUESTIONS_PER_LEVEL).fill(true);
+const FAIL_LAST: boolean[] = [...Array(QUESTIONS_PER_LEVEL - 1).fill(true), false];
+const FAIL_ALL: boolean[] = Array(QUESTIONS_PER_LEVEL).fill(false);
 
 function wrongSquare(q: PieceQuizQuestion): number {
   const total = q.boardSize * q.boardSize;
@@ -32,8 +40,8 @@ function answerCurrentQuestion(state: PieceQuizState, correct: boolean): PieceQu
   return applyMove(s, { type: 'validate' });
 }
 
-// Joue un niveau complet (5 questions) selon un patron de réussite, jusqu'à
-// et y compris le 'next' qui suit la révélation de la 5ᵉ — c'est ce coup-là
+// Joue un niveau complet selon un patron de réussite, jusqu'à et y compris le
+// 'next' qui suit la révélation de la dernière question — c'est ce coup-là
 // qui décide et transitionne (niveau suivant / redémarre / fin de partie),
 // jeu continu oblige (spec 06, point 3).
 function playLevel(state: PieceQuizState, pattern: boolean[]): PieceQuizState {
@@ -65,7 +73,7 @@ describe('createState — reprise de la progression', () => {
     const state = createState([PLAYER], 1);
     expect(state.tier).toBe('easy');
     expect(state.level).toBe(1);
-    expect(state.questions).toHaveLength(5);
+    expect(state.questions).toHaveLength(QUESTIONS_PER_LEVEL);
     expect(state.phase).toBe('question');
     expect(state.finished).toBe(false);
   });
@@ -161,10 +169,10 @@ describe('déroulé d\'une question', () => {
 });
 
 describe('jeu continu (spec 06, point 3)', () => {
-  it("'next' reste valide sur la révélation de la 5ᵉ question, et getResult reste nul (sauf niveau 100)", () => {
+  it("'next' reste valide sur la révélation de la dernière question, et getResult reste nul (sauf niveau 100)", () => {
     const state = createState([PLAYER], 1);
     let s = state;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < QUESTIONS_PER_LEVEL - 1; i++) {
       s = answerCurrentQuestion(s, true);
       expect(getResult(s)).toBeNull();
       s = applyMove(s, { type: 'next' });
@@ -179,9 +187,9 @@ describe('jeu continu (spec 06, point 3)', () => {
     expect(currentPlayer(after)).toBe(PLAYER);
   });
 
-  it('un niveau réussi (>= 4/5) enchaîne directement sur le suivant, sans écran intermédiaire', () => {
+  it('un niveau réussi (toutes les questions correctes) enchaîne directement sur le suivant, sans écran intermédiaire', () => {
     const state = createState([PLAYER], 1);
-    const after = playLevel(state, [true, true, true, true, false]);
+    const after = playLevel(state, PASS);
     expect(after.level).toBe(2);
     expect(after.tier).toBe('easy');
     expect(after.questionIndex).toBe(0);
@@ -189,9 +197,9 @@ describe('jeu continu (spec 06, point 3)', () => {
     expect(after.progress.easy).toBe(1);
   });
 
-  it('un niveau raté (< 4/5) recommence directement à sa première question, même niveau', () => {
+  it('un niveau raté (une seule question manquée suffit) recommence directement à sa première question, même niveau', () => {
     const state = createState([PLAYER], 1);
-    const after = playLevel(state, [true, true, true, false, false]);
+    const after = playLevel(state, FAIL_LAST);
     expect(after.level).toBe(1);
     expect(after.questionIndex).toBe(0);
     expect(after.answers).toEqual([]);
@@ -199,7 +207,7 @@ describe('jeu continu (spec 06, point 3)', () => {
     expect(after.progress.easy).toBe(0);
   });
 
-  it('franchir la frontière 30 -> 31 fait bien basculer de palier (5x5 pion -> 8x8 tour)', () => {
+  it('franchir la frontière 30 -> 31 fait bien basculer de palier (toujours 5x5, pion -> tour)', () => {
     // Construit directement un état "au niveau 30" plutôt que via
     // createState : à 29/30, la reprise automatique irait déjà en Moyen
     // (débloqué dès 24, plus avancé qu'Facile encore incomplet) — voir
@@ -207,25 +215,25 @@ describe('jeu continu (spec 06, point 3)', () => {
     // spécifiquement observer la transition 30 -> 31 en interne.
     const base = createState([PLAYER], 1, { bestScores: { easy: 29 } });
     const state: PieceQuizState = { ...base, tier: 'easy', level: 30, progress: { ...base.progress, easy: 29 } };
-    const after = playLevel(state, [true, true, true, true, true]);
+    const after = playLevel(state, PASS);
     expect(after.level).toBe(31);
     expect(after.tier).toBe('medium');
     expect(after.progress.easy).toBe(30);
-    expect(after.questions[0].boardSize).toBe(8);
+    expect(after.questions[0].boardSize).toBe(5);
   });
 
   it('rejouer un niveau déjà acquis ne fait pas reculer la progression, même en cas d\'échec', () => {
     // progress.easy = 5 : niveau 1 déjà acquis, rejoué directement.
     const base = createState([PLAYER], 1, { bestScores: { easy: 5 } });
     const replayed: PieceQuizState = { ...base, level: 1, tier: 'easy' };
-    const failed = playLevel(replayed, [true, true, false, false, false]);
+    const failed = playLevel(replayed, FAIL_ALL);
     expect(failed.progress.easy).toBe(5); // inchangé, pas de recul
   });
 
   it('niveau 100 réussi : finished devient vrai, getResult renvoie le score final', () => {
     const state = createState([PLAYER], 1, { bestScores: { easy: 30, medium: 40, hard: 29 } });
     expect(state.level).toBe(100);
-    const after = playLevel(state, [true, true, true, true, true]);
+    const after = playLevel(state, PASS);
     expect(after.finished).toBe(true);
     expect(after.progress.hard).toBe(30);
     const result = getResult(after);
@@ -239,7 +247,7 @@ describe('jeu continu (spec 06, point 3)', () => {
 
   it('niveau 100 raté : ne termine pas la partie, recommence le niveau 100', () => {
     const state = createState([PLAYER], 1, { bestScores: { easy: 30, medium: 40, hard: 29 } });
-    const after = playLevel(state, [true, true, false, false, false]);
+    const after = playLevel(state, FAIL_LAST);
     expect(after.finished).toBe(false);
     expect(after.level).toBe(100);
     expect(getResult(after)).toBeNull();
@@ -261,13 +269,13 @@ describe('progressSignal (spec 06, points 3-5)', () => {
 
   it('niveau raté : fail: true, pas de scores', () => {
     const state = createState([PLAYER], 1);
-    const { signal } = playLevelWithSignal(state, [true, true, false, false, false]);
+    const { signal } = playLevelWithSignal(state, FAIL_LAST);
     expect(signal).toEqual({ player: PLAYER, fail: true });
   });
 
   it('niveau réussi au prochain niveau à réussir : scores mis à jour', () => {
     const state = createState([PLAYER], 1);
-    const { signal } = playLevelWithSignal(state, [true, true, true, true, false]);
+    const { signal } = playLevelWithSignal(state, PASS);
     expect(signal?.scores).toEqual({ easy: 1 });
     expect(signal?.fail).toBeUndefined();
   });
@@ -275,14 +283,14 @@ describe('progressSignal (spec 06, points 3-5)', () => {
   it('rejouer un niveau déjà acquis et le réussir : pas de scores (rien de nouveau)', () => {
     const base = createState([PLAYER], 1, { bestScores: { easy: 5 } });
     const replayed: PieceQuizState = { ...base, level: 1, tier: 'easy' };
-    const { signal } = playLevelWithSignal(replayed, [true, true, true, true, true]);
+    const { signal } = playLevelWithSignal(replayed, PASS);
     expect(signal).toBeNull();
   });
 
   it('dizaine réussie : celebrate avec le libellé du niveau', () => {
     const state = createState([PLAYER], 1, { bestScores: { easy: 9 } });
     expect(state.level).toBe(10);
-    const { signal } = playLevelWithSignal(state, [true, true, true, true, true]);
+    const { signal } = playLevelWithSignal(state, PASS);
     expect(signal?.celebrate).toEqual({ label: 'Niveau 10' });
     expect(signal?.scores).toEqual({ easy: 10 });
   });
@@ -290,14 +298,14 @@ describe('progressSignal (spec 06, points 3-5)', () => {
   it('dizaine réussie même en rejouant un niveau déjà acquis (pas seulement la première fois)', () => {
     const base = createState([PLAYER], 1, { bestScores: { easy: 15 } });
     const replayed: PieceQuizState = { ...base, level: 10, tier: 'easy' };
-    const { signal } = playLevelWithSignal(replayed, [true, true, true, true, true]);
+    const { signal } = playLevelWithSignal(replayed, PASS);
     expect(signal?.celebrate).toEqual({ label: 'Niveau 10' });
     expect(signal?.scores).toBeUndefined(); // déjà acquis, rien de nouveau à écrire
   });
 
   it('niveau 100 réussi : pas de fête (chemin Result normal), scores tout de même présents', () => {
     const state = createState([PLAYER], 1, { bestScores: { easy: 30, medium: 40, hard: 29 } });
-    const { signal } = playLevelWithSignal(state, [true, true, true, true, true]);
+    const { signal } = playLevelWithSignal(state, PASS);
     expect(signal?.celebrate).toBeUndefined();
     expect(signal?.scores).toEqual({ hard: 30 });
   });
@@ -306,7 +314,7 @@ describe('progressSignal (spec 06, points 3-5)', () => {
     let state = createState([PLAYER], 1);
     let lastValue = 0;
     for (let level = 1; level <= 12; level++) {
-      const { state: after, signal } = playLevelWithSignal(state, [true, true, true, true, true]);
+      const { state: after, signal } = playLevelWithSignal(state, PASS);
       if (signal?.scores) {
         expect(signal.scores.easy).toBeGreaterThanOrEqual(lastValue);
         lastValue = signal.scores.easy;
@@ -346,7 +354,7 @@ describe('choix du palier', () => {
     expect(started.tier).toBe('medium');
     expect(started.level).toBe(31);
     expect(started.phase).toBe('question');
-    expect(started.questions).toHaveLength(5);
+    expect(started.questions).toHaveLength(QUESTIONS_PER_LEVEL);
   });
 
   it('startLevel refuse un niveau au-delà du prochain à réussir', () => {

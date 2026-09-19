@@ -126,11 +126,15 @@ src/
     piece-quiz/            « Où va-t-elle ? » — cent niveaux pour apprendre
                             le déplacement des pièces d'échecs, seul jeu qui
                             s'appuie sur src/chess/ (voir plus bas)
-      generate.ts          pur, testé, sans React : génère les 5 questions
-                            d'un niveau, déterministe à partir du seed et du
-                            numéro de niveau — rejection sampling sur un
-                            prédicat unique (isValidQuestion), jamais de
-                            cases attendues recalculées à la main
+      generate.ts          pur, testé, sans React : génère les questions d'un
+                            niveau (QUESTIONS_PER_LEVEL, 3), déterministe à
+                            partir du seed et du numéro de niveau — rejection
+                            sampling sur un prédicat unique (isValidQuestion),
+                            jamais de cases attendues recalculées à la main ;
+                            plateau 5×5 pour les cent niveaux (retour
+                            utilisateur : 8×8 sur Moyen/Difficile était trop
+                            grand, la pièce n'y croisait presque jamais
+                            d'obstacle, voir NOTES.md)
       logic.ts             pur, testé ; jeu continu — un niveau réussi ou
                             raté s'enchaîne directement sur le suivant en
                             interne (applyMove), jamais via Result (qui ne
@@ -139,9 +143,11 @@ src/
                             difficile), reprise automatique au prochain
                             niveau à réussir (voir §5) ; expose
                             progressSignal (voir §4)
-      Board.tsx             rendu, plateau 5×5 ou 8×8 selon le niveau ;
-                            numéro de niveau + icône de palier affichés en
-                            haut du damier ; validation et choix du palier en
+      Board.tsx             rendu, plateau 5×5 ; numéro de niveau + icône de
+                            palier dans une bande réservée au-dessus du
+                            damier (pas en survol : chevauchait la pièce
+                            interrogée quand elle tombait rangée du haut,
+                            voir NOTES.md) ; validation et choix du palier en
                             boutons flottants (position fixed) par-dessus
                             l'écran, pas dans le carré du plateau — voir
                             NOTES.md
@@ -668,9 +674,12 @@ cours de partie et signale des effets transitoires (fête tous les dix
 niveaux, échec d'un niveau) sans que le shell sache ce qu'est un « niveau ».
 Silhouettes des pièces redessinées une seconde fois (retour utilisateur, les
 premières ne plaisaient pas) à partir d'un jeu de fichiers fourni par
-l'utilisateur. Détail des choix (génération des positions par rejet,
-sécurité du roi, disposition des boutons flottants, jeu continu) dans
-`NOTES.md`.
+l'utilisateur. Retour supplémentaire après un essai réel sur les niveaux
+Moyen/Difficile : plateau ramené à 5×5 partout (était 8×8 à partir du niveau
+31, trop grand pour rester ludique) et niveaux réduits à 3 questions,
+toutes les trois correctes pour réussir (au lieu de 5 questions à 80 %).
+Détail des choix (génération des positions par rejet, sécurité du roi,
+disposition des boutons flottants, jeu continu) dans `NOTES.md`.
 
 **Phase 3 — deux appareils**
 Seulement si un jeu à information cachée le justifie. Implémenter `webrtcTransport`

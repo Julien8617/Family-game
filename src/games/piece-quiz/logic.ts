@@ -9,10 +9,11 @@ export interface PieceQuizState {
   player: PlayerId;
   tier: Tier;
   level: number; // absolu, 1-100
-  questionIndex: number; // 0-4
-  // Les 5 questions du niveau en cours, générées une seule fois (au démarrage
-  // du niveau) — jamais régénérées en cours de route, sinon une reprise après
-  // fermeture de l'app changerait les questions déjà vues.
+  questionIndex: number; // 0..QUESTIONS_PER_LEVEL-1
+  // Les questions du niveau en cours (generate.ts, QUESTIONS_PER_LEVEL),
+  // générées une seule fois (au démarrage du niveau) — jamais régénérées en
+  // cours de route, sinon une reprise après fermeture de l'app changerait
+  // les questions déjà vues.
   questions: PieceQuizQuestion[];
   marked: number[];
   // Résultat (réussi/raté) de chaque question déjà validée dans ce niveau —
@@ -47,8 +48,6 @@ export const UNLOCK_THRESHOLDS: Record<Exclude<Tier, 'easy'>, { requires: Tier; 
   medium: { requires: 'easy', count: 24 },
   hard: { requires: 'medium', count: 32 },
 };
-// Un niveau est réussi à 80 % ou plus, soit 4 questions sur 5.
-export const REQUIRED_CORRECT = 4;
 // Une petite fête tous les 10 niveaux réussis (spec 06, point 4) — jamais au
 // niveau 100, qui suit le chemin de fin de partie normal (Result), pas la fête.
 const CELEBRATION_INTERVAL = 10;
@@ -86,8 +85,12 @@ function sameSet(a: number[], b: number[]): boolean {
   return a.every((x) => setB.has(x));
 }
 
+// Un niveau (3 questions, retour utilisateur — voir generate.ts,
+// QUESTIONS_PER_LEVEL) est réussi seulement si les trois sont correctes,
+// « d'affilée » : plus de seuil à 80 % avec de la marge comme à 5 questions,
+// une seule case oubliée ou en trop fait recommencer le niveau.
 function passedLevel(answers: boolean[]): boolean {
-  return answers.filter(Boolean).length >= REQUIRED_CORRECT;
+  return answers.length > 0 && answers.every(Boolean);
 }
 
 export function createState(

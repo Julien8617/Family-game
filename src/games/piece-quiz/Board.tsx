@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import type { BoardProps } from '../types';
-import { algebraic } from '../../chess/geometry';
 import { ChessPiece } from './ChessPiece';
 import {
   isTierUnlocked,
@@ -12,11 +11,12 @@ import type { PieceQuizMove, PieceQuizState } from './logic';
 import { pieceSkin } from '../../chess/skin';
 import type { Tier } from './generate';
 
-// Même délai que GameScreen.RESULT_DELAY_MS (shell/GameScreen.tsx) : sur la
-// 5ᵉ question, c'est ce délai-là (déclenché par getResult non nul, pas par ce
-// timer) qui bascule vers l'écran de résultat — aligner les deux évite que la
-// révélation soit coupée plus court sur la dernière question que sur les
-// quatre précédentes.
+// Durée d'affichage de la révélation avant d'envoyer 'next' — la même pour
+// toutes les questions, y compris la dernière du niveau (jeu continu, voir
+// logic.ts). Même valeur que GameScreen.RESULT_DELAY_MS : sur le niveau 100
+// réussi, c'est ce second délai-là (déclenché par getResult, pas celui-ci)
+// qui bascule vers l'écran de résultat — les aligner évite que cette
+// dernière révélation-là soit coupée plus court que toutes les autres.
 const REVEAL_HOLD_MS = 900;
 
 const TIER_LABELS: Record<Tier, string> = { easy: 'Facile', medium: 'Moyen', hard: 'Difficile' };
@@ -77,10 +77,21 @@ export function Board({ state, localPlayer, players, onMove }: BoardProps<PieceQ
   const cols = Array.from({ length: size }, (_, i) => i);
 
   return (
-    <div className="relative h-full w-full">
+    <div className="relative flex h-full w-full flex-col items-center">
+      <LevelBadge level={state.level} tier={state.tier} />
       <div
-        className="grid h-full w-full overflow-hidden rounded-3xl shadow-[0_6px_0_0_rgba(0,0,0,0.25)]"
-        style={{ gridTemplateColumns: `repeat(${size}, 1fr)`, gridTemplateRows: `repeat(${size}, 1fr)` }}
+        className="mt-2 grid overflow-hidden rounded-3xl shadow-[0_6px_0_0_rgba(0,0,0,0.25)]"
+        style={{
+          // Réserve exactement la hauteur du repère de niveau (h-9 = 36px)
+          // plus le mt-2 ci-dessus (8px) : sans ça, sur une pièce interrogée
+          // qui tombe rangée du haut, le repère (en position absolute avant
+          // cette version) chevauchait la pièce/son anneau de sélection —
+          // vu en jeu réel (niveau 36, une tour sur la rangée du haut).
+          aspectRatio: '1 / 1',
+          height: 'calc(100% - 44px)',
+          gridTemplateColumns: `repeat(${size}, 1fr)`,
+          gridTemplateRows: `repeat(${size}, 1fr)`,
+        }}
       >
         {rows.map((row) =>
           cols.map((col) => {
@@ -92,7 +103,6 @@ export function Board({ state, localPlayer, players, onMove }: BoardProps<PieceQ
             const isMarked = markedSet.has(cell);
             const reveal: RevealCategory =
               state.phase !== 'reveal' ? 'none' : expectedSet.has(cell) ? (isMarked ? 'found' : 'missing') : isMarked ? 'wrong' : 'none';
-            const labelColor = isLight ? 'text-squareDark/70' : 'text-squareLight/70';
 
             return (
               <button
@@ -100,7 +110,6 @@ export function Board({ state, localPlayer, players, onMove }: BoardProps<PieceQ
                 type="button"
                 disabled={state.phase !== 'question'}
                 onClick={() => handleTap(cell)}
-                aria-label={size === 8 ? algebraic(size, cell) : undefined}
                 className={`relative flex items-center justify-center ${isLight ? 'bg-squareLight' : 'bg-squareDark'}`}
               >
                 {isLastMove && <span className="absolute inset-0 bg-victory/35" />}
@@ -113,18 +122,11 @@ export function Board({ state, localPlayer, players, onMove }: BoardProps<PieceQ
                     <ChessPiece type={piece.type} skin={pieceSkin(piece.side, profileColor)} />
                   </div>
                 )}
-
-                {size === 8 && col === 0 && <span className={`absolute left-1 top-1 text-[10px] font-bold ${labelColor}`}>{row + 1}</span>}
-                {size === 8 && row === 0 && (
-                  <span className={`absolute bottom-1 right-1 text-[10px] font-bold ${labelColor}`}>{String.fromCharCode(97 + col)}</span>
-                )}
               </button>
             );
           }),
         )}
       </div>
-
-      <LevelBadge level={state.level} tier={state.tier} />
 
       {state.phase === 'question' && (
         <>
@@ -147,11 +149,11 @@ export function Board({ state, localPlayer, players, onMove }: BoardProps<PieceQ
 // garantir, pas de risque à chevaucher légèrement la rangée du haut.
 function LevelBadge({ level, tier }: { level: number; tier: Tier }) {
   return (
-    <div className="absolute left-1/2 top-2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-board/70 py-1 pl-1 pr-3 shadow-[0_2px_0_0_rgba(0,0,0,0.2)]">
-      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-piece/15 sm:h-8 sm:w-8">
+    <div className="flex h-9 shrink-0 items-center gap-2 rounded-full bg-piece/15 py-1 pl-1 pr-3 shadow-[0_2px_0_0_rgba(0,0,0,0.2)]">
+      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-piece/15">
         <ChessPiece type={TIER_ICON[tier]} skin={{ fill: '#F2E4C9', stroke: '#1E3D34' }} className="h-[70%] w-[70%]" />
       </div>
-      <span className="text-lg font-bold text-piece sm:text-xl">{level}</span>
+      <span className="text-lg font-bold text-piece">{level}</span>
     </div>
   );
 }

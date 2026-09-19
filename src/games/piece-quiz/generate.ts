@@ -25,7 +25,11 @@ export function tierOf(level: number): Tier {
   return 'hard';
 }
 
-export const QUESTIONS_PER_LEVEL = 5;
+// 3, pas 5 (retour utilisateur : un niveau à 5 questions rendait chaque
+// tentative trop longue, surtout à rejouer après un échec) — un niveau
+// réussi exige maintenant les 3 correctes, pas un seuil de 80 % avec de la
+// marge (voir logic.ts, passedLevel).
+export const QUESTIONS_PER_LEVEL = 3;
 
 export interface PlacedPiece {
   square: number;
@@ -34,7 +38,7 @@ export interface PlacedPiece {
 }
 
 export interface PieceQuizQuestion {
-  boardSize: 5 | 8;
+  boardSize: 5;
   pieceType: PieceType;
   // Toutes les pièces de la position, la pièce interrogée comprise (toujours
   // side: 'own', toujours présente une fois).
@@ -91,22 +95,26 @@ type Feature = 'plain' | 'pawnCapture' | 'pawnBlock' | 'open' | 'king' | 'pawnAd
 interface BlockConfig {
   start: number;
   end: number;
-  boardSize: 5 | 8;
+  boardSize: 5;
   pieceTypes: PieceType[];
   feature: Feature;
 }
 
+// Plateau 5×5 partout, y compris Moyen/Difficile (auparavant 8×8) — retour
+// utilisateur après un premier essai réel : sur un vrai échiquier, la pièce
+// interrogée ne croisait presque jamais d'autre pièce sur son chemin, le
+// plateau était trop grand pour rester ludique. Voir NOTES.md.
 const BLOCKS: BlockConfig[] = [
   { start: 1, end: 10, boardSize: 5, pieceTypes: ['pawn'], feature: 'plain' },
   { start: 11, end: 20, boardSize: 5, pieceTypes: ['pawn'], feature: 'pawnCapture' },
   { start: 21, end: 30, boardSize: 5, pieceTypes: ['pawn'], feature: 'pawnBlock' },
-  { start: 31, end: 40, boardSize: 8, pieceTypes: ['rook'], feature: 'open' },
-  { start: 41, end: 50, boardSize: 8, pieceTypes: ['bishop'], feature: 'open' },
-  { start: 51, end: 60, boardSize: 8, pieceTypes: ['king'], feature: 'king' },
-  { start: 61, end: 70, boardSize: 8, pieceTypes: ['queen'], feature: 'open' },
-  { start: 71, end: 80, boardSize: 8, pieceTypes: ['knight'], feature: 'open' },
-  { start: 81, end: 90, boardSize: 8, pieceTypes: ['pawn'], feature: 'pawnAdvanced' },
-  { start: 91, end: 100, boardSize: 8, pieceTypes: MIXED_TYPES, feature: 'mixed' },
+  { start: 31, end: 40, boardSize: 5, pieceTypes: ['rook'], feature: 'open' },
+  { start: 41, end: 50, boardSize: 5, pieceTypes: ['bishop'], feature: 'open' },
+  { start: 51, end: 60, boardSize: 5, pieceTypes: ['king'], feature: 'king' },
+  { start: 61, end: 70, boardSize: 5, pieceTypes: ['queen'], feature: 'open' },
+  { start: 71, end: 80, boardSize: 5, pieceTypes: ['knight'], feature: 'open' },
+  { start: 81, end: 90, boardSize: 5, pieceTypes: ['pawn'], feature: 'pawnAdvanced' },
+  { start: 91, end: 100, boardSize: 5, pieceTypes: MIXED_TYPES, feature: 'mixed' },
 ];
 
 function blockFor(level: number): BlockConfig {
@@ -115,7 +123,7 @@ function blockFor(level: number): BlockConfig {
   return block;
 }
 
-function boardFromPieces(size: 5 | 8, pieces: PlacedPiece[]): Board {
+function boardFromPieces(size: 5, pieces: PlacedPiece[]): Board {
   const board = createEmptyBoard(size);
   for (const p of pieces) board[p.square] = { type: p.type, side: p.side };
   return board;

@@ -1742,3 +1742,81 @@ plus le point 2 (numéro de niveau affiché).
   `piece-quiz/logic.test.ts`, entièrement réécrits pour le jeu continu et
   `progressSignal`) tous verts. `git diff` : aucun dossier des quatre autres
   jeux touché ; `grep -rn "fx/" src/games/piece-quiz/` ne retourne rien.
+
+## Spec 06, retour utilisateur : plateau 5×5 partout, niveaux à 3 questions (2026-09-20)
+
+Après un essai réel dépassant le niveau 30 : « on ne croise jamais un pion
+sur la route », l'échiquier 8×8 (Moyen/Difficile) était trop grand pour ce
+que le jeu essaie d'enseigner — assez de cases vides pour que la pièce
+interrogée n'ait presque jamais d'obstacle sur son chemin. Deuxième retour
+dans le même message : les niveaux à 5 questions étaient trop longs à
+rejouer après un échec.
+
+- **`BLOCKS` (generate.ts) : tous les blocs passent à `boardSize: 5`**, y
+  compris tour/fou/roi/dame/cavalier/mélange (31-100), auparavant 8×8. Le
+  type `BoardSize` (`5 | 8`) est retiré, remplacé par le littéral `5` partout
+  (`BlockConfig.boardSize`, `boardFromPieces`, `PieceQuizQuestion.boardSize`)
+  — plus une seule ligne de code qui suppose encore un plateau 8×8 possible
+  dans piece-quiz. **Aucun changement dans `src/chess/`** : la géométrie y
+  reste paramétrée par la taille (elle sert aussi chess-race, en 8×8, et
+  servira à de futurs jeux) — seul piece-quiz choisit désormais 5 partout.
+- **Le double pas et la prise en passant (81-90) se sont révélés déjà
+  génériques en taille, sans rien à corriger** : `chess/pieces.ts` calcule la
+  rangée de départ adverse comme `size - 2` (jamais une constante 8), et
+  `generate.ts` calcule la rangée où intercepter un double pas comme
+  `size - 4` — ces deux formules avaient été écrites en fonction de `size`
+  dès la spec initiale (pas de littéral `8` caché), sans anticiper qu'elles
+  serviraient un jour à autre chose que 8×8. Vérifié directement par
+  `generate.test.ts` (aucune modification de ces fonctions n'a été
+  nécessaire, seules les tailles de plateau dans `BLOCKS` ont changé) — la
+  suite complète (100 niveaux × 5 seeds) reste verte du premier coup.
+- **Densité des pièces inchangée (mêmes `MAX_DECOYS`)** : sur un plateau
+  deux fois plus petit (25 cases contre 64), les mêmes compteurs de pièces
+  secondaires (jusqu'à 5 pour « open », 4 pour le roi) occupent une bien plus
+  grande proportion du plateau — exactement l'effet recherché (plus de
+  chances de croiser un obstacle), vérifié en jeu réel (niveau 36 : une tour
+  interrogée, une deuxième tour amie et deux dames adverses toutes visibles
+  sur le même plateau 5×5). Le générateur par rejet absorbe cette densité
+  plus forte sans réglage supplémentaire — toujours moins d'une seconde pour
+  générer les cent niveaux × cinq seeds du test.
+- **`QUESTIONS_PER_LEVEL` : 5 → 3, et le seuil de réussite change de nature**
+  — ce n'était pas seulement « moins de questions », c'était aussi le
+  passage d'un seuil à 80 % (4/5, une marge d'erreur) à l'exigence des trois
+  correctes (`passedLevel = answers.every(Boolean)`, `REQUIRED_CORRECT`
+  supprimé). Une seule case oubliée ou en trop sur n'importe laquelle des
+  trois fait recommencer le niveau. Cohérent avec la formulation de la
+  demande (« 3 parties gagnantes d'affilée ») : avec seulement trois
+  questions, « d'affilée » et « toutes correctes » désignent la même chose.
+- **La règle de « majorité » du générateur (un seul indice hors-règle par
+  niveau) tient à l'identique** : avec 3 questions, majorité = au moins 2
+  (`Math.ceil(3/2)`), et `offIndex` en désigne toujours exactement une comme
+  hors-règle — donne bien 2 questions sur 3 qui exercent la règle introduite
+  par le bloc, sans changement de la logique elle-même (seule la constante
+  `QUESTIONS_PER_LEVEL` qu'elle utilise a changé). `generate.test.ts` mis à
+  jour pour vérifier `>= Math.ceil(QUESTIONS_PER_LEVEL / 2)` plutôt qu'un
+  seuil codé en dur à 3 (qui aurait par coïncidence continué à passer sans
+  vérifier la bonne chose).
+- **Bug trouvé en revérifiant en jeu réel après le changement de plateau,
+  pas en relisant le code** : le repère de niveau (`LevelBadge`, ajouté à la
+  session précédente) était positionné en survol (`absolute`) par-dessus le
+  damier. Sur un plateau 8×8, la rangée du haut était visuellement loin de
+  la case du repère la plupart du temps ; sur un plateau 5×5, avec moins de
+  rangées, la pièce interrogée tombe beaucoup plus souvent rangée du haut —
+  et le repère se retrouvait à chevaucher son anneau de sélection (vu
+  précisément au niveau 36, une tour interrogée juste sous le repère). Fix :
+  le repère quitte la position `absolute` et devient un vrai élément de mise
+  en page (`flex flex-col`, hauteur fixée `h-9`), et le damier réserve
+  exactement cette hauteur plus l'espacement (`height: calc(100% - 44px)`,
+  `aspect-ratio: 1/1` pour rester carré) au lieu de remplir tout le carré
+  laissé par le shell. Plus aucun chevauchement possible, quelle que soit la
+  case où tombe la pièce interrogée. Coût : les cases perdent quelques
+  pixels sur les deux appareils (déjà largement au-dessus du plancher de
+  44 px documenté dans CLAUDE.md, qui ne s'appliquait de toute façon qu'aux
+  grilles 8×8 — disparues de ce jeu avec ce changement).
+- **Vérifié en jeu réel** : niveau 36 (tour, Moyen, 5×5) rejoué après le
+  correctif de mise en page — repère « 36 » proprement au-dessus du damier,
+  aucun chevauchement, plusieurs pièces amies/adverses visibles sur le même
+  petit plateau. `localStorage` de test remis à zéro après coup.
+- `npm run build`, `npm run lint` et `npm test` (`piece-quiz` + `chess`,
+  69 tests) verts. `git diff` : seuls des fichiers de `piece-quiz/` touchés
+  cette fois (le socle `src/chess/` n'a pas bougé).

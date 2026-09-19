@@ -40,7 +40,7 @@ describe('generateLevel — les 100 niveaux, plusieurs seeds', () => {
 
           keys.add(canonicalKey(question));
         }
-        // 5 questions distinctes.
+        // Questions distinctes entre elles.
         expect(keys.size).toBe(QUESTIONS_PER_LEVEL);
       }
     });
@@ -48,7 +48,7 @@ describe('generateLevel — les 100 niveaux, plusieurs seeds', () => {
 });
 
 describe('generateLevel — déterminisme', () => {
-  it('même seed, même niveau → mêmes cinq positions, deux fois de suite', () => {
+  it('même seed, même niveau → mêmes positions, deux fois de suite', () => {
     for (const level of [1, 15, 25, 35, 55, 65, 85, 95]) {
       const first = generateLevel(777, level);
       const second = generateLevel(777, level);
@@ -72,6 +72,10 @@ describe('generateLevel — paliers 1 à 70, sans règles du palier Difficile', 
 });
 
 describe('generateLevel — introduction de règle, majorité des questions', () => {
+  // Majorité de QUESTIONS_PER_LEVEL (3) : au moins 2 — un seul indice « hors
+  // règle » par niveau, voir generate.ts (offIndex).
+  const MAJORITY = Math.ceil(QUESTIONS_PER_LEVEL / 2);
+
   function countRuleQuestions(level: number, predicate: (q: PieceQuizQuestion) => boolean): number {
     const questions = generateLevel(1, level);
     return questions.filter(predicate).length;
@@ -82,7 +86,7 @@ describe('generateLevel — introduction de règle, majorité des questions', ()
       const count = countRuleQuestions(level, (q) =>
         q.pieces.some((p) => p.side === 'enemy' && p.square !== q.queriedSquare && q.expectedSquares.includes(p.square)),
       );
-      expect(count).toBeGreaterThanOrEqual(3);
+      expect(count).toBeGreaterThanOrEqual(MAJORITY);
     }
   });
 
@@ -98,7 +102,7 @@ describe('generateLevel — introduction de règle, majorité des questions', ()
         const forwardSquare = (row + 1) * boardSize + col;
         return !q.expectedSquares.includes(forwardSquare);
       }).length;
-      expect(count).toBeGreaterThanOrEqual(3);
+      expect(count).toBeGreaterThanOrEqual(MAJORITY);
     }
   });
 
@@ -106,18 +110,15 @@ describe('generateLevel — introduction de règle, majorité des questions', ()
     for (let level = 81; level <= 90; level++) {
       const questions = generateLevel(1, level);
       const count = questions.filter((q) => q.pawnDoubleStepEnabled || q.enPassantSquare !== null).length;
-      expect(count).toBeGreaterThanOrEqual(3);
+      expect(count).toBeGreaterThanOrEqual(MAJORITY);
     }
   });
 });
 
 describe('generateLevel — paliers, tailles de plateau', () => {
-  it('Facile (1-30) en 5×5, Moyen/Difficile (31-100) en 8×8', () => {
-    for (let level = 1; level <= 30; level++) {
+  it('5×5 partout, les cent niveaux (retour utilisateur : 8×8 était trop grand, spec 06 suite)', () => {
+    for (let level = 1; level <= 100; level++) {
       expect(generateLevel(5, level)[0].boardSize).toBe(5);
-    }
-    for (let level = 31; level <= 100; level++) {
-      expect(generateLevel(5, level)[0].boardSize).toBe(8);
     }
   });
 

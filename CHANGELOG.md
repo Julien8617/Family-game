@@ -7,16 +7,18 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 ## Non publié
 
 - Nouveau jeu : « Où va-t-elle ? », cent niveaux pour apprendre le
-  déplacement des pièces d'échecs. Une pièce posée sur l'échiquier, on
-  touche toutes les cases où elle peut aller, en trois paliers (Facile,
-  Moyen, Difficile) — du pion seul sur un petit plateau vide jusqu'au
-  double pas et à la prise en passant. Le jeu s'enchaîne tout seul, niveau
-  après niveau, sans écran entre deux ; une petite fête (confettis, son)
-  marque chaque dizaine de niveaux réussis, et un niveau raté redémarre
-  aussitôt à sa première question. Le numéro du niveau en cours et le
-  palier s'affichent en haut du plateau. La progression reprend toute
-  seule là où l'enfant s'est arrêtée, même après avoir quitté l'app en
-  plein niveau ; un petit bouton discret permet de changer de palier.
+  déplacement des pièces d'échecs. Une pièce posée sur un petit échiquier
+  5×5, on touche toutes les cases où elle peut aller, en trois paliers
+  (Facile, Moyen, Difficile) — du pion seul sur un plateau vide jusqu'au
+  double pas et à la prise en passant. Chaque niveau tient en trois
+  questions, toutes les trois correctes pour réussir. Le jeu s'enchaîne
+  tout seul, niveau après niveau, sans écran entre deux ; une petite fête
+  (confettis, son) marque chaque dizaine de niveaux réussis, et un niveau
+  raté redémarre aussitôt à sa première question. Le numéro du niveau en
+  cours et le palier s'affichent au-dessus du plateau. La progression
+  reprend toute seule là où l'enfant s'est arrêtée, même après avoir
+  quitté l'app en plein niveau ; un petit bouton discret permet de
+  changer de palier.
 - Ouverture de la partie « musique » : une tuile « Musique » dans le menu
   ouvre un sous-menu de mini-jeux. Premier jeu : « Tape avec moi », une
   comptine (« Au clair de la lune », « Frère Jacques », « Ah ! vous
