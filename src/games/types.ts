@@ -78,6 +78,25 @@ export interface BoardProps<S, M> {
   onMove(move: M): void;
 }
 
+// Optionnel (spec 06) : un jeu qui doit persister sa progression plus
+// souvent qu'à la fin de partie (Result), et/ou déclencher un effet
+// transitoire à certaines transitions, le renvoie via
+// GameModule.progressSignal. Le shell agit sur ce qui revient sans savoir ce
+// que le jeu appelle un « niveau » ou une « réussite ».
+export interface ProgressSignal {
+  player: PlayerId;
+  // Meilleurs scores à écrire tout de suite, un par variant — même règle que
+  // Result.score : le shell ne garde que le maximum, jamais une régression.
+  // Absent sur un signal qui ne change pas le score (ex. échec).
+  scores?: Record<string, number>;
+  // Effet transitoire positif (confettis + son de victoire + petit écran de
+  // fête avec ce texte, affiché tel quel) — le shell ne sait pas ce qu'il
+  // représente.
+  celebrate?: { label: string };
+  // Effet transitoire négatif (son d'échec, tremblement, contour rouge).
+  fail?: boolean;
+}
+
 export interface BotLevel {
   id: number;
   label: string;
@@ -126,4 +145,11 @@ export interface GameModule<S, M> {
     // tictactoe/bot.ts). Par défaut (absente) : aucun ajustement.
     adjustLevel?(selectedLevel: number, lossStreak: number): number;
   };
+
+  // Optionnel : voir ProgressSignal ci-dessus. Le shell l'appelle une fois
+  // après chaque applyMove accepté (prev = état avant, next = état après) —
+  // pure, un (prev, next) donné produit toujours le même signal. Absent :
+  // aucune sauvegarde en cours de partie, aucun effet transitoire — le
+  // comportement des jeux qui n'ont pas ce besoin reste inchangé.
+  progressSignal?(prev: S, next: S): ProgressSignal | null;
 }

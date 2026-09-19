@@ -45,11 +45,22 @@ export default {
           '60%': { transform: 'scale(1)', opacity: '1' },
           '100%': { transform: 'scale(1)', opacity: '1' },
         },
+        // Niveau raté (spec 06, point 5) — un petit tremblement, jamais posé
+        // sans motion-safe: (voir GameScreen.tsx) : `prefers-reduced-motion`
+        // garde le son et le contour rouge seuls, suffisants à eux deux.
+        'quiz-shake': {
+          '0%, 100%': { transform: 'translateX(0)' },
+          '20%': { transform: 'translateX(-6px)' },
+          '40%': { transform: 'translateX(5px)' },
+          '60%': { transform: 'translateX(-4px)' },
+          '80%': { transform: 'translateX(3px)' },
+        },
       },
       animation: {
         'win-line': 'win-line 200ms ease-out',
         'connect4-drop': 'connect4-drop 461ms cubic-bezier(0.34, 1.56, 0.64, 1)',
         'count-in-pulse': 'count-in-pulse 220ms ease-out',
+        'quiz-shake': 'quiz-shake 500ms ease-in-out',
       },
     },
   },

@@ -131,16 +131,22 @@ src/
                             numéro de niveau — rejection sampling sur un
                             prédicat unique (isValidQuestion), jamais de
                             cases attendues recalculées à la main
-      logic.ts             pur, testé ; progression par palier (facile/
-                            moyen/difficile), reprise automatique au
-                            prochain niveau à réussir (voir §5)
+      logic.ts             pur, testé ; jeu continu — un niveau réussi ou
+                            raté s'enchaîne directement sur le suivant en
+                            interne (applyMove), jamais via Result (qui ne
+                            sert plus qu'au niveau 100 réussi, state.finished)
+                            ; progression par palier (facile/moyen/
+                            difficile), reprise automatique au prochain
+                            niveau à réussir (voir §5) ; expose
+                            progressSignal (voir §4)
       Board.tsx             rendu, plateau 5×5 ou 8×8 selon le niveau ;
-                            validation et choix du palier en boutons
-                            flottants (position fixed) par-dessus l'écran,
-                            pas dans le carré du plateau — voir NOTES.md
-      ChessPiece.tsx, pieceSkin.ts   rendu React des silhouettes de
-                            chess/shapes.ts, couleur du profil pour la
-                            pièce interrogée
+                            numéro de niveau + icône de palier affichés en
+                            haut du damier ; validation et choix du palier en
+                            boutons flottants (position fixed) par-dessus
+                            l'écran, pas dans le carré du plateau — voir
+                            NOTES.md
+      ChessPiece.tsx        rendu React des silhouettes de chess/shapes.ts,
+                            couleur via chess/skin.ts
       index.ts, icon.svg
       logic.test.ts, generate.test.ts
     rhythm-tap/             « Tape avec moi » — premier jeu du groupe
@@ -173,6 +179,10 @@ src/
     shapes.ts                données pures (pas de JSX) : silhouettes des
                             six pièces, un composant de rendu séparé les
                             transforme en SVG (piece-quiz/ChessPiece.tsx)
+    skin.ts                  pur : couleur d'une pièce par camp — profil du
+                            joueur pour 'own' (table dupliquée depuis
+                            chess-race/pawnSkin.ts, voir NOTES.md), gris
+                            neutre fixe pour 'enemy'
 
   solfege/                socle musical — pas un jeu, le shell ne le connaît
                            pas ; les jeux de musique s'en servent
@@ -334,6 +344,28 @@ export interface GameModule<S, M> {
     // si elle existe ; la règle d'ajustement reste propre au jeu.
     adjustLevel?(selectedLevel: number, lossStreak: number): number;
   };
+
+  // Facultatif (spec 06) : un jeu qui doit persister sa progression plus
+  // souvent qu'à la fin de partie (Result ne suffit plus pour un jeu continu
+  // qui ne s'arrête presque jamais, voir piece-quiz), et/ou déclencher un
+  // effet transitoire (fête, échec) à certaines transitions, le renvoie ici.
+  // Le shell l'appelle une fois après chaque applyMove accepté (prev = état
+  // avant, next = état après) — pure, comme applyMove — et agit sur ce qui
+  // revient (écrit les scores comme Result.score, joue l'effet nommé) sans
+  // savoir ce que le jeu appelle un « niveau » ou une « réussite ».
+  progressSignal?(prev: S, next: S): ProgressSignal | null;
+}
+
+export interface ProgressSignal {
+  player: PlayerId;
+  // Meilleurs scores à écrire tout de suite, un par variant — même règle que
+  // Result.score : le shell ne garde que le maximum, jamais une régression.
+  scores?: Record<string, number>;
+  // Effet transitoire positif (confettis + son de victoire + petit écran de
+  // fête avec ce texte, affiché tel quel par le shell).
+  celebrate?: { label: string };
+  // Effet transitoire négatif (son d'échec, tremblement, contour rouge).
+  fail?: boolean;
 }
 ```
 
@@ -374,6 +406,7 @@ export const GAMES: GameModule<any, any>[] = [
   connect4,
   soundMemory,
   rhythmTap,
+  pieceQuiz,
 ];
 
 export const GAME_GROUPS: Record<string, { title: string; icon: string }> = {
@@ -393,8 +426,10 @@ touché aucun fichier de `shell/` en dehors de ce registre, de `MenuScreen.tsx`
 (hissage de `localPlayer` avant `createState`, pour `bestScores`, voir §4).
 `sound-memory` avait demandé deux extensions additives du contrat lui-même
 (`soloLevels`, `Result.score`) ; `rhythm-tap` n'en a demandé qu'une
-(`GameMeta.groupId`) ; `piece-quiz` une aussi (`createState options.bestScores`)
-— pas une exception à la règle, juste le contrat qui grandit, voir §4.
+(`GameMeta.groupId`) ; `piece-quiz` en a demandé deux (`createState
+options.bestScores`, puis `GameModule.progressSignal` pour le jeu continu et
+ses effets transitoires — spec 06, retour utilisateur) — pas une exception à
+la règle, juste le contrat qui grandit, voir §4.
 
 `GAME_GROUPS` est une table à côté de `GAMES`, pas dans le contrat : un jeu
 avec `groupId: 'music'` est regroupé sous la tuile « Musique » dans
@@ -622,13 +657,20 @@ livré, pas encore testé sur iPad/iPhone réels (spec 06)
 « Où va-t-elle ? » : un quiz de déplacement des pièces, cent niveaux en trois
 paliers (Facile/Moyen/Difficile), premier jeu à s'appuyer sur un socle échecs
 générique (`src/chess/`) plutôt que sur les règles d'un seul jeu — chess-race
-n'est pas migré dessus (dette assumée, voir NOTES.md). Seule extension
-additive du contrat : `createState` reçoit `options.bestScores`, les records
-déjà enregistrés pour (ce jeu, ce joueur) — un jeu qui doit reprendre sa
-propre progression (quel niveau rejouer) le calcule dès sa création plutôt
-qu'ailleurs. `storage/index.ts` gagne `getAllHighScores` pour ça. Détail des
-choix (génération des positions par rejet, sécurité du roi, disposition des
-boutons flottants) dans `NOTES.md`.
+n'est pas migré dessus (dette assumée, voir NOTES.md). Deux extensions
+additives du contrat : `createState` reçoit `options.bestScores` (les
+records déjà enregistrés pour (ce jeu, ce joueur), pour qu'un jeu qui doit
+reprendre sa propre progression le calcule dès sa création — `storage/
+index.ts` gagne `getAllHighScores` pour ça) ; puis, sur retour utilisateur
+après un premier essai, `GameModule.progressSignal` pour un jeu continu qui
+ne s'arrête (presque) jamais niveau par niveau — persiste la progression en
+cours de partie et signale des effets transitoires (fête tous les dix
+niveaux, échec d'un niveau) sans que le shell sache ce qu'est un « niveau ».
+Silhouettes des pièces redessinées une seconde fois (retour utilisateur, les
+premières ne plaisaient pas) à partir d'un jeu de fichiers fourni par
+l'utilisateur. Détail des choix (génération des positions par rejet,
+sécurité du roi, disposition des boutons flottants, jeu continu) dans
+`NOTES.md`.
 
 **Phase 3 — deux appareils**
 Seulement si un jeu à information cachée le justifie. Implémenter `webrtcTransport`

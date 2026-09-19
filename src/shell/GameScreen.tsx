@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import type { GameModule, PlayerId, Result } from '../games/types';
+import { celebrate } from '../fx/confetti';
 import { play } from '../fx/sound';
 import { createLocalTransport } from '../net/localTransport';
 import type { Player } from '../players/types';
-import { getAllHighScores } from '../storage';
+import { getAllHighScores, recordScore } from '../storage';
 
 interface GameScreenProps {
   game: GameModule<any, any>;
@@ -38,6 +39,15 @@ const BOT_MIN_DELAY_MS = 600;
 // de bloquer le fil principal sur une recherche synchrone (niveaux 3 et 4).
 const BOT_PAINT_DELAY_MS = 80;
 
+// Spec 06, points 3-5 : un jeu continu (GameModule.progressSignal) peut
+// signaler un effet transitoire à certaines transitions — le shell ne sait
+// pas ce qu'il représente, juste combien de temps le montrer. L'état du jeu
+// a déjà avancé (niveau suivant, ou redémarré) *en dessous* de ces écrans au
+// moment où ils s'affichent : ce n'est qu'un voile temporaire, pas une phase
+// à part dans le contrat du jeu.
+const CELEBRATION_MS = 2500;
+const FAIL_FLASH_MS = 650;
+
 export function GameScreen({ game, players, seed, bot, soloLevel, lossStreak, onGameEnd, onExit }: GameScreenProps) {
   const [transport] = useState(() => createLocalTransport());
 
@@ -61,6 +71,20 @@ export function GameScreen({ game, players, seed, bot, soloLevel, lossStreak, on
   }, [state]);
   const [thinking, setThinking] = useState(false);
 
+  // Voir ProgressSignal (games/types.ts) — écran de fête (dizaine réussie) et
+  // voile d'échec (niveau raté), tous deux transitoires et génériques.
+  const [celebration, setCelebration] = useState<{ label: string; playerId: PlayerId } | null>(null);
+  const [failFlash, setFailFlash] = useState(false);
+  const celebrationTimer = useRef<ReturnType<typeof setTimeout>>();
+  const failTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    return () => {
+      if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
+      if (failTimer.current) clearTimeout(failTimer.current);
+    };
+  }, []);
+
   useEffect(() => {
     return transport.onMove((move) => {
       const prev = stateRef.current;
@@ -82,9 +106,30 @@ export function GameScreen({ game, players, seed, bot, soloLevel, lossStreak, on
         }
       }
 
+      const signal = game.progressSignal?.(prev, next);
+      if (signal?.scores) {
+        for (const [variant, value] of Object.entries(signal.scores)) {
+          recordScore(game.meta.id, signal.player, value, variant);
+        }
+      }
+      if (signal?.celebrate) {
+        const celebrationPlayer = players.find((p) => p.id === signal.player);
+        play('win');
+        celebrate(celebrationPlayer?.color ?? '#F5A623');
+        if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
+        setCelebration({ label: signal.celebrate.label, playerId: signal.player });
+        celebrationTimer.current = setTimeout(() => setCelebration(null), CELEBRATION_MS);
+      }
+      if (signal?.fail) {
+        play('fail');
+        if (failTimer.current) clearTimeout(failTimer.current);
+        setFailFlash(true);
+        failTimer.current = setTimeout(() => setFailFlash(false), FAIL_FLASH_MS);
+      }
+
       setState(next);
     });
-  }, [transport, game]);
+  }, [transport, game, players]);
 
   useEffect(() => {
     const result = game.getResult(state);
@@ -140,8 +185,30 @@ export function GameScreen({ game, players, seed, bot, soloLevel, lossStreak, on
   // jeu sans camps comme le morpion), la barre unique habituelle suffit.
   const dualSided = sharedDevice && Boolean(game.meta.colorLabels);
 
+  const celebrationPlayer = celebration ? players.find((p) => p.id === celebration.playerId) : undefined;
+
   return (
-    <div className="relative flex h-full w-full flex-col items-center bg-board px-6 py-4">
+    <div
+      className={`relative flex h-full w-full flex-col items-center bg-board px-6 py-4 ${
+        failFlash ? 'motion-safe:animate-quiz-shake' : ''
+      }`}
+    >
+      {failFlash && <div className="pointer-events-none fixed inset-0 z-40 ring-[10px] ring-inset ring-red-500/70" />}
+
+      {celebration && (
+        <div className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-6 bg-board/95">
+          {celebrationPlayer && (
+            <img
+              src={celebrationPlayer.photo}
+              alt=""
+              className="h-28 w-28 rounded-full object-cover"
+              style={{ boxShadow: `0 0 0 5px ${celebrationPlayer.color}` }}
+            />
+          )}
+          <span className="text-4xl text-piece">{celebration.label}</span>
+        </div>
+      )}
+
       <ExitButton onExit={onExit} />
 
       {dualSided ? (

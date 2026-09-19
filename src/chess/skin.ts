@@ -1,13 +1,15 @@
 // Couleur d'une pièce : la pièce de l'enfant prend la couleur de son profil
 // (comme les pions de chess-race, spec 04) ; une pièce adverse reste neutre,
 // fixe, choisie pour rester nettement distincte des 8 teintes de
-// src/players/palette.ts (spec 06 : « bien distincte de toutes les couleurs
-// de profil »).
+// src/players/palette.ts.
 //
 // Table dupliquée depuis chess-race/pawnSkin.ts (mêmes couleurs, même
 // principe : trait = teinte du joueur poussée très sombre) plutôt que
 // partagée entre les deux dossiers de jeu — CLAUDE.md, « un jeu = un
-// dossier » : un jeu n'importe pas les internes d'un autre.
+// dossier » : un jeu n'importe pas les internes d'un autre. Vit dans
+// src/chess/ (et non plus piece-quiz/) depuis la révision des silhouettes
+// (spec 06, retour utilisateur) : ce principe de coloration sert le socle
+// entier, pas seulement piece-quiz — voir NOTES.md.
 
 export interface PieceSkin {
   fill: string;
@@ -26,9 +28,10 @@ const OWN_SKINS: Record<string, PieceSkin> = {
 };
 
 // Gris chaud, à mi-chemin entre les cases claires et foncées de l'échiquier :
-// se détache sur les deux (contraste vérifié à l'œil, comme pawnSkin.ts) et
-// ne se confond avec aucune des 8 couleurs de PLAYER_COLORS (la plus proche,
-// l'ardoise #52707A, est nettement bleutée).
+// se détache sur les deux et ne se confond avec aucune des 8 couleurs de
+// PLAYER_COLORS (la plus proche, l'ardoise #52707A, est nettement bleutée).
+// Même principe que les couleurs de profil : le trait est la même teinte
+// poussée très sombre.
 const ENEMY_SKIN: PieceSkin = { fill: '#9C9484', stroke: '#38332A' };
 
 export function pieceSkin(side: 'own' | 'enemy', playerColor: string): PieceSkin {

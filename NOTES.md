@@ -1565,3 +1565,180 @@ encore testé sur iPad/iPhone réels**, voir plus bas ce qui en dépend.
   `npm run lint` tous verts. `git diff` : aucun fichier existant de
   `src/games/*/` touché (`note-memory/`, en cours de construction depuis la
   session précédente, non plus).
+
+## Spec 06, retour utilisateur : nouvelles silhouettes (2026-09-19, suite)
+
+Les six premières silhouettes (corps commun de `Pawn.tsx` + tête qui change)
+n'ont pas plu. Deux allers-retours :
+
+- **Premier essai : redessiner en s'inspirant des références outline
+  déposées dans `idée/`** (icônes au trait fin, sans remplissage — `tour.png`,
+  `eveque.png`, `reine.png`, `roi.png`, `jeu-dechecs.png` pour le cavalier).
+  Aperçu construit et publié en artifact pour validation avant intégration
+  (process établi, voir plus haut) — jugé insuffisant (« je n'aime pas »),
+  sans détail sur ce qui clochait précisément.
+- **Deuxième essai, retenu : l'utilisateur a déposé un jeu de fichiers tout
+  fait dans `idée/`** (`ChessPiece.tsx`, `playerPawnSkins.ts`,
+  `apercu-pieces.png` — visiblement produit par une autre session, avec un
+  aperçu rendu en blanc/noir/rose/bleu/jaune déjà validé par l'utilisateur).
+  Contrairement aux six premières tentatives (un seul corps partagé, seule la
+  tête change), chaque pièce a ici sa **silhouette complète et indépendante**
+  — portées telles quelles dans `chess/shapes.ts`, aucune retouche de tracé.
+  Deux adaptations pour coller aux conventions du projet, pas au dessin :
+  - `PieceShapeElement` (type de données pures) gagne un `fill?: 'none'`
+    optionnel — le cavalier a un élément « trait seul » (la ligne de bouche,
+    qui dépasse du contour) qu'un simple remplissage plein aurait fait
+    disparaître dans la couleur du corps.
+  - Couleurs reprises depuis `playerPawnSkins.ts` (mêmes valeurs que
+    `chess-race/pawnSkin.ts`, déjà dupliquées une fois dans
+    `piece-quiz/pieceSkin.ts`) mais **déplacées dans `src/chess/skin.ts`**
+    plutôt que laissées dans `piece-quiz/` — demandé explicitement par
+    l'utilisateur cette fois (« si tu dois reprendre la logique de
+    pawnSkin.ts dans src/chess/, la duplication est acceptée »), qui reflète
+    mieux que ce principe de coloration appartient au socle, pas à un jeu en
+    particulier. `piece-quiz/pieceSkin.ts` supprimé, `ChessPiece.tsx` et
+    `Board.tsx` importent `chess/skin.ts`. Skin adverse (gris chaud neutre)
+    inchangé — ni les références ni les fichiers déposés n'en proposaient un,
+    ce jeu est le seul à en avoir besoin.
+  - Palette adverse alignée sur les mêmes noms qu'`OWN_SKINS` (indexée sur le
+    hex, pas sur une clé nommée comme `playerPawnSkins.ts` le faisait — pas
+    de `PlayerColorKey` introduit, pour rester cohérent avec `player.color`
+    qui est déjà un hex partout ailleurs dans le code).
+  - **Site où la fente du fou / les « jours » du roi ne sont pas des trous
+    au sens SVG** : le contour du fou trace un seul chemin dont la géométrie
+    laisse un vide visuel (technique « ruban »), et les deux petites formes
+    en creux de la couronne du roi sont en réalité deux formes pleines
+    dessinées par-dessus (des « gemmes », pas des découpes) — aucune des deux
+    pièces n'a besoin d'un `fill-rule` particulier ni d'un masque.
+- **Vérifié en jeu réel** (pas seulement en aperçu isolé), les six pièces
+  l'une après l'autre en forçant `progress` par `localStorage` puis en
+  passant par le sélecteur de palier : pion et tour (Facile), cavalier
+  (Difficile, `progress.medium = 32`), dame et fou (Moyen, `progress.medium
+  = 32`, dernier niveau du bloc dame), roi (Moyen, `progress.medium = 20`
+  pour retomber dans son bloc 51-60) — toutes lisibles à la taille réelle du
+  plateau, couleur de profil (jaune/moutarde du seul joueur de test) bien
+  appliquée. `localStorage` de test remis à zéro (`scores` supprimé) après
+  coup. `npm run build` et `npm run lint` verts ; les tests ne dépendent pas
+  du tracé des pièces, inchangés.
+- **La proposition de contrat des points 3 à 5 (jeu continu, sauvegarde
+  immédiate, fête tous les 10 niveaux, échec de niveau) reste en attente de
+  validation** — ce retour ne portait que sur les pièces. Rien écrit pour
+  ces trois points dans cette session.
+
+## Spec 06, retour utilisateur : jeu continu, fête, échec (2026-09-19, suite 2)
+
+Contrat validé tel quel (« je valide »). `GameModule.progressSignal?(prev,
+next): ProgressSignal | null` — voir ARCHITECTURE.md §4 pour la forme finale
+(identique à la proposition). Implémenté pour les points 3 à 5 d'un coup,
+plus le point 2 (numéro de niveau affiché).
+
+- **`getResult` ne sert plus qu'à une seule chose : le niveau 100 réussi.**
+  Nouveau champ `PieceQuizState.finished` (`boolean`), mis à `true`
+  uniquement par `applyMove('next')` quand `state.level === 100 && passed`.
+  `getResult` devient un simple `if (!state.finished) return null`. Tous les
+  99 autres niveaux (réussite ou échec) s'enchaînent entièrement en interne,
+  sans jamais faire transiter l'état par un `Result` — c'est ce qui rend le
+  jeu réellement continu : le shell ne voit jamais la partie « finir » avant
+  le niveau 100.
+- **`'next'` devient le seul coup qui décide ET transitionne.** Avant (jeu
+  par niveaux séparés), `'next'` ne faisait qu'avancer `questionIndex` et
+  n'était valide que pour les questions 1 à 4 ; la 5ᵉ était gérée par le
+  shell via `getResult`. Maintenant `isValidMove('next')` est vrai dès que
+  `phase === 'reveal' && !state.finished`, sans distinction de question — sur
+  la 5ᵉ, `applyMove` évalue (`passedLevel`), met à jour `progress` si c'est
+  bien le niveau qu'on attendait, puis choisit : niveau 100 réussi → 
+  `finished: true` ; sinon niveau suivant (réussi) ou même niveau redémarré
+  (raté), avec une nouvelle génération de questions dans les deux cas via
+  `generateLevel(seed, level)`.
+- **Piège trouvé en testant en navigateur, pas en revue de code : le
+  minuteur de révélation de `Board.tsx` avait encore l'ancien garde-fou**
+  (`isLastQuestion`, hérité du design pré-jeu-continu — « pas besoin
+  d'envoyer next sur la 5ᵉ, le shell bascule tout seul »), jamais mis à jour
+  en écrivant `logic.ts`. Conséquence : le jeu restait bloqué en silence sur
+  la révélation de la 5ᵉ question de chaque niveau, plus aucun niveau ne
+  s'enchaînait jamais. Repéré uniquement parce que la vérification en
+  navigateur faisait partie du plan (pas seulement `npm test`, qui ne pouvait
+  pas voir ce bug — `Board.tsx` n'est exercé par aucun test). Fix : le garde
+  devient `state.finished` (le seul cas où renvoyer `'next'` serait
+  effectivement invalide), plus `isLastQuestion` du tout — la 5ᵉ question suit
+  exactement le même chemin que les autres.
+- **`ProgressSignal` calculé par diff structurel de `(prev, next)`, jamais un
+  champ dédié dans l'état** : `progressSignal` repère la transition de fin de
+  niveau en regardant `prev.phase === 'reveal' && prev.questionIndex ===
+  lastIndex` — exactement le même repère que celui qu'`applyMove` utilise en
+  interne pour savoir qu'il doit décider. Une seule définition de « ceci est
+  une fin de niveau », pas deux qui pourraient diverger. Le signal lui-même
+  compare `next.progress[prev.tier]` à `prev.progress[prev.tier]` pour savoir
+  s'il y a un score à écrire — jamais recalculé indépendamment.
+- **Fête à chaque dizaine réussie, y compris en rejouant un niveau déjà
+  acquis** (décision annoncée dans la proposition, confirmée) : la condition
+  est purement `prev.level % 10 === 0 && prev.level !== 100`, indépendante de
+  `advances`. Testé explicitement (`logic.test.ts`, « dizaine réussie même en
+  rejouant... ») : `celebrate` présent, `scores` absent.
+- **Niveau 100 : jamais de fête, toujours le chemin `Result` normal** — la
+  condition de fête exclut `level !== 100` explicitement ; `scores` est quand
+  même inclus dans le signal à ce moment-là (le compteur avance comme
+  n'importe quel autre niveau), en plus de `Result.score` calculé séparément
+  par `App.tsx` à la fin — écriture redondante mais inoffensive
+  (`recordScore` ne garde que le maximum).
+- **Écrans transitoires (fête, échec) possédés par `GameScreen.tsx`, pas par
+  `Board.tsx`** — respecte la frontière demandée (« le jeu signale, le shell
+  produit l'effet »). Deux points d'état local (`celebration`,
+  `failFlash`), posés et effacés par des `setTimeout` dans le même
+  gestionnaire synchrone que les sons/l'écriture des scores (règle déjà en
+  place depuis la spec 03 : le déclenchement de son vit dans le handler
+  synchrone du transport, jamais dans un `useEffect`). L'état du jeu a *déjà*
+  avancé (niveau suivant ou redémarré) pendant que l'écran transitoire est
+  affiché par-dessus — vérifié visuellement : le plateau du niveau suivant
+  (nouvelle pièce, nouveau numéro dans le repère) est visible en transparence
+  derrière les confettis avant que l'écran ne disparaisse. Les deux écrans
+  capturent tous les taps (`fixed inset-0`, pas de `pointer-events: none`) :
+  impossible de répondre à la question suivante pendant qu'ils sont affichés.
+- **Tremblement via `motion-safe:animate-quiz-shake` (Tailwind), pas une
+  vérification manuelle de `prefers-reduced-motion`** — le variant Tailwind
+  applique déjà la media query pour nous ; le contour rouge (`ring-red-500`)
+  et le son restent inconditionnels, comme demandé (« avec
+  prefers-reduced-motion, pas de tremblement : le son et le contour rouge
+  suffisent »).
+- **Nouveau son `fail` dans `fx/sound.ts`**, plutôt que réutiliser `invalid`
+  (déjà pris : « mauvais clic », pas « niveau raté ») ou `draw` (déjà pris :
+  fin de manche neutre, sound-memory). Descendant, un peu plus long que les
+  deux autres, mais volontairement doux — « un petit son d'erreur », pas une
+  alarme. Générique (`fx/sound.ts` reste un module partagé), réutilisable par
+  un futur jeu qui aurait besoin du même genre de signal.
+- **`recordScore` appelé directement depuis `GameScreen.tsx`**, pas remonté
+  jusqu'à `App.tsx` — annoncé dans la proposition, confirmé sans objection.
+  `App.tsx` (`computeScoreInfo`) garde son rôle inchangé pour la fin de
+  partie (`Result.score`, affichage dans `ResultScreen`) ; `GameScreen.tsx`
+  gagne un second point d'écriture pour les sauvegardes en cours de partie,
+  généré par `progressSignal`.
+- **Numéro de niveau affiché (point 2), purement local à `Board.tsx`,
+  aucune extension de contrat** : `LevelBadge` lit `state.level`/`state.tier`
+  (déjà dans l'état) et réutilise l'icône de palier du sélecteur
+  (`TIER_ICON`, pion/tour/dame) — même vocabulaire visuel, pas une nouvelle
+  icône à créer. Numéro *absolu* (1-100), pas la position dans le palier :
+  c'est le même nombre que celui utilisé dans les libellés de fête (« Niveau
+  30 »), pas deux systèmes de numérotation différents à réconcilier
+  mentalement. Posé à l'intérieur du carré du plateau (`top-2`, pas
+  `position: fixed`) plutôt qu'en flottant comme les boutons : purement
+  informatif, aucune zone tactile à garantir, pas de risque de chevaucher un
+  bouton voisin.
+- **Vérifié en jeu réel (pas seulement `npm test`)**, ce qui a permis de
+  trouver le bug du minuteur ci-dessus : enchaînement niveau 9 → 10 → fête
+  (« Niveau 10 », confettis, photo du joueur, plateau du niveau 11 déjà
+  visible en dessous, disparition automatique après ~2,5 s) → niveau 11
+  raté volontairement 4 fois sur 5 (tremblement + contour rouge visibles
+  simultanément, plateau déjà revenu à la question 1 du même niveau 11 en
+  dessous) → `localStorage.scores` relu directement en cours de partie
+  (`easy: 10`, écrit sans jamais passer par un écran de résultat) → rechargement
+  complet de la page (équivalent d'un redémarrage d'app) → le jeu rouvre
+  directement au niveau 11, confirmant que la sauvegarde immédiate survit
+  bien à un redémarrage (critère d'acceptation 6). Le geste « rester appuyé »
+  du bouton Quitter lui-même n'a pas pu être simulé par script dans cet
+  environnement (les `PointerEvent` synthétiques n'atteignent pas le
+  gestionnaire React) — code inchangé cette session, déjà validé dans une
+  session précédente (voir plus haut, spec 04).
+- `npm run build`, `npm run lint` et `npm test` (213 tests, dont 32 pour
+  `piece-quiz/logic.test.ts`, entièrement réécrits pour le jeu continu et
+  `progressSignal`) tous verts. `git diff` : aucun dossier des quatre autres
+  jeux touché ; `grep -rn "fx/" src/games/piece-quiz/` ne retourne rien.

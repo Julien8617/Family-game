@@ -9,7 +9,7 @@ import {
   TIER_ORDER,
 } from './logic';
 import type { PieceQuizMove, PieceQuizState } from './logic';
-import { pieceSkin } from './pieceSkin';
+import { pieceSkin } from '../../chess/skin';
 import type { Tier } from './generate';
 
 // Même délai que GameScreen.RESULT_DELAY_MS (shell/GameScreen.tsx) : sur la
@@ -49,18 +49,20 @@ export function Board({ state, localPlayer, players, onMove }: BoardProps<PieceQ
   const size = question.boardSize;
   const profileColor = players.find((p) => p.id === localPlayer)?.color ?? '#52707A';
 
-  const isLastQuestion = state.questionIndex === state.questions.length - 1;
-
   // Révélation animée localement (aucun applyMove pendant l'animation, même
-  // patron que sound-memory : sequenceShown) — sur la dernière question,
-  // GameScreen bascule déjà tout seul dès que getResult() n'est plus nul, pas
-  // besoin d'envoyer 'next' (qui serait de toute façon invalide).
+  // patron que sound-memory : sequenceShown) — envoyé après CHAQUE
+  // révélation, y compris celle de la 5ᵉ question : c'est ce 'next'-là qui
+  // décide et enchaîne (niveau suivant / redémarre / fête / échec — voir
+  // logic.ts et GameModule.progressSignal), le jeu ne s'arrête plus au
+  // niveau. Seule exception : une fois la partie terminée (niveau 100
+  // réussi, state.finished), GameScreen bascule déjà tout seul dès que
+  // getResult() n'est plus nul — renvoyer 'next' serait alors invalide.
   useEffect(() => {
-    if (state.phase !== 'reveal' || isLastQuestion) return undefined;
+    if (state.phase !== 'reveal' || state.finished) return undefined;
     const timer = setTimeout(() => onMove({ type: 'next' }), REVEAL_HOLD_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.phase, state.questionIndex]);
+  }, [state.phase, state.questionIndex, state.finished]);
 
   const markedSet = new Set(state.marked);
   const expectedSet = new Set(question.expectedSquares);
@@ -122,6 +124,8 @@ export function Board({ state, localPlayer, players, onMove }: BoardProps<PieceQ
         )}
       </div>
 
+      <LevelBadge level={state.level} tier={state.tier} />
+
       {state.phase === 'question' && (
         <>
           <ValidateButton enabled={state.marked.length > 0} onValidate={() => onMove({ type: 'validate' })} />
@@ -130,6 +134,24 @@ export function Board({ state, localPlayer, players, onMove }: BoardProps<PieceQ
       )}
 
       {state.phase === 'tierPicker' && <TierPicker state={state} onPick={(level) => onMove({ type: 'startLevel', level })} />}
+    </div>
+  );
+}
+
+// Niveau en cours, en haut du damier (spec 06, point 2) : le numéro absolu
+// (1-100, le même que celui utilisé dans les libellés de fête — « Niveau
+// 30 » désigne toujours la même chose) porte le sens principal, l'icône du
+// palier (même silhouette que le sélecteur de palier) le rend lisible sans
+// savoir lire. À l'intérieur du carré (pas de position fixed comme les
+// boutons) : purement informatif, aucune contrainte de zone tactile à
+// garantir, pas de risque à chevaucher légèrement la rangée du haut.
+function LevelBadge({ level, tier }: { level: number; tier: Tier }) {
+  return (
+    <div className="absolute left-1/2 top-2 z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-board/70 py-1 pl-1 pr-3 shadow-[0_2px_0_0_rgba(0,0,0,0.2)]">
+      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-piece/15 sm:h-8 sm:w-8">
+        <ChessPiece type={TIER_ICON[tier]} skin={{ fill: '#F2E4C9', stroke: '#1E3D34' }} className="h-[70%] w-[70%]" />
+      </div>
+      <span className="text-lg font-bold text-piece sm:text-xl">{level}</span>
     </div>
   );
 }

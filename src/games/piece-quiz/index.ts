@@ -1,7 +1,7 @@
 import type { GameModule } from '../types';
 import { Board } from './Board';
 import icon from './icon.svg';
-import { applyMove, createState, currentPlayer, getResult, isValidMove } from './logic';
+import { applyMove, createState, currentPlayer, getResult, isValidMove, progressSignal } from './logic';
 import type { PieceQuizMove, PieceQuizState } from './logic';
 
 export const pieceQuiz: GameModule<PieceQuizState, PieceQuizMove> = {
@@ -19,4 +19,5 @@ export const pieceQuiz: GameModule<PieceQuizState, PieceQuizMove> = {
   currentPlayer,
   getResult,
   Board,
+  progressSignal,
 };

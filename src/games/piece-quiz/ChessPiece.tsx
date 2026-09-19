@@ -1,6 +1,6 @@
 import { PIECE_SHAPES } from '../../chess/shapes';
 import type { PieceType } from '../../chess/pieces';
-import type { PieceSkin } from './pieceSkin';
+import type { PieceSkin } from '../../chess/skin';
 
 // Rendu React des silhouettes pures de src/chess/shapes.ts — ce fichier est
 // le seul, dans tout piece-quiz/, à importer React pour ça (chess/shapes.ts
@@ -25,7 +25,7 @@ export function ChessPiece({ type, skin, className = 'h-[72%] w-[72%]', strokeWi
             case 'rect':
               return <rect key={i} x={el.x} y={el.y} width={el.width} height={el.height} rx={el.rx} />;
             case 'path':
-              return <path key={i} d={el.d} />;
+              return <path key={i} d={el.d} fill={el.fill} />;
           }
         })}
       </g>

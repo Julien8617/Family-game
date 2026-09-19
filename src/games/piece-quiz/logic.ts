@@ -1,4 +1,4 @@
-import type { PlayerId, Result } from '../types';
+import type { PlayerId, ProgressSignal, Result } from '../types';
 import { generateLevel, tierOf, TIER_RANGES } from './generate';
 import type { PieceQuizQuestion, Tier } from './generate';
 
@@ -24,6 +24,11 @@ export interface PieceQuizState {
   // persisté comme record par variant (storage/index.ts, un entier par
   // (jeu, joueur, variant), variant = 'easy' | 'medium' | 'hard').
   progress: Record<Tier, number>;
+  // Vrai seulement quand le niveau 100 vient d'être réussi — la partie ne se
+  // termine que là (ou par « Quitter », géré entièrement par le shell). Tous
+  // les autres niveaux s'enchaînent en interne (voir applyMove, 'next') sans
+  // jamais rendre getResult non nul.
+  finished: boolean;
 }
 
 export type PieceQuizMove =
@@ -44,6 +49,9 @@ export const UNLOCK_THRESHOLDS: Record<Exclude<Tier, 'easy'>, { requires: Tier; 
 };
 // Un niveau est réussi à 80 % ou plus, soit 4 questions sur 5.
 export const REQUIRED_CORRECT = 4;
+// Une petite fête tous les 10 niveaux réussis (spec 06, point 4) — jamais au
+// niveau 100, qui suit le chemin de fin de partie normal (Result), pas la fête.
+const CELEBRATION_INTERVAL = 10;
 
 export function isTierUnlocked(tier: Tier, progress: Record<Tier, number>): boolean {
   if (tier === 'easy') return true;
@@ -78,6 +86,10 @@ function sameSet(a: number[], b: number[]): boolean {
   return a.every((x) => setB.has(x));
 }
 
+function passedLevel(answers: boolean[]): boolean {
+  return answers.filter(Boolean).length >= REQUIRED_CORRECT;
+}
+
 export function createState(
   players: PlayerId[],
   seed: number,
@@ -100,6 +112,7 @@ export function createState(
     answers: [],
     phase: 'question',
     progress,
+    finished: false,
   };
 }
 
@@ -113,7 +126,7 @@ export function isValidMove(state: PieceQuizState, move: PieceQuizMove): boolean
     case 'validate':
       return state.phase === 'question' && state.marked.length > 0;
     case 'next':
-      return state.phase === 'reveal' && state.questionIndex < state.questions.length - 1;
+      return state.phase === 'reveal' && !state.finished;
     case 'openTierPicker':
       return state.phase === 'question';
     case 'startLevel': {
@@ -141,8 +154,38 @@ export function applyMove(state: PieceQuizState, move: PieceQuizMove): PieceQuiz
       return { ...state, phase: 'reveal', answers: [...state.answers, correct] };
     }
 
-    case 'next':
-      return { ...state, questionIndex: state.questionIndex + 1, marked: [], phase: 'question' };
+    case 'next': {
+      const lastIndex = state.questions.length - 1;
+      if (state.questionIndex < lastIndex) {
+        // Question suivante du même niveau — inchangé.
+        return { ...state, questionIndex: state.questionIndex + 1, marked: [], phase: 'question' };
+      }
+
+      // Révélation de la 5ᵉ question acquittée : le niveau est décidé. Jeu
+      // continu (spec 06, point 3) — jamais d'aller-retour par ResultScreen
+      // ici, seul le niveau 100 réussi y mène (state.finished, voir getResult).
+      const passed = passedLevel(state.answers);
+      const levelWithinTier = state.level - TIER_RANGES[state.tier][0] + 1;
+      const advances = passed && levelWithinTier === state.progress[state.tier] + 1;
+      const progress = advances ? { ...state.progress, [state.tier]: state.progress[state.tier] + 1 } : state.progress;
+
+      if (state.level === 100 && passed) {
+        return { ...state, progress, finished: true };
+      }
+
+      const nextLevel = passed ? state.level + 1 : state.level;
+      return {
+        ...state,
+        progress,
+        tier: tierOf(nextLevel),
+        level: nextLevel,
+        questions: generateLevel(state.seed, nextLevel),
+        questionIndex: 0,
+        marked: [],
+        answers: [],
+        phase: 'question',
+      };
+    }
 
     case 'openTierPicker':
       return { ...state, phase: 'tierPicker' };
@@ -164,24 +207,46 @@ export function applyMove(state: PieceQuizState, move: PieceQuizMove): PieceQuiz
 }
 
 export function currentPlayer(state: PieceQuizState): PlayerId | null {
-  return getResult(state) ? null : state.player;
+  return state.finished ? null : state.player;
 }
 
-// Résultat non nul dès que la révélation de la 5ᵉ question est affichée — pas
-// besoin d'une 4ᵉ phase ('done') pour ça : GameScreen bascule déjà vers
-// ResultScreen 900 ms après qu'un résultat apparaît (même patron que la ligne
-// gagnante du morpion), le temps que Board.tsx montre la révélation.
+// Résultat non nul seulement quand le niveau 100 vient d'être réussi — voir
+// PieceQuizState.finished. Tous les autres niveaux s'enchaînent sans jamais
+// passer par Result (jeu continu, spec 06).
 export function getResult(state: PieceQuizState): Result | null {
-  const lastIndex = state.questions.length - 1;
-  if (state.phase !== 'reveal' || state.questionIndex !== lastIndex) return null;
+  if (!state.finished) return null;
+  return {
+    kind: 'win',
+    winner: state.player,
+    score: { value: state.progress[state.tier], variant: state.tier, maxValue: TIER_LEVELS[state.tier] },
+  };
+}
 
-  const passed = state.answers.filter(Boolean).length >= REQUIRED_CORRECT;
-  const levelWithinTier = state.level - TIER_RANGES[state.tier][0] + 1;
-  // La progression n'avance que si CE niveau est exactement le prochain à
-  // réussir dans le palier — refaire un niveau déjà acquis (même réussi) ne
-  // fait jamais reculer ni avancer le compteur au-delà de ce qu'il est déjà.
-  const advances = passed && levelWithinTier === state.progress[state.tier] + 1;
-  const value = advances ? state.progress[state.tier] + 1 : state.progress[state.tier];
+// Signal de progression (spec 06, points 3-5) : appelé par le shell après
+// chaque coup appliqué, avec l'état juste avant (`prev`) et juste après
+// (`next`). Pure — un (prev, next) donné produit toujours le même signal.
+// Ne regarde que la transition « révélation de la 5ᵉ question acquittée »
+// (repérée structurellement sur `prev`, pas par un champ dédié) : c'est la
+// seule sorte de coup qui peut faire avancer un score, fêter une dizaine, ou
+// signaler un échec.
+export function progressSignal(prev: PieceQuizState, next: PieceQuizState): ProgressSignal | null {
+  const lastIndex = prev.questions.length - 1;
+  if (prev.phase !== 'reveal' || prev.questionIndex !== lastIndex) return null;
 
-  return { kind: 'win', winner: state.player, score: { value, variant: state.tier, maxValue: TIER_LEVELS[state.tier] } };
+  if (!passedLevel(prev.answers)) {
+    return { player: prev.player, fail: true };
+  }
+
+  const signal: ProgressSignal = { player: prev.player };
+  if (next.progress[prev.tier] !== prev.progress[prev.tier]) {
+    signal.scores = { [prev.tier]: next.progress[prev.tier] };
+  }
+  // Fête à chaque dizaine réussie, y compris en rejouant un niveau déjà
+  // acquis — pas seulement la première fois (décision utilisateur, voir
+  // NOTES.md). Jamais au niveau 100 : il suit le chemin Result normal.
+  if (prev.level % CELEBRATION_INTERVAL === 0 && prev.level !== 100) {
+    signal.celebrate = { label: `Niveau ${prev.level}` };
+  }
+
+  return signal.scores || signal.celebrate ? signal : null;
 }

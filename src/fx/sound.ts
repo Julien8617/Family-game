@@ -2,7 +2,7 @@ import { zzfx } from '../vendor/zzfx';
 import { unlockAudioContext } from './audio-context';
 import { getSettings, updateSettings } from '../storage';
 
-export type SoundName = 'move' | 'invalid' | 'turn' | 'win' | 'draw' | 'tap';
+export type SoundName = 'move' | 'invalid' | 'turn' | 'win' | 'draw' | 'tap' | 'fail';
 
 // [volume, randomness, frequency, attack, sustain, release, shape, shapeCurve,
 //  slide, deltaSlide, pitchJump, pitchJumpTime]
@@ -15,6 +15,10 @@ const SOUNDS: Record<SoundName, Parameters<typeof zzfx>> = {
   turn: [0.3, 0.02, 520, 0, 0.015, 0.04],
   win: [0.5, 0.02, 440, 0.02, 0.1, 0.15, 1, 1, 0.02, 0, 200, 0.05],
   draw: [0.4, 0.02, 300, 0.01, 0.08, 0.12, 2, 1, -0.01],
+  // Échec d'un niveau entier (piece-quiz et au-delà) — distinct de `draw`
+  // (fin de manche neutre) et `invalid` (mauvais clic) : un peu plus long,
+  // descendant, mais reste doux — « un petit son d'erreur », pas une alarme.
+  fail: [0.4, 0.02, 260, 0, 0.08, 0.16, 1, 1, -0.045],
 };
 
 // Lu une seule fois au chargement, mis à jour uniquement par setSoundEnabled —
