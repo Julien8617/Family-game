@@ -1400,3 +1400,168 @@ comme le vrai jeu de mémoire).
 - Fichiers demandés à l'utilisateur : un son par hauteur (do, ré, mi, fa,
   sol, la, si — une octave, cohérent avec `solfege/music.ts`) pour chacun
   des 5 instruments, soit 35 fichiers courts (une seule note, pas d'accord).
+
+## Spec 06 — « Où va-t-elle ? », quiz de déplacement des pièces (2026-09-19)
+
+Deuxième palier vers les échecs (après la course des poussins), premier jeu
+de cent niveaux, premier socle échecs générique (`src/chess/`). Code livré,
+tests/build/lint verts, testé en navigateur (marquage/validation/révélation,
+5×5 et 8×8, palier verrouillé/débloqué, reprise, écran de résultat) — **pas
+encore testé sur iPad/iPhone réels**, voir plus bas ce qui en dépend.
+
+- **`src/chess/` volontairement générique, pas taillé pour piece-quiz** :
+  `pieces.ts` (cases accessibles), `attacks.ts` (cases attaquées, pour la
+  sécurité du roi), `geometry.ts` (coordonnées paramétrées par taille) et
+  `shapes.ts` (silhouettes, données pures) ne savent rien d'un « niveau » ou
+  d'un « quiz » — `side: 'own' | 'enemy'` plutôt que blanc/noir, parce que ce
+  socle sert un jeu à un seul camp qui bouge, pas une partie à deux joueurs.
+  Offsets de déplacement (cavalier, roi, tours/fous/dames) factorisés dans
+  `chess/offsets.ts`, partagés entre `pieces.ts` et `attacks.ts` — même
+  géométrie, deux usages, une seule table pour ne pas la faire diverger.
+- **`chess-race/` n'est pas migré sur ce socle, dette assumée** (explicitement
+  hors périmètre de la spec) : `chess-race/logic.ts` continue de recalculer
+  ses propres cases de pion à la main. Un futur jeu d'échecs (ou une session
+  de refactor dédiée) pourra rebrancher chess-race sur `chess/pieces.ts`.
+- **`chess/shapes.ts` exporte des données pures (viewBox + éléments SVG
+  typés), pas des composants React** — nécessaire pour respecter à la fois
+  « le socle n'importe pas React » (CLAUDE.md règle 5, critère d'acceptation
+  4) et « silhouettes dans l'esprit de `chess-race/Pawn.tsx` » (deliverable
+  1, un composant React). Résolu en séparant les deux : `ChessPiece.tsx`
+  (`piece-quiz/`) est le seul fichier qui transforme ces données en JSX.
+  Silhouette de pion dupliquée depuis `Pawn.tsx` (même corps : tête ronde,
+  col en gélule, jupe évasée) plutôt que réutilisée — même raisonnement que
+  la non-migration de chess-race, la duplication est le compromis assumé.
+- **Générateur par rejet (rejection sampling) sur un prédicat unique
+  (`isValidQuestion`), pas des placements calculés à la main par bloc de
+  niveaux** : chaque candidat (`buildCandidate`) place des pièces selon des
+  règles simples et volontairement approximatives par bloc (ex. « bloque
+  l'avance, garantit les deux diagonales adverses » pour 21-30), puis
+  `reachableSquares()` — le même code que `chess/pieces.ts`, testé
+  séparément — en dérive les cases attendues. Aucune case attendue n'est
+  jamais recalculée à la main dans `generate.ts` : risque d'un bug de
+  synchronisation entre générateur et moteur, éliminé par construction. Le
+  prédicat (`isValidQuestion`) est exporté et réutilisé tel quel par
+  `generate.test.ts` — même définition de « position valide » des deux
+  côtés, pas deux versions qui pourraient diverger (conseil du conseiller,
+  suivi).
+- **Filet de secours (`fallbackQuestion`), jamais atteint en pratique sur les
+  100 niveaux × 5 seeds testés** (`generate.test.ts`, 559 ms) : si 150
+  tentatives aléatoires échouent pour une question, une position minimale
+  garantie valide (pion seul, ou avec une seule prise diagonale si le niveau
+  exige ≥ 2 cases) prend le relais. Relâche uniquement la difficulté (moins
+  de pièces), jamais les garanties — reste soumis au même `isValidQuestion`.
+- **Sécurité du roi : case du roi retirée du plateau avant de calculer les
+  attaques adverses** (`attackedSquares(board, size, 'enemy',
+  ignoreSquare: kingSquare)`) — sans ça, une pièce adverse qui attaque *au
+  travers* de la case du roi (une tour sur la même ligne, par exemple)
+  semblerait s'arrêter net sur lui et ne jamais menacer la case juste
+  derrière, ce qui est faux dès que le roi s'en va. Le générateur exige que
+  la case du roi *et* toutes ses destinations calculées soient non-attaquées
+  dans ce plateau « roi absent » — rejet et nouveau tirage sinon, jamais un
+  filtrage a posteriori des destinations (qui aurait rendu la réponse du
+  quiz incohérente avec celle des autres pièces, toujours « l'ensemble
+  simplifié complet »).
+- **Aucune position ne peut contenir de clouage, par construction, pas par
+  détection** : le bassin de pièces secondaires (`OBSTACLE_TYPES`) exclut
+  toujours `'king'` — un roi n'apparaît que comme pièce interrogée. Un
+  clouage suppose un roi ami *derrière* la pièce clouée ; sans second roi
+  jamais posé sur le plateau, aucun clouage n'est géométriquement possible.
+  Documenté comme raisonnement plutôt que codé (conseil du conseiller,
+  suivi) — pas de fonction `isPinned` qui n'aurait jamais rien à détecter.
+- **« Majorité des questions exerce la règle », pas 5/5 systématique** :
+  pour les blocs qui introduisent une règle (11-20 prise, 21-30 blocage,
+  81-90 double pas/prise en passant), un seul indice de question (tiré au
+  sort par niveau) est la question « hors règle » ; les 4 autres l'exercent
+  toujours. Interprétation choisie plutôt que probabiliste (qui aurait pu,
+  par malchance, produire 5/5 ou 2/5) : garantit la majorité par
+  construction, vérifié dans `generate.test.ts`.
+- **`GameMeta.createState` gagne `options.bestScores`, extension additive**
+  (voir ARCHITECTURE.md §4) : le shell (`GameScreen.tsx`) lit désormais
+  `localPlayer` *avant* d'appeler `createState` (jusqu'ici calculé plus bas,
+  seulement pour l'affichage) et lui transmet
+  `getAllHighScores(game.meta.id, localPlayer)` — nouvelle fonction de
+  `storage/index.ts`. Les cinq jeux existants ignorent ce champ sans rien
+  changer à leur signature, comme `options.level` en spec 05.
+- **Progression = un compteur par palier (`scores`, variant `easy`/`medium`/
+  `hard`), pas une liste de niveaux réussis** : `resumeLevelForTier(tier,
+  progress)` dérive le niveau de reprise directement du compteur
+  (`start + progress[tier]`, ou le dernier niveau du palier s'il est déjà
+  terminé — sert aussi à le rejouer). Ça marche *parce que* les niveaux d'un
+  palier se débloquent strictement dans l'ordre (spec) : un compteur suffit,
+  pas besoin de mémoriser lesquels précisément. `getResult` n'incrémente le
+  compteur que si le niveau qui vient d'être joué est *exactement* le
+  prochain à réussir (`levelWithinTier === progress[tier] + 1`) — rejouer un
+  niveau déjà acquis (même à 5/5) ne fait donc jamais avancer au-delà de ce
+  qui est déjà acquis, et ne peut jamais reculer.
+- **Cas non couvert littéralement par la spec, tranché ici** : si tous les
+  paliers débloqués sont déjà terminés (plus aucun niveau à réussir nulle
+  part), la reprise atterrit sur le *dernier* niveau du palier le plus
+  avancé plutôt que de bloquer sans écran — permet simplement de le rejouer.
+  Testé (`logic.test.ts`).
+- **Pas de 4ᵉ phase `'done'`** : le contrat de la spec énumère exactement
+  trois phases (`question` / `reveal` / `tierPicker`). `getResult` renvoie
+  un résultat non nul dès que la révélation de la *dernière* question de la
+  manche est affichée (`phase === 'reveal' && questionIndex === lastIndex`)
+  — GameScreen bascule déjà tout seul vers `ResultScreen` 900 ms après
+  qu'un résultat apparaît (même mécanisme que la ligne gagnante du morpion),
+  le temps que `Board.tsx` montre la révélation. `Board.tsx` n'envoie
+  `{type:'next'}` qu'entre les questions 1 à 4 — jamais après la 5ᵉ, où ce
+  serait de toute façon un coup invalide.
+- **Pas de « fermer le sélecteur de palier » dans le vocabulaire de coups de
+  la spec** (`toggle`/`validate`/`next`/`openTierPicker`/`startLevel`, sans
+  `closeTierPicker`) : plutôt que d'inventer un coup non prévu, retaper le
+  palier déjà en cours revient exactement au niveau de reprise de ce
+  palier — un « annuler » qui n'a pas besoin d'exister comme coup séparé.
+  Effet de bord accepté : ça recommence aussi la manche en cours depuis la
+  question 1, cohérent avec la règle générale « quitter au milieu d'un
+  niveau le fait recommencer depuis sa première question ».
+- **`Result.score.maxValue` renseigné** (`TIER_LEVELS[tier]`) : le score
+  s'affiche en pourcentage de complétion du palier (« Score : 12 % »)
+  plutôt qu'en nombre brut de niveaux — lisible sans avoir à connaître le
+  total (30 ou 40) de chaque palier, et « Nouveau record ! » s'affiche
+  naturellement à chaque fois que la progression avance vraiment (value >
+  previousBest), silencieux sur un niveau raté ou rejoué.
+- **Bouton de validation flottant (position fixed), hors du carré du
+  plateau — pas d'extension de la réservation de hauteur dans
+  `GameScreen.tsx`** (question posée explicitement à l'utilisateur avant
+  d'écrire le CSS, qui a choisi cette option). Nécessaire : le carré que le
+  shell réserve à `Board` est déjà occupé pleine largeur par la grille 8×8
+  (44 px/case tout juste, l'exception iPhone documentée dans CLAUDE.md) —
+  aucune marge disponible *à l'intérieur* pour un bouton sans repasser sous
+  ce plancher. `GameScreen` centre le carré verticalement
+  (`items-center justify-center`) dans l'espace qui reste après le carré
+  (comme il est de toute façon plus étroit que haut sur les deux appareils
+  cibles) : ça laisse une marge en dessous, la moitié du surplus vertical.
+  **Calcul, pas mesuré sur l'appareil réel** (aucune fenêtre portrait
+  disponible dans cet environnement de développement, `resize_window` sans
+  effet sur le rendu réel — confirmé par `window.innerWidth/innerHeight`
+  inchangés après l'appel) : sur iPad (768×1024, sans encoche), le carré
+  fait ~722 px de large, laissant ~85 px en dessous ; sur iPhone X, ~352 px
+  de large, laissant ~125 px (zones de sécurité déjà comprises dans le
+  budget de hauteur du carré). Bouton fixé à 60 px + 10 px de marge (70 px
+  au total) pour garder une vraie marge de sécurité sur iPad (~15 px) plutôt
+  que coller au plus juste — sous les 80 px habituels de CLAUDE.md, mais un
+  choix géométrique mesuré, comme l'exception iPhone des grilles denses,
+  pas une taille arbitraire. **À reconfirmer en priorité sur l'iPad et
+  l'iPhone réels** avant de considérer cette disposition acquise : si le
+  calcul est optimiste (arrondis, hauteur réelle du bandeau d'en-tête un peu
+  différente de 132 px), le bouton peut encore chevaucher la dernière
+  rangée du plateau. Deux corrections de repli déjà identifiées si besoin :
+  réduire encore le bouton, ou (l'option non retenue cette fois) laisser
+  `GameScreen` réserver explicitement une bande sous le carré.
+- **Icônes des paliers réutilisent les silhouettes du socle** (pion/tour/
+  dame pour facile/moyen/difficile) plutôt que d'en vendoriser ou d'en
+  dessiner de nouvelles — trois formes déjà disponibles, de complexité
+  croissante, cohérentes avec le thème du jeu.
+- **Testé en navigateur** (Chrome, fenêtre desktop — aucune fenêtre portrait
+  réelle disponible dans cet environnement, voir ci-dessus) : cycle complet
+  d'une question (marquage, validation, révélation — trouvée/manquée/fausse
+  toutes les trois vérifiées visuellement) sur 5×5 et 8×8, enchaînement
+  automatique entre questions, écran de résultat avec score en pourcentage,
+  « Rejouer » qui relance le même niveau avec un nouveau seed (comme les
+  autres jeux solo), sélecteur de palier (Moyen débloqué et jouable après
+  avoir forcé `progress.easy = 24` en `localStorage` pour le test, Difficile
+  resté verrouillé). `npm run build`, `npm test` (203 tests) et
+  `npm run lint` tous verts. `git diff` : aucun fichier existant de
+  `src/games/*/` touché (`note-memory/`, en cours de construction depuis la
+  session précédente, non plus).

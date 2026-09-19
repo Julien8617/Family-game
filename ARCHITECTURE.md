@@ -123,6 +123,26 @@ src/
                           PLAYER_COLORS (players/palette.ts)
       index.ts, icon.svg
       logic.test.ts
+    piece-quiz/            « Où va-t-elle ? » — cent niveaux pour apprendre
+                            le déplacement des pièces d'échecs, seul jeu qui
+                            s'appuie sur src/chess/ (voir plus bas)
+      generate.ts          pur, testé, sans React : génère les 5 questions
+                            d'un niveau, déterministe à partir du seed et du
+                            numéro de niveau — rejection sampling sur un
+                            prédicat unique (isValidQuestion), jamais de
+                            cases attendues recalculées à la main
+      logic.ts             pur, testé ; progression par palier (facile/
+                            moyen/difficile), reprise automatique au
+                            prochain niveau à réussir (voir §5)
+      Board.tsx             rendu, plateau 5×5 ou 8×8 selon le niveau ;
+                            validation et choix du palier en boutons
+                            flottants (position fixed) par-dessus l'écran,
+                            pas dans le carré du plateau — voir NOTES.md
+      ChessPiece.tsx, pieceSkin.ts   rendu React des silhouettes de
+                            chess/shapes.ts, couleur du profil pour la
+                            pièce interrogée
+      index.ts, icon.svg
+      logic.test.ts, generate.test.ts
     rhythm-tap/             « Tape avec moi » — premier jeu du groupe
                             « musique » (GameMeta.groupId), premier jeu de
                             rythme, solo comme sound-memory
@@ -136,6 +156,23 @@ src/
                             phase interne si aucun offset n'est enregistré
       index.ts, icon.svg
       logic.test.ts
+
+  chess/                  socle échecs — pas un jeu, le shell ne le connaît
+                           pas ; sert à piece-quiz, et servira aux futurs
+                           jeux d'échecs (chess-race n'est pas migré dessus,
+                           dette assumée, voir NOTES.md)
+    geometry.ts             pur, testé : coordonnées paramétrées par la
+                            taille du plateau (5×5 ou 8×8)
+    pieces.ts               pur, testé : les six pièces, cases accessibles
+                            (reachableSquares), double pas et prise en
+                            passant derrière des options explicites,
+                            désactivées par défaut
+    attacks.ts              pur, testé : cases attaquées par un camp
+                            (attackedSquares) — sert uniquement à garantir
+                            qu'un roi interrogé n'est jamais en échec
+    shapes.ts                données pures (pas de JSX) : silhouettes des
+                            six pièces, un composant de rendu séparé les
+                            transforme en SVG (piece-quiz/ChessPiece.tsx)
 
   solfege/                socle musical — pas un jeu, le shell ne le connaît
                            pas ; les jeux de musique s'en servent
@@ -267,8 +304,17 @@ export interface GameModule<S, M> {
 
   // `options` porte le niveau choisi via GameMeta.soloLevels (facultatif) —
   // un jeu sans soloLevels ignore ce 3ᵉ paramètre sans rien changer à sa
-  // signature (players, seed).
-  createState(players: PlayerId[], seed: number, options?: { level?: number }): S;
+  // signature (players, seed). `bestScores` (spec 06, piece-quiz) : les
+  // records déjà enregistrés pour (ce jeu, ce joueur), un par variant — clé
+  // opaque pour le shell (storage/index.ts, getAllHighScores), qui la lit et
+  // la transmet sans savoir ce qu'un variant signifie. Sert à un jeu qui a
+  // besoin de reprendre sa progression dès createState (piece-quiz : quel
+  // niveau rejouer) plutôt que de la recalculer ailleurs.
+  createState(
+    players: PlayerId[],
+    seed: number,
+    options?: { level?: number; bestScores?: Record<string, number> },
+  ): S;
   isValidMove(state: S, move: M): boolean;
   applyMove(state: S, move: M): S;
   currentPlayer(state: S): PlayerId | null;
@@ -337,16 +383,18 @@ export const GAME_GROUPS: Record<string, { title: string; icon: string }> = {
 
 Ajouter un jeu : un dossier, un import, une ligne. Le menu se construit à partir de
 `GAMES`, et la sélection de joueurs lit `minPlayers` / `maxPlayers`. Aucun autre
-fichier du shell ne bouge — confirmé cinq fois maintenant : l'ajout de
+fichier du shell ne bouge — confirmé six fois maintenant : l'ajout de
 `chess-race` (spec 04), puis celui d'un bot sur `tictactoe` derrière le même
 contrat `GameModule.bot`, puis l'ajout de `connect4`, puis celui de
 `sound-memory` (premier jeu sans `bot` du tout), puis celui de `rhythm-tap`
-(spec 05, premier jeu regroupé) n'ont touché aucun fichier de `shell/` en
-dehors de ce registre et de `MenuScreen.tsx` (extension additive et générique,
-voir plus bas). `sound-memory` avait demandé deux extensions additives du
-contrat lui-même (`soloLevels`, `Result.score`) ; `rhythm-tap` n'en a demandé
-qu'une (`GameMeta.groupId`) — pas une exception à la règle, juste le contrat
-qui grandit, voir §4.
+(spec 05, premier jeu regroupé), puis celui de `piece-quiz` (spec 06) n'ont
+touché aucun fichier de `shell/` en dehors de ce registre, de `MenuScreen.tsx`
+(extension additive et générique, voir plus bas) et de `GameScreen.tsx`
+(hissage de `localPlayer` avant `createState`, pour `bestScores`, voir §4).
+`sound-memory` avait demandé deux extensions additives du contrat lui-même
+(`soloLevels`, `Result.score`) ; `rhythm-tap` n'en a demandé qu'une
+(`GameMeta.groupId`) ; `piece-quiz` une aussi (`createState options.bestScores`)
+— pas une exception à la règle, juste le contrat qui grandit, voir §4.
 
 `GAME_GROUPS` est une table à côté de `GAMES`, pas dans le contrat : un jeu
 avec `groupId: 'music'` est regroupé sous la tuile « Musique » dans
@@ -421,7 +469,11 @@ mémoire sonore de garder un record séparé par niveau de difficulté plutôt
 qu'un seul chiffre qui mélangerait des parties incomparables — décision
 utilisateur, tranchant le point resté ouvert en §10 jusqu'ici. Calculé et
 écrit par le shell (`App.tsx`, générique), jamais par `logic.ts` d'un jeu
-(qui reste pur, sans accès à `localStorage`).
+(qui reste pur, sans accès à `localStorage`). `getAllHighScores(gameId,
+playerId)` (spec 06) lit tous les variants d'un coup — piece-quiz en a besoin
+dès `createState` pour ses trois records (`easy`/`medium`/`hard`, un par
+palier), transmis via `options.bestScores` (§4) ; les autres jeux n'ont
+jamais eu besoin que d'un seul variant à la fois (`getHighScore`).
 
 Le quota est de 5 Mo environ, et il est partagé. Une photo iPad brute pèse plusieurs
 mégaoctets : le redimensionnement en canvas avant sérialisation n'est pas une
@@ -564,6 +616,19 @@ audio à lookahead, calibration du décalage tactile) et un premier jeu,
 `registry.ts`) et la propriété unique de l'`AudioContext` extraite dans
 `fx/audio-context.ts` (ZzFX et le moteur musical le partagent). Détail des
 décisions dans `NOTES.md`.
+
+**Phase 2.10 — deuxième palier vers les échecs, premier jeu de cent niveaux**
+livré, pas encore testé sur iPad/iPhone réels (spec 06)
+« Où va-t-elle ? » : un quiz de déplacement des pièces, cent niveaux en trois
+paliers (Facile/Moyen/Difficile), premier jeu à s'appuyer sur un socle échecs
+générique (`src/chess/`) plutôt que sur les règles d'un seul jeu — chess-race
+n'est pas migré dessus (dette assumée, voir NOTES.md). Seule extension
+additive du contrat : `createState` reçoit `options.bestScores`, les records
+déjà enregistrés pour (ce jeu, ce joueur) — un jeu qui doit reprendre sa
+propre progression (quel niveau rejouer) le calcule dès sa création plutôt
+qu'ailleurs. `storage/index.ts` gagne `getAllHighScores` pour ça. Détail des
+choix (génération des positions par rejet, sécurité du roi, disposition des
+boutons flottants) dans `NOTES.md`.
 
 **Phase 3 — deux appareils**
 Seulement si un jeu à information cachée le justifie. Implémenter `webrtcTransport`

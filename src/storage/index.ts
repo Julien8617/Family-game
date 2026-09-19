@@ -211,6 +211,21 @@ export function getHighScore(gameId: string, playerId: string, variant?: string)
   return readScores()[scoreKey(gameId, playerId, variant)] ?? 0;
 }
 
+// Tous les records de (jeu, joueur), un par variant — pour un jeu qui a
+// besoin de connaître plusieurs variants à la fois (spec 06, piece-quiz : un
+// record par palier easy/medium/hard sert à calculer où reprendre). Le shell
+// transmet le résultat tel quel via GameModule.createState options.bestScores
+// (games/types.ts), sans savoir ce qu'un variant signifie.
+export function getAllHighScores(gameId: string, playerId: string): Record<string, number> {
+  const prefix = `${gameId}:${playerId}:`;
+  const scores = readScores();
+  const result: Record<string, number> = {};
+  for (const [key, value] of Object.entries(scores)) {
+    if (key.startsWith(prefix)) result[key.slice(prefix.length)] = value;
+  }
+  return result;
+}
+
 // Met à jour le record si `value` le dépasse, et renvoie le meilleur score
 // après coup (inchangé sinon).
 export function recordScore(gameId: string, playerId: string, value: number, variant?: string): number {

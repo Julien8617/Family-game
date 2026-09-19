@@ -94,8 +94,17 @@ export interface GameModule<S, M> {
 
   // `options` porte le niveau choisi via GameMeta.soloLevels (facultatif) —
   // un jeu sans soloLevels ignore ce 3ᵉ paramètre sans rien changer à sa
-  // signature (players, seed).
-  createState(players: PlayerId[], seed: number, options?: { level?: number }): S;
+  // signature (players, seed). `bestScores` (spec 06) : meilleur score de
+  // chaque variant déjà enregistré pour (ce jeu, ce joueur) — clé opaque pour
+  // le shell (voir storage/index.ts, getAllHighScores), qui la lit et la
+  // transmet sans savoir ce qu'un variant signifie. Sert à un jeu qui a besoin
+  // de reprendre sa progression dès createState plutôt que de la recalculer
+  // ailleurs (piece-quiz : quel niveau rejouer). Les jeux existants l'ignorent.
+  createState(
+    players: PlayerId[],
+    seed: number,
+    options?: { level?: number; bestScores?: Record<string, number> },
+  ): S;
   isValidMove(state: S, move: M): boolean;
   applyMove(state: S, move: M): S;
   currentPlayer(state: S): PlayerId | null;

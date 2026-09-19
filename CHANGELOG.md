@@ -6,6 +6,13 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 
 ## Non publié
 
+- Nouveau jeu : « Où va-t-elle ? », cent niveaux pour apprendre le
+  déplacement des pièces d'échecs. Une pièce posée sur l'échiquier, on
+  touche toutes les cases où elle peut aller, en trois paliers (Facile,
+  Moyen, Difficile) — du pion seul sur un petit plateau vide jusqu'au
+  double pas et à la prise en passant. La progression reprend toute seule
+  là où l'enfant s'est arrêtée ; un petit bouton discret permet de changer
+  de palier.
 - Ouverture de la partie « musique » : une tuile « Musique » dans le menu
   ouvre un sous-menu de mini-jeux. Premier jeu : « Tape avec moi », une
   comptine (« Au clair de la lune », « Frère Jacques », « Ah ! vous

@@ -3,6 +3,7 @@ import type { GameModule, PlayerId, Result } from '../games/types';
 import { play } from '../fx/sound';
 import { createLocalTransport } from '../net/localTransport';
 import type { Player } from '../players/types';
+import { getAllHighScores } from '../storage';
 
 interface GameScreenProps {
   game: GameModule<any, any>;
@@ -39,11 +40,19 @@ const BOT_PAINT_DELAY_MS = 80;
 
 export function GameScreen({ game, players, seed, bot, soloLevel, lossStreak, onGameEnd, onExit }: GameScreenProps) {
   const [transport] = useState(() => createLocalTransport());
+
+  // Qui « tient l'appareil », fixe pour toute la partie — calculé ici (pas
+  // seulement plus bas) parce que createState (options.bestScores) en a
+  // besoin dès l'initialisation de l'état, avant le premier rendu. Contre
+  // l'ordinateur, c'est toujours l'humain (le bot n'est jamais assis devant
+  // l'écran) ; en famille/solo, un repère arbitraire mais stable (players[0]).
+  const localPlayer = bot ? players.find((p) => p.id !== bot.playerId)!.id : players[0].id;
+
   const [state, setState] = useState<any>(() =>
     game.createState(
       players.map((p) => p.id),
       seed,
-      { level: soloLevel },
+      { level: soloLevel, bestScores: getAllHighScores(game.meta.id, localPlayer) },
     ),
   );
   const stateRef = useRef(state);
@@ -120,15 +129,10 @@ export function GameScreen({ game, players, seed, bot, soloLevel, lossStreak, on
   const turnId = game.currentPlayer(state);
   const turnPlayer = players.find((p) => p.id === turnId) ?? players[0];
 
-  // Qui « tient l'appareil », fixe pour toute la partie — pas le joueur au
-  // trait, qui change à chaque coup. Contre l'ordinateur, c'est toujours
-  // l'humain (le bot n'est jamais assis devant l'écran). En famille, l'iPad
-  // se partage : personne n'est plus « local » qu'un autre, donc un repère
-  // arbitraire mais stable (players[0]) — un jeu qui s'en sert pour orienter
-  // son plateau (spec 04) obtient ainsi une orientation fixe, pas une
-  // rotation à chaque tour.
+  // sharedDevice : true seulement en famille (personne n'est plus « local »
+  // qu'un autre sur un appareil partagé) — localPlayer lui-même est calculé
+  // plus haut, avant le premier rendu (createState en a besoin).
   const sharedDevice = !bot;
-  const localPlayer = bot ? players.find((p) => p.id !== bot.playerId)!.id : players[0].id;
 
   // Deux humains autour d'un même iPad, dans un jeu à deux camps orientés :
   // chacun reçoit son propre repère (photo/nom), orienté vers lui, plutôt

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#1E3D34" />
+  <g>
+    <rect x="8" y="8" width="16" height="16" fill="#EDE0C0" />
+    <rect x="24" y="8" width="16" height="16" fill="#2A4A40" />
+    <rect x="40" y="8" width="16" height="16" fill="#EDE0C0" />
+    <rect x="8" y="24" width="16" height="16" fill="#2A4A40" />
+    <rect x="24" y="24" width="16" height="16" fill="#EDE0C0" />
+    <rect x="40" y="24" width="16" height="16" fill="#2A4A40" />
+    <rect x="8" y="40" width="16" height="16" fill="#EDE0C0" />
+    <rect x="24" y="40" width="16" height="16" fill="#2A4A40" />
+    <rect x="40" y="40" width="16" height="16" fill="#EDE0C0" />
+  </g>
+  <!-- Pièce interrogée, case centrale -->
+  <g fill="#F5A623">
+    <circle cx="32" cy="27" r="4.6" />
+    <path d="M28.3 33.5 C28.6 37 27 39.5 25 41 L25 44 L39 44 L39 41 C37 39.5 35.4 37 35.7 33.5 Z" />
+  </g>
+  <!-- Cases accessibles -->
+  <circle cx="16" cy="16" r="3.4" fill="#F5A623" opacity="0.85" />
+  <circle cx="48" cy="48" r="3.4" fill="#F5A623" opacity="0.85" />
+</svg>
