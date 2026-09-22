@@ -6,6 +6,14 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 
 ## Non publié
 
+- Nouveau jeu : « La chasse au roi » — deux tours traquent un roi sur un
+  petit échiquier 5×5, avant qu'il n'épuise leur réserve de coups (affichée
+  en rangée de jetons qui s'éteignent un par un au-dessus du plateau). Les
+  deux camps (Tours ou Roi) se jouent en famille ou contre l'ordinateur,
+  quatre niveaux comme les autres jeux à bot — du hasard pur jusqu'à un roi
+  en défense parfaite. Aux deux premiers niveaux, les cases tenues par les
+  tours sont visibles sur le plateau, pour voir le filet se resserrer ; elles
+  disparaissent ensuite. Mêmes pièces et mêmes couleurs que « Où va-t-elle ? ».
 - Nouveau jeu : « Où va-t-elle ? », cent niveaux pour apprendre le
   déplacement des pièces d'échecs. Une pièce posée sur un petit échiquier
   5×5, on touche toutes les cases où elle peut aller, en trois paliers

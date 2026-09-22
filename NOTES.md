@@ -1820,3 +1820,178 @@ rejouer après un échec.
 - `npm run build`, `npm run lint` et `npm test` (`piece-quiz` + `chess`,
   69 tests) verts. `git diff` : seuls des fichiers de `piece-quiz/` touchés
   cette fois (le socle `src/chess/` n'a pas bougé).
+
+## Spec 07 — « La chasse au roi » (2026-09-23)
+
+Nouveau jeu `king-hunt/` : deux tours traquent un roi sur 5×5, avec un budget
+de coups. S'appuie sur `src/chess/` (géométrie, `reachableSquares`,
+`attackedSquares`, silhouettes, skins) sans y toucher.
+
+**Le bug le plus sérieux évité en le cherchant AVANT d'écrire l'UI.** La
+spec affirme que deux tours attrapent le roi en 12 coups sur 5×5 — une
+affirmation, pas une garantie : sans échec/mat, le roi peut marcher sur
+n'importe quelle case, y compris « contrôlée », et rien n'empêche a priori
+une position de départ où il s'échapperait indéfiniment. Plutôt que
+d'implémenter le budget puis découvrir le problème en testant, j'ai construit
+`logic.ts` + la table résolue de `bot.ts` en premier, puis balayé les 6900
+positions de départ légales (paires de tours × case de roi, tours au trait)
+avec un script jetable (`npx tsx`, supprimé après usage). Résultat : 6834
+positions sont gagnantes pour les tours en jeu parfait (distance max
+observée : **10** coups de tour, budget niveau 4 = 12 — marge confortable),
+et 66 ne le sont pas (roi qui s'échappe indéfiniment ou force la prise d'une
+tour). Vérification supplémentaire : ces 66 positions correspondent
+*exactement* aux positions qu'excluent déjà les deux garanties demandées par
+la spec (roi jamais adjacent à une tour, jamais attaquable au premier coup) —
+`generateStartBoard` ne peut donc jamais produire une position perdante,
+confirmé par balayage exhaustif, pas par échantillonnage.
+
+**Table résolue (niveau 4, « le coq »)** : sur 5×5, deux tours + un roi
+tiennent dans ~14 000 positions (300 paires de cases de tours × 23 cases de
+roi × 2 camps au trait) — assez petit pour résoudre EXACTEMENT par induction
+arrière (même principe qu'une table de finale d'échecs), plutôt que
+d'approximer avec une recherche à profondeur limitée. Implémentation par
+balayages répétés jusqu'à point fixe (`solve()` dans `bot.ts`) plutôt que par
+listes de prédécesseurs : plus simple à prouver correcte (les valeurs ne
+décroissent jamais d'un balayage à l'autre, donc la convergence est garantie)
+et largement assez rapide sur un espace de cette taille (~212 ms mesurés sur
+la machine de développement — **pas mesuré sur l'iPad Air 2 réel, à
+reconfirmer** ; sur un A8X, en comptant un facteur 5-10× plus lent que ce
+desktop, on resterait a priori sous la seconde, mais c'est une estimation, pas
+une mesure). Le calcul est mémoïsé (calculé une fois, réutilisé ensuite) et
+déclenché depuis `Board.tsx` (`warmSolvedTable`, appelée dans un effet de
+montage) plutôt qu'au premier coup du niveau 4 — `bot.ts` reste pur, c'est le
+composant qui décide QUAND lancer le calcul, jamais `logic.ts`/`bot.ts`
+eux-mêmes.
+
+**Niveaux 1 à 3** : plutôt que d'écrire une stratégie séparée pour les tours
+et pour le roi à chaque niveau, un seul `evaluate(state)` signé (positif =
+bon pour le camp au trait, même patron que `chess-race/bot.ts`) sert aux deux
+camps — la mobilité du roi et sa distance au bord sont bonnes pour les tours,
+mauvaises pour le roi, négation immédiate pour l'autre camp. Niveau 2 = 1
+coup d'avance sur cet `evaluate` (plus une préférence explicite pour une
+capture immédiate si possible, cf. plus bas) ; niveau 3 = négamax à
+profondeur fixe (5, puis réduite à 3 après le test de force ci-dessous, pour
+laisser un écart net avec le niveau 4). Testé avant d'écrire quoi que ce
+soit d'autre : sur 200 parties simulées (tours niveau 4 « parfaites », roi
+variable), la moyenne des coups de tour avant capture est strictement
+croissante niveau 2 < 3 < 4, vérifiée sur trois graines de seed indépendantes
+avant de figer les seeds du test définitif — voir `bot.test.ts`.
+
+**Niveau 1 (« l'œuf ») ne cherche jamais une capture** : c'est le seul niveau
+qui applique littéralement « coup légal au hasard » sans la préférence
+« mange une tour s'il peut » des niveaux 2 à 4 — cette dernière est un
+`winningMoveIfAny` partagé (si un coup termine la partie en faveur immédiate
+du camp au trait, le jouer), appliqué aux deux camps de façon générique.
+Trouvé en écrivant le premier jet du test « niveau 1 battable » : avec des
+tours niveau 2 (glouton, pas parfait) en face, un roi niveau 1 gagne parfois
+*par accident* (mobilité aléatoire qui atterrit sur une tour mal défendue) —
+pas un bug, juste la preuve qu'un niveau 2 imparfait ne protège pas toujours
+ses propres tours. Le test isole la faiblesse du roi niveau 1 en le
+confrontant à des tours niveau 4 (parfaites) plutôt qu'à des tours
+imparfaites, pour mesurer la bonne chose.
+
+**Écart de câblage réel entre le contrat et le shell, pas contourné.** Le
+budget (table `LEVEL_BUDGET`, un par niveau de roi) et l'affichage des cases
+contrôlées dépendent du niveau choisi contre l'ordinateur — mais
+`GameScreen.tsx` ne transmet JAMAIS ce niveau à `createState` (seul
+`options.level` existe dans le contrat, et il ne porte que `soloLevels`,
+jamais `bot.level` — voir `GameScreen.tsx:65`, `PlayerPickScreen.tsx:113` qui
+appelle `onConfirm` sans 3ᵉ argument en mode ordinateur). Or la spec de ce
+jeu est explicite : « si tu te retrouves à vouloir toucher au contrat ou au
+shell, arrête-toi et dis-le » — donc pas de changement de `GameScreen.tsx`
+pour ça. Décision : `createState` lit `options?.level` (déjà générique dans
+le type), retombe sur `DEFAULT_LEVEL = 1` (budget 25, cases contrôlées
+affichées) quand il est absent — ce qui, avec le câblage actuel, veut dire
+**toujours**, y compris en choisissant « Le coq » dans le sélecteur de
+niveau. Conséquence concrète, vérifiée en jeu réel (voir plus bas) : le
+budget affiché reste 25/25 et les cases contrôlées restent visibles quel que
+soit le niveau de bot sélectionné à l'écran « Qui joue ? » — seule la vraie
+force du roi (`chooseMove`) varie avec le niveau, elle, puisque
+`GameScreen.tsx` transmet bien le niveau à `chooseMove` à chaque coup. Choix
+du budget par défaut (25, le plus généreux) volontaire : la distance de
+capture forcée maximale sur tout le plateau est 10 (voir plus haut), donc
+25 reste large pour n'importe quel niveau de roi et ne bloque jamais une
+victoire légitime — le sens inverse (un budget par défaut trop serré) aurait
+pu rendre le niveau 4 *injouable* par défaut. Score (`Result.score.variant`)
+et cases contrôlées héritent du même défaut, donc de la même limitation. Le
+débloquer ne prend qu'une ligne, offerte mais pas appliquée : dans
+`GameScreen.tsx`, passer `{ level: soloLevel ?? bot?.level, ... }` au lieu de
+`{ level: soloLevel, ... }` à `createState` — `soloLevel` et `bot?.level` ne
+coexistent jamais pour un même jeu (`GameMeta.soloLevels` et `GameModule.bot`
+ne coexistent jamais non plus), donc ce changement est purement additif et
+sans risque pour les cinq autres jeux.
+
+**Corollaire non demandé mais découvert par la même limitation : « pas de
+score en famille ».** La spec demande explicitement de ne jamais enregistrer
+de score en famille (deux humains, pas d'ordinateur) — mais `getResult(state)`
+n'a accès qu'à `state`, jamais à un indicateur « je joue contre le bot » (ce
+indicateur existe dans le shell, `GameScreen.bot`, jamais transmis à l'état du
+jeu). Plutôt que d'ajouter un champ au contrat pour ça (encore une extension
+non autorisée par cette spec), le score s'attache systématiquement quand les
+tours gagnent, y compris en famille — vérifié en jeu réel : une partie à deux
+joueurs humains affiche bien « Nouveau record ! » en fin de partie. Écart
+assumé et documenté plutôt que masqué ; la même ligne de `GameScreen.tsx`
+proposée ci-dessus (transmettre le niveau réel) ne suffirait pas à elle seule
+à corriger celui-ci — il faudrait en plus que `createState` sache distinguer
+famille et ordinateur, ce qui demanderait un vrai ajout au contrat.
+
+**`piece-quiz/ChessPiece.tsx` dupliqué, pas réutilisé.** Le renderer React
+qui transforme les silhouettes de `src/chess/shapes.ts` en SVG vit dans
+`piece-quiz/` (pas dans `src/chess/`, une asymétrie déjà notée dans
+`ARCHITECTURE.md`). Le critère d'acceptation 2 de cette spec interdit toute
+modification dans les dossiers des jeux existants (donc pas d'import
+`piece-quiz/ChessPiece.tsx` depuis `king-hunt/`, et pas de déplacement vers
+`src/chess/` non plus, puisque ça toucherait l'import de `piece-quiz`). Copie
+conforme dans `king-hunt/ChessPiece.tsx` — même précédent déjà accepté pour
+`chess/skin.ts` (dupliqué depuis `chess-race/pawnSkin.ts`, spec 06).
+
+**Cases contrôlées : premier jet invisible, trouvé en jeu réel.** Premier
+essai : un lavis `bg-piece/20` (crème à 20 % d'opacité) plein la case. En
+testant contre le bot (niveau « Le coq » sélectionné, donc niveau 1 réel vu
+l'écart ci-dessus), un contrôle direct du DOM (`innerHTML.includes('bg-piece/
+20')`) confirmait que l'overlay était bien rendu sur 12 cases — mais
+invisible à l'œil sur les captures d'écran, noyé dans les tons crème/vert
+déjà proches. Corrigé en un petit point plein dans la couleur des tours
+(`rooksColor`, 55 % d'opacité, uniquement sur case vide) — nettement visible
+sur case claire comme foncée, revérifié en jeu réel (position de départ,
+douze cases pointées exactement sur les lignes/colonnes des deux tours,
+aucun point sur les cases hors de portée). Ajouté à la même occasion : les
+pastilles de coup légal (mêmes couleurs/tailles que `chess-race/Board.tsx` —
+point plein pour une case vide, anneau pour une capture) quand une pièce est
+sélectionnée, absentes du premier jet — la spec ne les demandait pas
+explicitement mais `chess-race` (même famille de jeu, tour comprise) les a
+déjà, et rien ne justifiait de s'en priver ici.
+
+**Rangée de budget** : jetons plutôt qu'un nombre (lisible sans savoir lire),
+même technique de bande réservée que `piece-quiz/Board.tsx` (`LevelBadge`) —
+le damier réserve `calc(100% - 44px)` de hauteur plutôt que de superposer la
+rangée en position absolue, pour ne jamais risquer le même chevauchement
+trouvé spec 06. `budgetTotal` pouvant atteindre 25 (niveau par défaut, voir
+plus haut), les jetons sont dimensionnés en `flex-1` avec une largeur
+maximale plutôt qu'une largeur fixe, pour rester groupés et lisibles quel que
+soit le total.
+
+**Testé en jeu réel** (serveur `vite` local + `claude-in-chrome`, même
+protocole que spec 06) : partie complète en famille (deux profils, tours
+puis roi joués à la main, capture du roi, écran de résultat avec confettis et
+score) ; partie contre l'ordinateur niveau « Le coq » des deux côtés (humain
+tours, puis humain roi contre des tours bot colorées dans la couleur bot
+fixe `#52707A` — confirmant que les deux camps sont bien jouables contre
+l'ordinateur sans aucun fichier du shell à modifier, comme annoncé par la
+spec). Rappel valable depuis la session précédente : `resize_window` ne
+change pas la taille réelle du viewport dans cet environnement (toujours
+1440×779 desktop, jamais un vrai portrait iPad/iPhone) — la mise en page
+portrait reste donc à confirmer sur appareil réel, comme pour `piece-quiz`.
+
+**Tests** : `logic.test.ts` (14, dont position de départ jamais adjacente ni
+attaquable sur 200 seeds, budget qui ne décompte qu'aux coups des tours,
+capture du roi qui l'emporte même si elle épuise le budget le même coup, roi
+bloqué par les bords) ; `bot.test.ts` (5 — déterminisme, faisabilité niveau 4
+sur 100 positions tirées au sort avec marge confortable sur le budget, force
+strictement croissante 2 < 3 < 4 sur 200 parties, niveau 1 nettement battable
+face à des tours parfaites). `npm run build`, `npm run lint` et `npm test`
+(232 tests, tout le dépôt) verts. `git status`/`git diff` : seul
+`src/games/registry.ts` touché hors du nouveau dossier `king-hunt/` (une
+ligne d'import + une ligne dans `GAMES`), aucun fichier de `src/shell/` ni
+d'un autre dossier de jeu, `grep -rn "fx/" src/games/king-hunt/` ne retourne
+rien, aucun SVG de pièce nouveau (seule `icon.svg`, la tuile du menu).

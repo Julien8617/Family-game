@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#F2E4C9" />
+  <g fill="#1E3D34">
+    <!-- roi, au centre : couronne simplifiée -->
+    <rect x="27" y="10" width="10" height="12" rx="1.5" />
+    <path d="M22 22 L23.5 15 L27 19 L32 12 L37 19 L40.5 15 L42 22 Z" />
+  </g>
+  <g fill="#52707A">
+    <!-- tour, en bas à gauche -->
+    <path d="M11 46 h4 v-4 h4 v4 h4 v-4 h4 v4 h4 v16 h-20 Z" />
+    <!-- tour, en bas à droite -->
+    <path d="M37 46 h4 v-4 h4 v4 h4 v-4 h4 v4 h4 v16 h-20 Z" />
+  </g>
+</svg>

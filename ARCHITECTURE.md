@@ -155,6 +155,35 @@ src/
                             couleur via chess/skin.ts
       index.ts, icon.svg
       logic.test.ts, generate.test.ts
+    king-hunt/              « la chasse au roi » — deux tours traquent un roi
+                            sur 5×5 avec un budget de coups, la finale
+                            « deux tours contre roi seul » réduite à
+                            l'essentiel (spec 07)
+      logic.ts             pur, testé ; déplacements délégués à
+                            src/chess/ (reachableSquares) ; budget décompté
+                            uniquement aux coups des tours ; position de
+                            départ tirée par rejet (roi jamais adjacent ni
+                            attaquable au premier coup, garantie vérifiée par
+                            balayage exhaustif, voir NOTES.md)
+      bot.ts                pur, quatre niveaux ; le niveau 4 résout la
+                            finale EXACTEMENT par induction arrière (table
+                            mémoïsée, ~14 000 positions sur 5×5) plutôt qu'une
+                            recherche approchée — voir NOTES.md pour la
+                            preuve que toute position de départ générée est
+                            gagnante pour les tours ; chooseMove générique sur
+                            le camp au trait, joue aussi bien les tours que
+                            le roi (colorLabels rend les deux camps
+                            jouables contre l'ordinateur)
+      ChessPiece.tsx        copie volontaire de piece-quiz/ChessPiece.tsx
+                            (dossiers de jeux distincts, voir NOTES.md) —
+                            mêmes silhouettes/skins de src/chess/, inchangées
+      Board.tsx             rendu 5×5, rangée de budget (bande réservée,
+                            même technique que le repère de niveau de
+                            piece-quiz), cases contrôlées par les tours
+                            (niveaux 1-2 seulement) en petit point dans la
+                            couleur des tours
+      index.ts, icon.svg
+      logic.test.ts, bot.test.ts
     rhythm-tap/             « Tape avec moi » — premier jeu du groupe
                             « musique » (GameMeta.groupId), premier jeu de
                             rythme, solo comme sound-memory
@@ -403,6 +432,7 @@ export interface ProgressSignal {
 import { ticTacToe } from './tictactoe';
 import { chessRace } from './chess-race';
 import { connect4 } from './connect4';
+import { kingHunt } from './king-hunt';
 import { rhythmTap } from './rhythm-tap';
 import { soundMemory } from './sound-memory';
 
@@ -413,6 +443,7 @@ export const GAMES: GameModule<any, any>[] = [
   soundMemory,
   rhythmTap,
   pieceQuiz,
+  kingHunt,
 ];
 
 export const GAME_GROUPS: Record<string, { title: string; icon: string }> = {
@@ -422,20 +453,29 @@ export const GAME_GROUPS: Record<string, { title: string; icon: string }> = {
 
 Ajouter un jeu : un dossier, un import, une ligne. Le menu se construit à partir de
 `GAMES`, et la sélection de joueurs lit `minPlayers` / `maxPlayers`. Aucun autre
-fichier du shell ne bouge — confirmé six fois maintenant : l'ajout de
+fichier du shell ne bouge — confirmé sept fois maintenant : l'ajout de
 `chess-race` (spec 04), puis celui d'un bot sur `tictactoe` derrière le même
 contrat `GameModule.bot`, puis l'ajout de `connect4`, puis celui de
 `sound-memory` (premier jeu sans `bot` du tout), puis celui de `rhythm-tap`
-(spec 05, premier jeu regroupé), puis celui de `piece-quiz` (spec 06) n'ont
-touché aucun fichier de `shell/` en dehors de ce registre, de `MenuScreen.tsx`
-(extension additive et générique, voir plus bas) et de `GameScreen.tsx`
-(hissage de `localPlayer` avant `createState`, pour `bestScores`, voir §4).
+(spec 05, premier jeu regroupé), puis celui de `piece-quiz` (spec 06), puis
+celui de `king-hunt` (spec 07, premier jeu à réutiliser `colorLabels` +
+`bot` ensemble pour rendre DEUX camps jouables contre l'ordinateur sans
+aucune extension du contrat) n'ont touché aucun fichier de `shell/` en dehors
+de ce registre, de `MenuScreen.tsx` (extension additive et générique, voir
+plus bas) et de `GameScreen.tsx` (hissage de `localPlayer` avant
+`createState`, pour `bestScores`, voir §4).
 `sound-memory` avait demandé deux extensions additives du contrat lui-même
 (`soloLevels`, `Result.score`) ; `rhythm-tap` n'en a demandé qu'une
 (`GameMeta.groupId`) ; `piece-quiz` en a demandé deux (`createState
 options.bestScores`, puis `GameModule.progressSignal` pour le jeu continu et
 ses effets transitoires — spec 06, retour utilisateur) — pas une exception à
-la règle, juste le contrat qui grandit, voir §4.
+la règle, juste le contrat qui grandit, voir §4. `king-hunt` n'en a demandé
+aucune, mais a buté sur une limite réelle du câblage existant plutôt que du
+contrat lui-même : `GameScreen.tsx` ne transmet jamais le niveau de bot
+choisi à `createState` (seul `options.level` de `soloLevels` y arrive
+aujourd'hui) — `king-hunt` s'en accommode avec un niveau par défaut sûr
+plutôt que de toucher `GameScreen.tsx`, voir NOTES.md pour le détail et la
+ligne de correctif proposée mais pas appliquée.
 
 `GAME_GROUPS` est une table à côté de `GAMES`, pas dans le contrat : un jeu
 avec `groupId: 'music'` est regroupé sous la tuile « Musique » dans
@@ -680,6 +720,25 @@ Moyen/Difficile : plateau ramené à 5×5 partout (était 8×8 à partir du nive
 toutes les trois correctes pour réussir (au lieu de 5 questions à 80 %).
 Détail des choix (génération des positions par rejet, sécurité du roi,
 disposition des boutons flottants, jeu continu) dans `NOTES.md`.
+
+**Phase 2.11 — troisième palier vers les échecs, une vraie finale**
+livré, pas encore testé sur iPad/iPhone réels (spec 07)
+« La chasse au roi » : deux tours traquent un roi sur 5×5 avec un budget de
+coups — la finale « deux tours contre roi seul » (technique de l'escalier)
+réduite à l'essentiel, suite directe du quiz (même socle `src/chess/`, mêmes
+silhouettes et couleurs, aucune modification de `piece-quiz/`). Premier jeu
+à combiner `colorLabels` et `bot` pour rendre DEUX camps jouables contre
+l'ordinateur (les tours ou le roi), sans aucune extension du contrat
+`GameModule` — la spec l'interdisait explicitement. Niveau 4 (« le coq »)
+résout la finale exactement par induction arrière plutôt que par recherche
+approchée (~14 000 positions sur 5×5, table mémoïsée, calcul différé au
+montage de `Board.tsx`) ; vérifié par balayage exhaustif des 6900 positions
+de départ légales que les deux garanties de génération (roi jamais adjacent
+ni attaquable au premier coup) suffisent à exclure toute position perdante
+pour les tours. A buté sur une limite réelle du câblage shell → jeu (niveau
+de bot jamais transmis à `createState`, voir §4 « Le registre ») plutôt que
+sur le contrat lui-même — contournée par un niveau par défaut toujours sûr,
+documentée plutôt que masquée (NOTES.md).
 
 **Phase 3 — deux appareils**
 Seulement si un jeu à information cachée le justifie. Implémenter `webrtcTransport`
