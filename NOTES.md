@@ -1995,3 +1995,290 @@ face à des tours parfaites). `npm run build`, `npm run lint` et `npm test`
 ligne d'import + une ligne dans `GAMES`), aucun fichier de `src/shell/` ni
 d'un autre dossier de jeu, `grep -rn "fx/" src/games/king-hunt/` ne retourne
 rien, aucun SVG de pièce nouveau (seule `icon.svg`, la tuile du menu).
+
+## Spec 07, retour utilisateur : jeu solo, jamais le roi (2026-09-23)
+
+Retour immédiat après la livraison ci-dessus : « le jeu est impossible à
+gagner quand on joue le roi en mode difficile et imbattable ». C'est
+mathématiquement exact, pas un déséquilibre à ajuster — la table résolue de
+`bot.ts` le prouve directement : 6834 positions de départ sur 6900 sont des
+victoires FORCÉES pour les tours en jeu parfait (voir l'entrée précédente).
+Demander à l'enfant de jouer le camp qui perd d'avance contre un adversaire
+parfait n'a pas de sens. Nouvelle demande, claire : jeu solo, on ne joue plus
+que les tours, la difficulté (le niveau du roi) monte en crescendo — et
+« la difficulté offre au roi la possibilité de choisir le meilleur
+déplacement » confirme que l'échelle de niveaux existante (hasard → glouton →
+recherche → table parfaite) était déjà la bonne mécanique, seul le choix du
+camp jouable posait problème. But explicite, cité tel quel : « montrer le mat
+de l'escalier ».
+
+**Conséquence directe, positive** : puisque les tours peuvent TOUJOURS forcer
+une capture (même contre le niveau 4), le problème signalé disparaît
+entièrement en retirant l'option de jouer le roi — il ne s'agissait pas de
+réduire la force du roi, juste de ne plus jamais demander à l'enfant de jouer
+le camp perdant d'avance.
+
+**Refonte** : `GameMeta` perd `colorLabels` et `bot` (plus de choix de camp,
+plus de mode famille/ordinateur), gagne `soloLevels` (même sélecteur visuel,
+mêmes icônes œuf/poussin/poule/coq, `minPlayers`/`maxPlayers` = 1) — même
+famille que `sound-memory`/`rhythm-tap`. Effet de bord bienvenu : `soloLevels`
+transmet réellement le niveau choisi à `createState` (`GameScreen.tsx` le
+fait déjà pour tout jeu solo), ce qui **corrige de fait** l'écart de câblage
+documenté ci-dessus (budget et cases contrôlées ne suivaient pas le niveau
+choisi contre l'ordinateur) — sans toucher au shell, simplement parce que ce
+jeu n'emprunte plus le chemin `bot.level` qui n'était pas câblé, mais le
+chemin `soloLevel` qui l'est depuis toujours.
+
+**Le roi doit continuer à jouer tout seul — comment, sans jamais transmettre
+son coup au shell ?** Le contrat `GameModule` n'a qu'un seul point d'entrée
+pour les coups (`applyMove`, appelé par le shell quand l'enfant tape), et un
+jeu solo n'a pas de second joueur (réel ou bot) à qui le shell puisse
+proposer un tour. Résolu en faisant jouer le roi *à l'intérieur* du même
+`applyMove` que le coup de tour qui vient d'être soumis : une couche
+« manche » (`bot.ts`, `roundApplyMove`) applique le coup de tour de l'enfant
+via `logic.ts`, puis — si la partie n'est pas gagnée — fait immédiatement
+jouer le roi via `chooseMove` (déjà écrit, inchangé), avant de rendre la main.
+Du point de vue du contrat, un seul coup a été joué ; du point de vue de
+l'écran, les deux moitiés du tour (coup de tour, réponse du roi) sont
+visibles au prochain rendu, surlignées séparément (`lastRookMove`/
+`lastKingMove`, deux teintes de la même couleur victoire — voir Board.tsx).
+`logic.ts` (le moteur à deux camps, le solveur, les tests existants) n'a **pas
+changé du tout** : `bot.ts` compose ses fonctions pures depuis l'extérieur,
+sans jamais que `logic.ts` importe `bot.ts` en retour (le sens de dépendance
+reste à sens unique, pas de cycle) — décision prise après avoir sérieusement
+envisagé l'inverse (composite dans `logic.ts`, import de `bot.ts` en retour) ;
+un cycle logic.ts↔bot.ts aurait fonctionné techniquement en ESM (les deux
+fichiers ne se référencent qu'à l'intérieur de corps de fonctions, jamais à
+l'évaluation du module), mais rester à sens unique est plus simple à
+raisonner et n'a rien coûté ici.
+
+**Perdre (budget épuisé, ou une tour croquée) ne termine plus la partie —
+« sur le modèle piece-quiz » (spec 06)** : plutôt que de forcer `Result` à
+représenter une défaite sans second joueur réel à qui l'attribuer (aucun
+`winner` valable à renvoyer), un échec relance directement une position
+fraîche à la même difficulté (`regenerate`, budget remis à neuf) et le signale
+au shell via `GameModule.progressSignal` (`fail: true`, déjà câblé par
+GameScreen.tsx depuis spec 06 — son, tremblement, contour rouge, rien à
+modifier côté shell). Cohérent avec le but pédagogique : l'enfant reste dans
+la boucle d'essai plutôt que de retomber sur un écran de défaite répété.
+`getResult` (exposé au contrat) ne devient donc non-null QUE sur une vraie
+capture du roi — vérifié explicitement par test (« jouée avec des tours
+parfaites, une manche se termine toujours par une vraie victoire, jamais par
+un échec », et à l'inverse un coup imprudent scripté déclenche `attempts+1` +
+signal `fail` exact, jamais un `Result`).
+
+**Score toujours attribué au joueur unique** (`Result.score.variant` = niveau
+choisi, désormais le vrai niveau grâce au correctif de câblage ci-dessus) —
+la limitation « pas de score en famille » documentée dans l'entrée précédente
+disparaît d'elle-même : il n'y a plus de mode famille du tout pour ce jeu.
+
+**Vérifié en jeu réel** : écran « Qui joue ? » n'affiche plus ni le choix
+famille/ordinateur ni « Qui commence ? », juste le profil (présélectionné à
+un seul joueur) et le sélecteur NIVEAU — exactement le patron de
+`sound-memory`. Au niveau « Le coq », le budget affiché est maintenant
+**12/12** dès la première position (preuve visuelle directe que le niveau
+choisi atteint bien `createState`, plus jamais 25 par défaut) et aucune case
+contrôlée n'est affichée (masquées à partir de la poule, comme prévu) ; au
+niveau « L'œuf »/« Le poussin », les cases tenues par les tours restent
+visibles. Une manche entière jouée à la main (imparfaitement — j'ai perdu
+plusieurs tentatives en exposant une tour par imprudence) a bien déclenché la
+relance à chaque échec (budget remis à 12, nouvelle position, aucun écran de
+défaite) puis une victoire authentique dans une tentative suivante. Repère de
+session à noter : `--force` a été nécessaire une fois sur le serveur `vite`
+local pour purger un état de HMR resté incohérent après plusieurs
+restructurations successives de `bot.ts`/`index.ts` dans la même session —
+pas un bug du jeu (un redémarrage propre a suffi), mais worth remembering si
+un menu affiche soudain moins de jeux que prévu en cours de développement.
+
+**Tests** : `logic.test.ts` inchangé (14, toujours valide — le moteur à deux
+camps n'a pas bougé). `bot.test.ts` passe de 5 à 9 tests : les anciens
+(déterminisme du moteur bas niveau, faisabilité, force des niveaux du roi,
+niveau 1 battable) restent tels quels, plus quatre nouveaux pour la couche
+manche (déterminisme de la manche, victoire garantie avec des tours
+parfaites — jamais de relance —, relance + signal d'échec exact sur un coup
+imprudent scripté, rejet d'un coup hors plateau). `npm run build`,
+`npm run lint` et `npm test` (236 tests, tout le dépôt) verts.
+
+## Spec 08 — « Le labyrinthe », moteur et partie à deux
+
+**Géométrie des tuiles, dérivée des SVG fournis plutôt que redevinée.** Les
+trois fichiers (`idée/tuile/`) encodent chacun un tracé de couloir en plus du
+décor de pierre — `tile-straight.svg` : `M50 0 L50 100` (nord/sud à rotation
+0) ; `tile-corner.svg` : `M50 0 L50 50 L100 50` (nord puis est) ;
+`tile-tee.svg` : ligne horizontale pleine + tronçon vers le bas (est/sud/
+ouest, mur au nord). Rotation d'un masque d'ouvertures de 90° = N→E→S→W→N,
+vérifié directement contre ces tracés dans `logic.test.ts` plutôt que supposé.
+Rendues en `<img>` avec `transform: rotate()`, jamais inlinées (les trois SVG
+partagent des `id` de `clipPath` — 49 copies inlinées sur un même plateau se
+marcheraient dessus).
+
+**Orientation des 12 T fixes non-coin : un choix de modélisation, pas une
+règle du jeu réel.** Les 8 en bord de plateau ont un mur tourné vers le bord
+le plus proche (sans ambiguïté). Les 4 tuiles fixes intérieures (au centre de
+chaque quadrant) n'ont pas de bord unique à qui faire face ; départagé par la
+ligne (haut/bas) plutôt que la colonne, arbitrairement mais
+déterministe et symétrique. Purement cosmétique — aucun critère
+d'acceptation n'en dépend, et le jeu ne cherche pas à reproduire position par
+position un plateau Ravensburger existant.
+
+**Trois modes, une seule génération de plateau.** Le plateau (16 fixes, 33
+mobiles + 1 en main, 24 trésors) est généré une fois à `createState`, avant
+même que le mode soit choisi — c'est `chooseMode` qui décide ensuite quels
+trésors (parmi les 24 déjà posés) deviennent des cibles actives, et dans quel
+ordre, via un second flux de hasard salé différemment (`seed ^ 0x2545f491`)
+pour ne dépendre d'aucun détail d'ordre de tirage du plateau. Course : 3
+trésors tirés, partagés, un par un. Partage : 3×N trésors, une file par
+joueur. Solo : 6 trésors, une seule file.
+
+**Règle du retour à la maison (mode course) : interprétation tranchée
+seule.** L'énoncé ne dit pas explicitement si, une fois les 3 trésors trouvés
+(par n'importe quelle combinaison de joueurs), la maison ne compte que pour
+celui qui a pris le 3ᵉ trésor ou pour tout le monde. Choisi : pour tout le
+monde — un compteur partagé (`progress.queue` vide) ouvre la « course au
+retour » à tous les joueurs encore en lice, premier arrivé chez soi gagne.
+Plus fidèle à l'esprit compétitif du mode que de figer un gagnant dès le 3ᵉ
+trésor sans course finale.
+
+**Simplification assumée : le ramassage par décalage ne profite qu'au joueur
+qui décale.** La règle « un trésor est ramassé en arrivant sur sa tuile, y
+compris par un décalage » pourrait en toute rigueur s'appliquer à un pion
+adverse entraîné malgré lui sur sa propre cible par le décalage de quelqu'un
+d'autre — cas réel en mode partage (chaque joueur a sa propre cible). Vérifié
+comme ramassable seulement pour le joueur au trait, jamais pour un adversaire
+« porté » involontairement ce tour-ci. Documenté ici plutôt que testé comme
+règle du jeu, au cas où un retour utilisateur demande l'inverse.
+
+**L'échelle de niveaux proposée dans la spec ne tient pas — mesuré, pas
+supposé, après une session de tuning conséquente.** L'hypothèse de départ
+(« à N coups de son but ») suppose qu'on peut compter combien de tours il
+faudrait pour atteindre une cible. Deux problèmes, découverts dans cet ordre :
+
+1. *Combinatoire.* Un seul coup ouvre déjà ~44-48 plateaux (fentes légales ×
+   rotations). Une vraie recherche à 2 coups doit chiffrer chacun d'eux —
+   ~2000 évaluations, encore raisonnable — mais 3 coups explose à ~90 000,
+   hors budget, et la spec l'anticipait déjà (« aucune recherche profonde
+   n'est nécessaire »).
+2. *La distance de couloir choisie comme proxy ne discrimine presque rien.*
+   Mesuré directement (script de diagnostic, pas une intuition) : sur un tour
+   donné, la distance BFS entre la cible et la meilleure case atteignable
+   après UN décalage vaut 0 (cible atteinte) ou l'infini (cible hors de
+   portée ce tour-ci) dans l'immense majorité des cas — un seul décalage ne
+   restructure jamais assez la connectivité globale pour relier deux zones
+   distantes. Utilisée seule, cette distance ne classe donc quasiment aucun
+   coup mieux qu'un autre.
+
+**Deux corrections qui n'ont PAS marché, mesurées puis abandonnées :**
+- Retomber sur la distance à vol d'oiseau (Manhattan) quand la case n'est pas
+  connectée : toujours fini, mais un glouton qui la minimise se dirige vers
+  des impasses — ~30 % des parties solo ne se terminaient pas en 300 tours.
+- Une vraie recherche à 2 coups (« la case where je pourrai atteindre ma
+  cible au tour suivant ») comme FILTRE excluant les autres coups : mesurée
+  **moins bonne** qu'un simple glouton en test de force (une case prometteuse
+  dans 2 coups n'est presque jamais la même une fois le nouveau décalage et
+  la réponse de l'adversaire passés — le filtre écarte souvent le meilleur
+  coup immédiat au profit d'une promesse qui ne tient pas).
+
+**Ce qui a marché : retomber sur la taille de la zone atteignable, pas sur
+une case précise.** Quand la cible n'est pas connectée, préférer le décalage
+qui laisse le plus de cases accessibles (plutôt que viser une case précise
+par avance) : mesuré à 100 % de parties solo terminées, largement sous le
+PAR — la mobilité est un bien meilleur indicateur que la proximité
+géométrique dans un jeu où un seul décalage ne peut pas garantir un chemin.
+Un bonus additif (jamais un filtre exclusif) qui regarde le meilleur score
+atteignable au tour suivant affine encore ce choix pour les niveaux 3-4, sans
+jamais pouvoir écarter le meilleur coup immédiat.
+
+**Découverte la plus contre-intuitive : un bassin de choix plus étroit joue
+PLUS MAL, y compris pour les niveaux forts.** Attendu : plus un niveau est
+« fort », plus il devrait resserrer son choix vers le strict meilleur coup.
+Mesuré, à plusieurs reprises, avec plusieurs métriques différentes : un
+niveau qui choisit toujours le meilleur coup unique (aucun hasard au-delà du
+départage des égalités) joue *moins bien*, en solo comme en duel, qu'un
+niveau qui pioche au hasard parmi une large sélection de bons coups. Cause la
+plus probable (observée directement une fois en solo, avant correctif) : sur
+ce plateau, plusieurs tuiles sont souvent indiscernables (même forme, même
+rotation, pas de trésor), au point qu'un choix toujours déterministe peut
+rejouer la même fente indéfiniment sans jamais progresser — un vrai blocage
+observé, pas une hypothèse. Retenu : tous les niveaux piochent, y compris le
+coq, dans un bassin large (24 des ~44-48 candidats) des meilleurs coups selon
+leur métrique — la différence entre niveaux vient de la métrique et du bonus
+d'anticipation, jamais de la largeur du bassin.
+
+**Test de force (critère d'acceptation) : méthode revue après mesure, pas
+seulement les seuils.** Un vrai duel (les deux niveaux jouent la même partie,
+à tour de rôle) a été le premier essai, en mode course. Mesuré : dans ce mode,
+gagner tient bien plus au tirage du plateau qu'à la qualité du coup — élargir
+ou resserrer la façon dont un niveau vise n'a presque aucun effet sur qui
+gagne la course (deux joueurs qui visent la même case partagée finissent par
+se neutraliser statistiquement), alors que la même différence de qualité se
+voit très nettement en solo (chaque bot joue sa propre partie, sans
+interférence d'un adversaire qui vise pareil). D'où, dans `bot.test.ts` :
+- Niveaux 1→2 et 2→3 : comparaison **appariée** — sur 200 plateaux de départ
+  identiques, quel niveau termine sa quête solo en moins de décalages.
+  Jamais un vrai duel entre ces niveaux, jamais fiable pour ce qu'on cherche
+  à montrer.
+- Niveau 3→4 : vrai duel, mais en mode **partage** (chaque joueur a sa propre
+  quête) plutôt qu'en course. C'est le seul endroit où une différence de
+  niveau s'est révélée franchement décisive (le coq y bat la poule dans
+  l'ordre de 85 % des parties non nulles) : bloquer un adversaire qui allait
+  gagner ne coûte rien à sa propre quête indépendante, contrairement au mode
+  course où gêner l'adversaire gêne souvent tout autant sa propre route vers
+  la même case.
+
+**Chronométrage du tour du coq**, mesuré sur la machine de développement (pas
+l'iPad — à revérifier sur l'appareil réel) : ~16,6 ms en moyenne, ~49 ms au
+pire sur 200 coups simulés. Un A8X (iPad Air 2, 2015) est très
+approximativement 10-20× plus lent en simple thread qu'un PC de développement
+récent — extrapolation grossière autour de 150-500 ms, potentiellement à la
+limite du budget de 500 ms annoncé dans la spec. À revérifier en conditions
+réelles avant de considérer le budget tenu.
+
+**PAR solo laissé à 40 (valeur de départ suggérée par la spec), jamais
+resserré.** Test de faisabilité (100 seeds, niveau le plus fort) : 100/100
+parties terminées, score positif (donc sous le PAR) dans au moins 90/100 —
+largement dans la marge, la moyenne mesurée tourne autour de 25-30 décalages
+selon la métrique retenue. Desserrer n'a jamais été nécessaire ; resserrer
+n'a pas été tenté (le solo n'était pas la partie fragile de cette spec).
+
+**Mise en page de l'en-tête (tuile en main, bouton Chemin) : compromis
+largeur/hauteur pas encore validé sur l'appareil réel.** Le patron existant
+(king-hunt, piece-quiz) réserve une bande de hauteur fixe au-dessus d'une
+grille qui se recadre en carré — very bien pour une grille 5×5, qui a de la
+marge. Sur l'écran étroit de l'iPhone, chaque pixel de hauteur réservée est un
+pixel de LARGEUR perdu pour la grille 7×7 une fois recadrée en carré : une
+bande de 64 px ramène des cases d'environ 49 px (calcul de la spec, grille
+pleine largeur) à environ 40-42 px. Choisi : bande compacte (64 px) plutôt
+que la ~90 px qu'un vrai gros pavé « tuile + bouton » aurait demandé, et zones
+tactiles du bouton/tuile élargies par le remplissage du bouton plutôt que par
+l'image — reste un compromis à confirmer les doigts sur l'écran, pas une
+certitude de conception.
+
+**Vérifié en navigateur (pas encore sur iPad/iPhone réels) :** partie solo
+jouée à la main jusqu'à plusieurs tours (rotation, choix de fente avec
+aperçu, fente interdite visiblement grisée, tuile expulsée devenant la
+nouvelle tuile en main, ramassage de trésor) ; écran de sélection de mode
+filtré par nombre de sièges (1 → solo seul, 2 → course/partage seuls) ;
+écran de répartition (mode partage) qui révèle les trésors un par un avant de
+rendre la main ; une manche contre l'ordinateur (niveau le plus fort) où le
+coup du bot s'enchaîne automatiquement sans erreur console. Aucune des trois
+animations décrites dans la spec (décalage visible, pion qui parcourt son
+chemin case par case) n'est implémentée pour l'instant — le plateau se
+redessine directement dans son état final, sans transition. Traité comme un
+raffinement pour après le premier essai réel, pas un blocage : rien dans le
+contrat ni les critères d'acceptation n'exige l'animation elle-même, seulement
+que le décalage « se voie ».
+
+**Icônes de trésors non attribuées**, comme les trois autres lots Flaticon
+déjà vendorisés (voir ARCHITECTURE.md §10) — `src/vendor/maze-treasures/
+LICENSE.md` porte la même mention « à compléter » que les autres.
+
+**Tests** : `logic.ts` (18 tests — géométrie des tuiles contre les tracés SVG,
+décalage dans les quatre sens avec réapparition en bordure, tuile expulsée
+devenant la tuile en main, fente de retour immédiat interdite, connectivité
+BFS sur un plateau connu, ramassage par déplacement et par décalage, victoire
+refusée avant le retour à la maison, cohérence du plateau sur 500 seeds,
+pureté d'`applyMove` sur un state gelé) et `bot.ts` (6 tests — déterminisme,
+force des niveaux selon la méthode ci-dessus, faisabilité solo sur 100
+seeds). `npm run build`, `npm run lint` et `npm test` (260 tests, tout le
+dépôt) verts. `git diff` hors `src/games/maze/`, `src/vendor/maze-*/` et la
+ligne de `registry.ts` : vide.

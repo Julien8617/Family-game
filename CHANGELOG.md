@@ -6,14 +6,27 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 
 ## Non publié
 
-- Nouveau jeu : « La chasse au roi » — deux tours traquent un roi sur un
-  petit échiquier 5×5, avant qu'il n'épuise leur réserve de coups (affichée
-  en rangée de jetons qui s'éteignent un par un au-dessus du plateau). Les
-  deux camps (Tours ou Roi) se jouent en famille ou contre l'ordinateur,
-  quatre niveaux comme les autres jeux à bot — du hasard pur jusqu'à un roi
-  en défense parfaite. Aux deux premiers niveaux, les cases tenues par les
-  tours sont visibles sur le plateau, pour voir le filet se resserrer ; elles
-  disparaissent ensuite. Mêmes pièces et mêmes couleurs que « Où va-t-elle ? ».
+- Nouveau jeu : « Le labyrinthe » — un plateau 7×7 de tuiles-couloirs qu'on
+  décale à chaque tour (une tuile en main, tournée puis glissée dans une
+  fente), pour aller chercher des trésors avant de rentrer chez soi. Trois
+  façons de jouer : la course (tout le monde vise le même trésor), le
+  partage (trois trésors chacun) et le solo (six trésors, le moins de
+  décalages possible — un score comme la mémoire sonore). Un bouton
+  « Chemin » montre à tout moment les cases accessibles. Contre l'ordinateur,
+  quatre niveaux (œuf/poussin/poule/coq) comme les autres jeux à bot ; le
+  coq est le seul à gêner activement un adversaire sur le point de gagner.
+  Pas encore joué sur iPad/iPhone réels.
+- Nouveau jeu : « La chasse au roi » — jeu solo, on y joue toujours les tours,
+  qui traquent un roi sur un petit échiquier 5×5 avant d'épuiser leur réserve
+  de coups (affichée en rangée de jetons qui s'éteignent un par un au-dessus
+  du plateau). Quatre niveaux, du hasard pur jusqu'à un roi en défense
+  parfaite — la difficulté monte en même temps que la technique à démontrer
+  (le mat de l'escalier) devient exigeante. Perdre (budget épuisé, ou une
+  tour croquée) ne montre pas d'écran de défaite : une nouvelle position se
+  tire aussitôt, à la même difficulté. Aux deux premiers niveaux, les cases
+  tenues par les tours sont visibles sur le plateau, pour voir le filet se
+  resserrer ; elles disparaissent ensuite. Mêmes pièces et mêmes couleurs que
+  « Où va-t-elle ? ».
 - Nouveau jeu : « Où va-t-elle ? », cent niveaux pour apprendre le
   déplacement des pièces d'échecs. Une pièce posée sur un petit échiquier
   5×5, on touche toutes les cases où elle peut aller, en trois paliers

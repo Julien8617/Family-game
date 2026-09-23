@@ -1,4 +1,5 @@
 import type { GameModule } from '../types';
+import { chooseMove } from './bot';
 import eggIcon from '../../vendor/chess-race-levels/egg-static.gif';
 import eggIconAnimated from '../../vendor/chess-race-levels/egg-animated.gif';
 import chickIcon from '../../vendor/chess-race-levels/chick-static.gif';
@@ -7,46 +8,33 @@ import henIcon from '../../vendor/chess-race-levels/hen-static.gif';
 import henIconAnimated from '../../vendor/chess-race-levels/hen-animated.gif';
 import roosterIcon from '../../vendor/chess-race-levels/rooster-static.gif';
 import roosterIconAnimated from '../../vendor/chess-race-levels/rooster-animated.gif';
-import {
-  createRoundState,
-  roundApplyMove,
-  roundCurrentPlayer,
-  roundGetResult,
-  roundIsValidMove,
-  roundProgressSignal,
-} from './bot';
-import type { KingHuntRoundState } from './bot';
 import { Board } from './Board';
 import icon from './icon.svg';
-import type { KingHuntMove } from './logic';
+import { applyMove, createState, currentPlayer, getResult, isValidMove } from './logic';
+import type { MazeMove, MazeState } from './logic';
 
-// Jeu solo (spec 07, revu après retour utilisateur) : on joue toujours les
-// tours, jamais le roi — jouer le roi contre un niveau fort n'a pas de vraie
-// chance (la finale deux-tours-contre-roi est gagnée d'avance pour les tours
-// en jeu parfait, voir bot.ts/NOTES.md). Le sélecteur « NIVEAU » choisit la
-// force du roi qui répond tout seul, du hasard pur (l'œuf) à la défense
-// parfaite (le coq) — la difficulté monte en même temps que le but
-// pédagogique (montrer le mat de l'escalier) devient exigeant.
-export const kingHunt: GameModule<KingHuntRoundState, KingHuntMove> = {
+export const maze: GameModule<MazeState, MazeMove> = {
   meta: {
-    id: 'king-hunt',
-    title: 'La chasse au roi',
+    id: 'maze',
+    title: 'Le labyrinthe',
     icon,
     minPlayers: 1,
-    maxPlayers: 1,
+    maxPlayers: 2,
     supportsRemote: false,
-    soloLevels: [
+  },
+  createState: (players, seed) => createState(players, seed),
+  isValidMove,
+  applyMove,
+  currentPlayer,
+  getResult,
+  Board,
+  bot: {
+    levels: [
       { id: 1, label: "L'œuf", icon: eggIcon, animatedIcon: eggIconAnimated },
       { id: 2, label: 'Le poussin', icon: chickIcon, animatedIcon: chickIconAnimated },
       { id: 3, label: 'La poule', icon: henIcon, animatedIcon: henIconAnimated },
       { id: 4, label: 'Le coq', icon: roosterIcon, animatedIcon: roosterIconAnimated },
     ],
+    chooseMove,
   },
-  createState: createRoundState,
-  isValidMove: roundIsValidMove,
-  applyMove: roundApplyMove,
-  currentPlayer: roundCurrentPlayer,
-  getResult: roundGetResult,
-  progressSignal: roundProgressSignal,
-  Board,
 };

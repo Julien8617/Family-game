@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { applyMove, createState, getResult, LEVEL_BUDGET } from './logic';
-import type { KingHuntState } from './logic';
-import { chooseMove, forcedCaptureDistance } from './bot';
+import { allLegalMoves, applyMove, createState, extractPositions, getResult, LEVEL_BUDGET, SIZE } from './logic';
+import type { KingHuntMove, KingHuntState } from './logic';
+import {
+  chooseMove,
+  createRoundState,
+  forcedCaptureDistance,
+  roundApplyMove,
+  roundGetResult,
+  roundIsValidMove,
+  roundProgressSignal,
+} from './bot';
+import type { KingHuntRoundState } from './bot';
 
 const ROOKS = 'rooksPlayer';
 const KING = 'kingPlayer';
@@ -103,5 +112,92 @@ describe('niveau 1 — battable sans stratégie', () => {
       total += rookMoves;
     }
     expect(total / GAMES).toBeLessThan(LEVEL_BUDGET[1] / 2);
+  });
+});
+
+// ---- manche solo (spec 07, retour utilisateur) ----
+//
+// On ne joue plus jamais le roi : jouer contre un niveau fort était
+// structurellement invivable (la finale est gagnée d'avance pour des tours
+// parfaites, voir les tests ci-dessus). La manche solo expose une seule
+// décision par tour — un coup de tour — et résout la réponse du roi et un
+// éventuel échec (relance) à l'intérieur du même roundApplyMove.
+
+const HUMAN = 'child';
+
+// Coup de tour délibérément imprudent : fonce vers le roi sans jamais le
+// prendre (exclu du choix), pour vérifier le chemin d'échec (budget
+// épuisé ou tour croquée) — jamais une vraie victoire par accident.
+function recklessRookMove(position: KingHuntState): KingHuntMove {
+  const king = extractPositions(position.board)!.king;
+  const kingRow = Math.floor(king / SIZE);
+  const kingCol = king % SIZE;
+  let best: KingHuntMove | null = null;
+  let bestDist = Infinity;
+  for (const move of allLegalMoves(position)) {
+    if (move.to === king) continue; // jamais la capture, pour isoler le chemin d'échec
+    const row = Math.floor(move.to / SIZE);
+    const col = move.to % SIZE;
+    const dist = Math.abs(row - kingRow) + Math.abs(col - kingCol);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = move;
+    }
+  }
+  return best ?? allLegalMoves(position)[0];
+}
+
+describe('manche solo', () => {
+  it('déterminisme : même seed et même suite de coups produisent exactement la même manche, deux fois', () => {
+    function play(): KingHuntRoundState {
+      let state = createRoundState([HUMAN], 999, { level: 2 });
+      for (let i = 0; i < 10 && !roundGetResult(state); i++) {
+        state = roundApplyMove(state, chooseMove(state.position, 4));
+      }
+      return state;
+    }
+    expect(play()).toEqual(play());
+  });
+
+  it('jouée avec des tours parfaites, une manche se termine toujours par une vraie victoire, jamais par un échec', () => {
+    for (const level of [1, 2, 3, 4]) {
+      let state = createRoundState([HUMAN], level * 4242 + 1, { level });
+      for (let steps = 0; steps < 20 && !roundGetResult(state); steps++) {
+        const before = state.attempts;
+        state = roundApplyMove(state, chooseMove(state.position, 4));
+        expect(state.attempts).toBe(before); // jamais de relance quand les tours jouent parfaitement
+      }
+      const result = roundGetResult(state);
+      expect(result?.kind).toBe('win');
+      if (result?.kind === 'win') {
+        expect(result.winner).toBe(HUMAN);
+        expect(result.score?.value).toBeGreaterThanOrEqual(0);
+        expect(result.score?.variant).toBe(String(level));
+      }
+    }
+  });
+
+  it("un coup de tour imprudent déclenche un échec (jamais un vrai Result) : nouvelle position, signal d'échec exact", () => {
+    let state = createRoundState([HUMAN], 7, { level: 4 });
+    let sawFail = false;
+    for (let i = 0; i < 30 && !sawFail; i++) {
+      const prev = state;
+      state = roundApplyMove(state, recklessRookMove(prev.position));
+      expect(roundGetResult(state)).toBeNull(); // un échec ne se voit jamais comme fin de partie
+      const signal = roundProgressSignal(prev, state);
+      if (state.attempts > prev.attempts) {
+        sawFail = true;
+        expect(signal).toEqual({ player: HUMAN, fail: true });
+      } else {
+        expect(signal).toBeNull();
+      }
+    }
+    expect(sawFail).toBe(true);
+  });
+
+  it('roundIsValidMove refuse un coup hors plateau', () => {
+    const state = createRoundState([HUMAN], 3, { level: 1 });
+    expect(roundIsValidMove(state, { from: -1, to: 0 })).toBe(false);
+    expect(roundIsValidMove(state, { from: 0, to: 0 })).toBe(false);
   });
 });

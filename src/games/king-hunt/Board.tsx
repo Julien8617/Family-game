@@ -4,8 +4,9 @@ import { attackedSquares } from '../../chess/attacks';
 import { ChessPiece } from './ChessPiece';
 import { pieceSkin } from '../../chess/skin';
 import { warmSolvedTable } from './bot';
+import type { KingHuntRoundState } from './bot';
 import { CONTROLLED_SQUARES_VISIBLE_MAX_LEVEL, legalMovesFrom, SIZE } from './logic';
-import type { KingHuntMove, KingHuntState } from './logic';
+import type { KingHuntMove } from './logic';
 
 // Rangée haute réservée (budget) : même principe que piece-quiz/Board.tsx
 // (LevelBadge) — le plateau réserve explicitement cette hauteur plutôt que
@@ -17,47 +18,52 @@ const RESERVED_HEADER_PX = 44;
 // 07 : « quand il reste trois coups, la rangée se teinte d'alerte »).
 const LOW_BUDGET_THRESHOLD = 3;
 
-export function Board({ state, players, onMove }: BoardProps<KingHuntState, KingHuntMove>) {
+export function Board({ state, players, onMove }: BoardProps<KingHuntRoundState, KingHuntMove>) {
   const [selected, setSelected] = useState<number | null>(null);
+  const position = state.position;
 
   // Nouvelle référence de state = un coup vient d'être appliqué (le shell
   // ignore les coups invalides sans changer l'état) — même patron que
-  // chess-race/Board.tsx.
+  // chess-race/Board.tsx. Vaut aussi pour un échec : roundApplyMove (bot.ts)
+  // relance une position fraîche dans le même appel, donc `state` change ici
+  // exactement comme pour un coup accepté normal.
   useEffect(() => {
     setSelected(null);
   }, [state]);
 
   // Précalcule la table résolue du niveau 4 avant qu'elle ne soit vraiment
-  // nécessaire (premier coup du roi) — bot.ts reste pur, c'est ce montage-ci
-  // qui décide QUAND (voir bot.ts, warmSolvedTable). Sans effet si la partie
-  // ne joue jamais au niveau 4.
+  // nécessaire (premier coup du roi, qui répond dès le tout premier coup des
+  // tours maintenant que la partie est solo) — bot.ts reste pur, c'est ce
+  // montage-ci qui décide QUAND (voir bot.ts, warmSolvedTable).
   useEffect(() => {
     warmSolvedTable();
   }, []);
 
-  const [rooksId] = state.players;
+  const rooksId = position.players[0];
   const rooksColor = players.find((p) => p.id === rooksId)?.color ?? '#52707A';
   const kingSkin = pieceSkin('enemy', rooksColor);
   const rooksSkin = pieceSkin('own', rooksColor);
 
-  const activeSide = state.turn === 'rooks' ? 'own' : 'enemy';
-  const legalTargets = selected !== null ? legalMovesFrom(state, selected) : [];
+  // Toujours aux tours de jouer quand le plateau est affiché : le roi répond
+  // tout seul à l'intérieur du même coup (roundApplyMove, bot.ts) — jamais un
+  // tour visible à part pour l'enfant, donc rien à distinguer ici.
+  const legalTargets = selected !== null ? legalMovesFrom(position, selected) : [];
 
   const showControlled = state.level <= CONTROLLED_SQUARES_VISIBLE_MAX_LEVEL;
-  const controlledSquares = showControlled ? attackedSquares(state.board, SIZE, 'own') : null;
+  const controlledSquares = showControlled ? attackedSquares(position.board, SIZE, 'own') : null;
 
   function handleTap(cell: number) {
-    const occupant = state.board[cell];
+    const occupant = position.board[cell];
 
     if (selected === null) {
-      if (occupant?.side === activeSide) setSelected(cell);
+      if (occupant?.side === 'own') setSelected(cell);
       return;
     }
     if (cell === selected) {
       setSelected(null);
       return;
     }
-    if (occupant?.side === activeSide) {
+    if (occupant?.side === 'own') {
       setSelected(cell);
       return;
     }
@@ -69,7 +75,7 @@ export function Board({ state, players, onMove }: BoardProps<KingHuntState, King
 
   return (
     <div className="relative flex h-full w-full flex-col items-center">
-      <BudgetRow total={state.budgetTotal} left={state.budgetLeft} />
+      <BudgetRow total={position.budgetTotal} left={position.budgetLeft} />
       <div
         className="mt-2 grid overflow-hidden rounded-3xl shadow-[0_6px_0_0_rgba(0,0,0,0.25)]"
         style={{
@@ -83,9 +89,13 @@ export function Board({ state, players, onMove }: BoardProps<KingHuntState, King
           cols.map((col) => {
             const cell = row * SIZE + col;
             const isLight = (row + col) % 2 === 0;
-            const piece = state.board[cell];
+            const piece = position.board[cell];
             const isSelected = selected === cell;
-            const isLastMove = state.lastMove !== null && (state.lastMove.from === cell || state.lastMove.to === cell);
+            const isLastRookMove =
+              state.lastRookMove !== null && (state.lastRookMove.from === cell || state.lastRookMove.to === cell);
+            const isLastKingMove =
+              state.lastKingMove !== null && (state.lastKingMove.from === cell || state.lastKingMove.to === cell);
+            const isLastMove = isLastRookMove || isLastKingMove;
             // Case tenue par les tours (spec 07) : un aplat plein dans la
             // couleur des tours se voit sur case claire comme foncée — un
             // lavis crème à 20 % (première version) était quasiment invisible
@@ -101,7 +111,12 @@ export function Board({ state, players, onMove }: BoardProps<KingHuntState, King
                 onClick={() => handleTap(cell)}
                 className={`relative flex items-center justify-center ${isLight ? 'bg-squareLight' : 'bg-squareDark'}`}
               >
-                {isLastMove && <span className="absolute inset-0 bg-victory/35" />}
+                {/* Coup des tours et réponse du roi surlignés séparément (deux
+                    teintes de la même couleur victoire) : l'enfant voit les
+                    deux moitiés du coup qui vient de se jouer, pas seulement
+                    la réponse du roi qui écraserait sinon la sienne. */}
+                {isLastRookMove && <span className="absolute inset-0 bg-victory/35" />}
+                {isLastKingMove && <span className="absolute inset-0 bg-victory/20" />}
                 {isControlled && !isLastMove && (
                   <span className="absolute h-2.5 w-2.5 rounded-full" style={{ backgroundColor: rooksColor, opacity: 0.55 }} />
                 )}

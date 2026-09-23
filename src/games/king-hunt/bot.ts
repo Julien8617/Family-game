@@ -1,4 +1,4 @@
-import type { PlayerId } from '../types';
+import type { PlayerId, ProgressSignal, Result } from '../types';
 import { createEmptyBoard } from '../../chess/pieces';
 import {
   allLegalMoves,
@@ -6,16 +6,20 @@ import {
   createState,
   extractPositions,
   getResult,
+  isValidMove,
   SIZE,
 } from './logic';
 import type { KingHuntMove, KingHuntState } from './logic';
 
-// Adversaire artificiel à quatre niveaux (spec 07). Pur et déterministe
-// (CLAUDE.md règle 3, ARCHITECTURE.md invariant 6) : chooseMove ne lit ni
-// l'horloge ni Math.random(), et gère indifféremment les tours ou le roi
-// selon state.turn — les deux camps sont jouables contre l'ordinateur
-// (GameMeta.colorLabels, voir index.ts), donc ce fichier ne peut pas se
-// permettre de ne savoir jouer qu'un seul camp.
+// Adversaire artificiel à quatre niveaux (spec 07, revu solo-tours après
+// retour utilisateur : jouer le roi contre un niveau fort est structurellement
+// invivable, la finale « deux tours contre roi » est gagnée d'avance pour les
+// tours en jeu parfait — voir NOTES.md). Pur et déterministe (CLAUDE.md règle
+// 3, ARCHITECTURE.md invariant 6) : chooseMove ne lit ni l'horloge ni
+// Math.random(). Reste générique sur le camp au trait (utile aux tests, qui
+// simulent aussi un « joueur de tours parfait ») même si en jeu réel seul le
+// roi est jamais piloté par ce fichier — voir la couche « manche » plus bas,
+// seule exposée au contrat GameModule (index.ts).
 
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -428,3 +432,132 @@ export function chooseMove(state: KingHuntState, level: number): KingHuntMove {
 
 // Réexporté pour bot.test.ts (déterminisme/force) sans dupliquer createState.
 export { createState as createStateForTest };
+
+// ---- la manche solo — seule couche exposée au contrat GameModule ----
+//
+// `logic.ts` modélise la finale à deux camps (utile au solveur et aux tests
+// ci-dessus) ; ce qu'affronte réellement l'enfant est différent : elle joue
+// toujours les tours, le roi répond tout seul au niveau choisi, et perdre
+// (budget épuisé, ou une tour croquée) relance directement une nouvelle
+// position à la même difficulté plutôt que d'afficher un écran de défaite —
+// même esprit que piece-quiz (spec 06) : un échec fait recommencer, pas
+// terminer, jusqu'à la vraie capture du roi (voir GameModule.progressSignal
+// et NOTES.md). `logic.ts` reste inchangé : ce fichier compose ses fonctions
+// pures avec chooseMove ci-dessus sans jamais que logic.ts importe bot.ts
+// (le sens de dépendance reste à sens unique).
+
+// Identifiant interne du roi — jamais un vrai joueur, jamais transmis au
+// shell (pas de photo/nom à chercher pour lui : Board.tsx colore le roi via
+// chess/skin.ts, pas via un Player). Distinct de shell/bot.ts (BOT_PLAYER_ID)
+// : ce jeu n'a plus de mode « contre l'ordinateur » au sens du contrat
+// (GameModule.bot), donc pas de faux Player à faire créer par le shell.
+export const KING_ID: PlayerId = '__king__';
+
+export interface KingHuntRoundState {
+  position: KingHuntState;
+  level: number;
+  // Nombre de fois où le roi a déjà pris l'avantage (tour croquée ou budget
+  // épuisé) et où une nouvelle position a été tirée — lu par
+  // roundProgressSignal pour savoir QUAND signaler un échec transitoire.
+  attempts: number;
+  seed: number;
+  // Dernier coup des tours et du roi dans la manche EN COURS (tous deux
+  // appliqués par le même roundApplyMove, voir plus bas) — deux repères
+  // distincts plutôt qu'un seul `lastMove` écrasé par le second, pour que
+  // Board.tsx puisse montrer les deux à l'enfant, pas seulement la réponse
+  // du roi. Remis à null à chaque nouvelle position (regenerate).
+  lastRookMove: KingHuntMove | null;
+  lastKingMove: KingHuntMove | null;
+}
+
+function freshPosition(human: PlayerId, seed: number, level: number): KingHuntState {
+  return createState([human, KING_ID], seed, { level });
+}
+
+export function createRoundState(
+  players: PlayerId[],
+  seed: number,
+  options?: { level?: number },
+): KingHuntRoundState {
+  const [human] = players as [PlayerId];
+  const level = options?.level ?? 1;
+  return {
+    position: freshPosition(human, seed, level),
+    level,
+    attempts: 0,
+    seed,
+    lastRookMove: null,
+    lastKingMove: null,
+  };
+}
+
+export function roundIsValidMove(state: KingHuntRoundState, move: KingHuntMove): boolean {
+  return isValidMove(state.position, move);
+}
+
+// Dérive une graine pour la position suivante à partir de la graine de
+// manche et du nombre d'essais déjà consommés — déterministe (CLAUDE.md
+// règle 3), jamais Math.random(), même patron que pickAmong ci-dessus.
+function nextAttemptSeed(seed: number, attempts: number): number {
+  return (seed ^ ((attempts + 1) * 0x9e3779b9)) >>> 0;
+}
+
+export function roundApplyMove(state: KingHuntRoundState, move: KingHuntMove): KingHuntRoundState {
+  const human = state.position.players[0];
+  let position = applyMove(state.position, move);
+  let result = getResult(position);
+
+  if (result) {
+    if (result.kind === 'win' && result.winner === human) {
+      // Vraie capture du roi : la manche s'arrête ici pour de bon.
+      return { ...state, position, lastRookMove: move, lastKingMove: null };
+    }
+    // Budget épuisé par ce coup-ci, sans capture : le roi « gagne » —
+    // relance une position fraîche au lieu d'exposer cette fin de partie.
+    return regenerate(state);
+  }
+
+  const kingMove = chooseMove(position, state.level);
+  position = applyMove(position, kingMove);
+  result = getResult(position);
+
+  if (result) {
+    // Seule issue possible ici (voir chooseMove/getResult) : le roi vient de
+    // croquer une tour non protégée. Même traitement : on relance.
+    return regenerate(state);
+  }
+
+  return { ...state, position, lastRookMove: move, lastKingMove: kingMove };
+}
+
+function regenerate(state: KingHuntRoundState): KingHuntRoundState {
+  const attempts = state.attempts + 1;
+  const human = state.position.players[0];
+  const seed = nextAttemptSeed(state.seed, state.attempts);
+  return {
+    position: freshPosition(human, seed, state.level),
+    level: state.level,
+    attempts,
+    seed: state.seed,
+    lastRookMove: null,
+    lastKingMove: null,
+  };
+}
+
+export function roundGetResult(state: KingHuntRoundState): Result | null {
+  return getResult(state.position);
+}
+
+export function roundCurrentPlayer(state: KingHuntRoundState): PlayerId | null {
+  return roundGetResult(state) ? null : state.position.players[0];
+}
+
+// Spec 07 (retour utilisateur) : un échec ne termine pas la partie, il la
+// relance — le shell le voit comme un signal transitoire (son, tremblement,
+// contour rouge, déjà câblés depuis spec 06/GameScreen.tsx, rien à y
+// modifier) plutôt que comme une fin de partie. Détecté en comparant
+// `attempts` avant/après, pas en inspectant le contenu du coup joué.
+export function roundProgressSignal(prev: KingHuntRoundState, next: KingHuntRoundState): ProgressSignal | null {
+  if (next.attempts > prev.attempts) return { player: next.position.players[0], fail: true };
+  return null;
+}

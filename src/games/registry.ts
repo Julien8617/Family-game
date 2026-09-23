@@ -2,6 +2,7 @@ import type { GameModule } from './types';
 import { chessRace } from './chess-race';
 import { connect4 } from './connect4';
 import { kingHunt } from './king-hunt';
+import { maze } from './maze';
 import { pieceQuiz } from './piece-quiz';
 import { rhythmTap } from './rhythm-tap';
 import { soundMemory } from './sound-memory';
@@ -16,6 +17,7 @@ export const GAMES: GameModule<any, any>[] = [
   rhythmTap,
   pieceQuiz,
   kingHunt,
+  maze,
 ];
 
 // Table de groupes (spec 05) : un jeu déclare GameMeta.groupId, MenuScreen
