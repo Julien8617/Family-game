@@ -7,17 +7,16 @@ import { TREASURE_ICONS } from './treasures';
 import tileStraight from '../../vendor/maze-tiles/tile-straight.svg';
 import tileCorner from '../../vendor/maze-tiles/tile-corner.svg';
 import tileTee from '../../vendor/maze-tiles/tile-tee.svg';
-import pathIcon from './path-icon.svg';
 
 // Indexé par Shape (logic.ts : STRAIGHT=0, CORNER=1, TEE=2).
 const TILE_IMAGES = [tileStraight, tileCorner, tileTee];
 
-// Bande réservée en haut du plateau (tuile en main + bouton Chemin) — même
-// principe que king-hunt/piece-quiz (hauteur explicitement réservée, jamais
-// une superposition en position absolue qui risquerait de chevaucher une
-// case). Volontairement compacte : sur iPhone, chaque pixel de hauteur pris
-// ici est un pixel de LARGEUR perdu pour la grille 7×7 une fois celle-ci
-// recadrée en carré (voir NOTES.md) — à revalider sur l'appareil réel.
+// Bande réservée en haut du plateau (tuile en main + objectifs des joueurs)
+// — même principe que king-hunt/piece-quiz (hauteur explicitement réservée,
+// jamais une superposition en position absolue qui risquerait de chevaucher
+// une case). Volontairement compacte : sur iPhone, chaque pixel de hauteur
+// pris ici est un pixel de LARGEUR perdu pour la grille 7×7 une fois
+// celle-ci recadrée en carré (voir NOTES.md) — à revalider sur l'appareil réel.
 const RESERVED_HEADER_PX = 64;
 
 const REVEAL_STEP_MS = 900;
@@ -46,6 +45,11 @@ const WALK_STEP_MS = Math.round(220 / 0.6);
 // montrer.
 const OPPONENT_REVEAL_DELAY_MS = 1000;
 
+// Pause forcée après qu'un coup se soit entièrement joué (décalage, pion
+// arrivé) avant que le suivant ne puisse commencer — retour utilisateur :
+// « ne pas enchaîner trop rapidement ».
+const POST_MOVE_COOLDOWN_MS = 1000;
+
 interface WalkAnim {
   playerIndex: number;
   path: number[];
@@ -55,6 +59,16 @@ interface WalkAnim {
   // d'un coup déjà appliqué (bot, ou un autre joueur sur un appareil
   // partagé) — dans ce cas on ne fait qu'animer, `state` a déjà changé.
   pendingMove?: MazeMove;
+}
+
+// Position de départ, hors plateau, d'une tuile qui vient d'être insérée
+// depuis la main — voir l'effet « pousser » plus bas. `id` identifie la
+// tuile (Tile.id), `row`/`col` peuvent valoir -1 ou SIZE (une case pile en
+// dehors de la grille, dans l'axe d'où elle vient d'être poussée).
+interface TileEnter {
+  id: number;
+  row: number;
+  col: number;
 }
 
 interface ModeTile {
@@ -69,12 +83,22 @@ const MODE_TILES: ModeTile[] = [
   { mode: 'solo', label: 'Solo', hint: 'Six trésors, le moins de décalages possible' },
 ];
 
+// Trésor visé par le siège `seatIndex` sur `state` — le même pour tout le
+// monde en course/solo (file partagée), propre à chacun en partage. null
+// signifie « plus rien à trouver, il faut rentrer à la maison ».
+function targetIdForSeat(state: MazeState, seatIndex: number): number | null {
+  if (!state.progress) return null;
+  const queue = state.progress.kind === 'perPlayer' ? state.progress.queues[seatIndex] : state.progress.queue;
+  return queue.length > 0 ? queue[0] : null;
+}
+
 export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove>) {
   const [rotation, setRotation] = useState<Rotation>(0);
   const [chosenSlot, setChosenSlot] = useState<number | null>(null);
   const [previewSettled, setPreviewSettled] = useState(false);
-  const [pathHeld, setPathHeld] = useState(false);
   const [walk, setWalk] = useState<WalkAnim | null>(null);
+  const [interactionLocked, setInteractionLocked] = useState(false);
+  const [enterFrom, setEnterFrom] = useState<TileEnter | null>(null);
 
   // Ce que Board affiche réellement — décalé du `state` reçu quand le coup
   // n'est pas le nôtre (voir OPPONENT_REVEAL_DELAY_MS ci-dessus). Nos
@@ -87,11 +111,29 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
   // terminé, ou coup sans déplacement) — évite (a) le délai de révélation
   // ci-dessus, réservé à un coup qu'on n'a pas soi-même déclenché, et (b)
   // que l'effet de détection du parcours ne rejoue une deuxième fois un
-  // parcours qu'on vient d'animer nous-même.
+  // parcours qu'on vient d'animer nous-même (le verrou anti-enchaînement
+  // est alors géré directement là où on joue notre coup, pas ici).
   const suppressRevealDelayRef = useRef(false);
   const suppressWalkDetectionRef = useRef(false);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const walkStartTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  // Tuiles déjà vues dans `effectiveBoard` à la dernière passe de rendu —
+  // mutée directement pendant le rendu (jamais affichée elle-même), pour
+  // repérer la tuile tout juste entrée depuis la main sans attendre un
+  // effet. Voir `enterFrom` ci-dessus pour ce qui en dépend.
+  const seenTileIdsRef = useRef<Set<number> | null>(null);
+
+  // Verrouille l'interaction (nouvelle fente, nouveau coup) pendant
+  // `delayMs` de plus que POST_MOVE_COOLDOWN_MS — `delayMs` couvre le temps
+  // qu'il reste à l'animation en cours pour se terminer visuellement (le
+  // décalage, s'il n'est pas déjà fini) avant même de compter la pause
+  // demandée.
+  function scheduleUnlock(delayMs: number) {
+    setInteractionLocked(true);
+    if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
+    cooldownTimerRef.current = setTimeout(() => setInteractionLocked(false), delayMs + POST_MOVE_COOLDOWN_MS);
+  }
 
   // Propage `state` vers `displayState` — tout de suite pour notre propre
   // coup, après un temps de réflexion sinon (l'ordinateur, ou un autre
@@ -119,7 +161,9 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
   // Rejoue le parcours d'un pion pour un coup qu'on n'a pas animé soi-même
   // (le bot, ou un autre joueur sur un appareil partagé), une fois le
   // décalage terminé — sans ça, seuls nos propres coups locaux se
-  // verraient marcher case par case, ce qui serait incohérent.
+  // verraient marcher case par case, ce qui serait incohérent. Pose aussi
+  // le verrou anti-enchaînement pour ce cas (notre propre geste le pose lui-
+  // même, voir handleDestinationTap et l'effet de parcours plus bas).
   useEffect(() => {
     const prev = prevDisplayStateRef.current;
     prevDisplayStateRef.current = displayState;
@@ -129,19 +173,30 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
       suppressWalkDetectionRef.current = false;
       return;
     }
-    if (!displayState.lastTurn || displayState.lastTurn === prev.lastTurn) return;
+
+    setInteractionLocked(true);
+    if (!displayState.lastTurn || displayState.lastTurn === prev.lastTurn) {
+      scheduleUnlock(0);
+      return;
+    }
     const moverIndex = displayState.players.indexOf(displayState.lastTurn.playerId);
-    if (moverIndex === -1) return;
+    if (moverIndex === -1) {
+      scheduleUnlock(0);
+      return;
+    }
     const { pawns: wrappedPawns } = previewShift(prev, displayState.lastTurn.slot, displayState.lastTurn.rotation);
     const path = shortestPath(displayState.board, wrappedPawns[moverIndex], displayState.lastTurn.destination);
     if (path && path.length > 1) {
       walkStartTimerRef.current = setTimeout(() => setWalk({ playerIndex: moverIndex, path, step: 0 }), SHIFT_DURATION_MS);
+    } else {
+      scheduleUnlock(SHIFT_DURATION_MS);
     }
   }, [displayState]);
 
   // Avance le parcours en cours d'un cran toutes les WALK_STEP_MS ; au
   // dernier cran, émet le coup en attente s'il y en a un (notre propre
-  // geste), sinon s'efface simplement (parcours rejoué après coup).
+  // geste), sinon s'efface simplement (parcours rejoué après coup) — et
+  // pose dans les deux cas le verrou anti-enchaînement.
   useEffect(() => {
     if (!walk) return undefined;
     if (walk.step >= walk.path.length - 1) {
@@ -151,6 +206,7 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
         onMove(walk.pendingMove);
       }
       setWalk(null);
+      scheduleUnlock(0);
       return undefined;
     }
     const timer = setTimeout(() => setWalk((w) => (w ? { ...w, step: w.step + 1 } : w)), WALK_STEP_MS);
@@ -172,10 +228,28 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
     return () => clearTimeout(timer);
   }, [chosenSlot, rotation]);
 
+  // La tuile tout juste entrée (voir `enterFrom`) est née hors du plateau ;
+  // deux passages en `requestAnimationFrame` plus tard (le temps que le
+  // navigateur peigne cette position de départ au moins une fois), on
+  // efface l'aiguillage pour la laisser glisser vers sa vraie case — la
+  // transition CSS habituelle des tuiles fait le reste.
+  useEffect(() => {
+    if (!enterFrom) return undefined;
+    let secondFrame = 0;
+    const firstFrame = requestAnimationFrame(() => {
+      secondFrame = requestAnimationFrame(() => setEnterFrom(null));
+    });
+    return () => {
+      cancelAnimationFrame(firstFrame);
+      if (secondFrame) cancelAnimationFrame(secondFrame);
+    };
+  }, [enterFrom]);
+
   useEffect(
     () => () => {
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       if (walkStartTimerRef.current) clearTimeout(walkStartTimerRef.current);
+      if (cooldownTimerRef.current) clearTimeout(cooldownTimerRef.current);
     },
     [],
   );
@@ -215,12 +289,53 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
   const effectivePawns = preview?.pawns ?? displayState.pawns;
   const moverCell = effectivePawns[moverIndex];
   const showingDestinations = chosenSlot !== null && previewSettled && displayState.phase === 'playing' && !walk;
-  const reachable = (showingDestinations || pathHeld) && !walk ? reachableFrom(effectiveBoard, moverCell) : null;
+  const reachable = showingDestinations ? reachableFrom(effectiveBoard, moverCell) : null;
 
   const forbiddenSlot = displayState.forbiddenSlot;
 
+  // Détecte, pendant CE rendu, la tuile qui vient d'apparaître au bord du
+  // plateau (un id jamais vu dans `effectiveBoard` juste avant — voir
+  // Tile.id) pour la faire naître hors du plateau plutôt que d'un coup, à
+  // la place où le décalage vient de la pousser. Mutation directe du ref
+  // pendant le rendu + ajustement d'état conditionnel : le patron React
+  // documenté pour dériver un état d'un changement observé en rendu, sans
+  // rendu supplémentaire visible.
+  const currentTileIds = new Set(effectiveBoard.map((t) => t.id));
+  if (seenTileIdsRef.current === null) {
+    seenTileIdsRef.current = currentTileIds;
+  } else {
+    let changed = currentTileIds.size !== seenTileIdsRef.current.size;
+    if (!changed) {
+      for (const id of currentTileIds) {
+        if (!seenTileIdsRef.current.has(id)) {
+          changed = true;
+          break;
+        }
+      }
+    }
+    if (changed) {
+      let entering: TileEnter | null = null;
+      for (let cell = 0; cell < effectiveBoard.length; cell++) {
+        if (!seenTileIdsRef.current.has(effectiveBoard[cell].id)) {
+          const row = Math.floor(cell / SIZE);
+          const col = cell % SIZE;
+          let fromRow = row;
+          let fromCol = col;
+          if (col === 0) fromCol = -1;
+          else if (col === SIZE - 1) fromCol = SIZE;
+          else if (row === 0) fromRow = -1;
+          else if (row === SIZE - 1) fromRow = SIZE;
+          entering = { id: effectiveBoard[cell].id, row: fromRow, col: fromCol };
+          break;
+        }
+      }
+      seenTileIdsRef.current = currentTileIds;
+      if (entering && entering.id !== enterFrom?.id) setEnterFrom(entering);
+    }
+  }
+
   function handleSlotTap(slot: number) {
-    if (walk || slot === forbiddenSlot) return;
+    if (walk || interactionLocked || slot === forbiddenSlot) return;
     setChosenSlot(slot);
   }
 
@@ -233,17 +348,16 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
       suppressRevealDelayRef.current = true;
       suppressWalkDetectionRef.current = true;
       onMove(move);
+      scheduleUnlock(SHIFT_DURATION_MS);
       return;
     }
     setWalk({ playerIndex: moverIndex, path, step: 0, pendingMove: move });
   }
 
-  const currentTargetId =
-    displayState.progress?.kind === 'perPlayer' ? displayState.progress.queues[moverIndex]?.[0] : displayState.progress?.queue[0];
-
   // Position RENDUE de chaque pion — remplace sa case par l'étape courante
   // du parcours animé quand il y en a un pour ce siège (le sien ou celui
-  // qu'on rejoue après coup), sinon sa case réelle.
+  // qu'on rejoue après coup), sinon sa case réelle (qui suit déjà le
+  // décalage prévisualisé, pour un pion « collé » à sa tuile).
   const renderedPawnCell = displayState.players.map((_, i) =>
     walk && walk.playerIndex === i ? walk.path[walk.step] : effectivePawns[i],
   );
@@ -269,24 +383,34 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
           </span>
         </button>
 
-        {currentTargetId !== undefined && currentTargetId !== null && (
-          <div className="flex h-full items-center justify-center rounded-2xl bg-piece/10 px-3">
-            <img src={TREASURE_ICONS[currentTargetId]} alt="Trésor recherché" className="h-[70%] w-auto" />
-          </div>
-        )}
-
-        <button
-          type="button"
-          onPointerDown={() => setPathHeld(true)}
-          onPointerUp={() => setPathHeld(false)}
-          onPointerLeave={() => setPathHeld(false)}
-          onPointerCancel={() => setPathHeld(false)}
-          disabled={Boolean(walk)}
-          aria-label="Chemin"
-          className="flex h-full items-center justify-center rounded-2xl bg-piece/15 px-4"
-        >
-          <img src={pathIcon} alt="" className="h-[60%] w-auto opacity-80" />
-        </button>
+        {/* Objectifs des joueurs : leur trésor visé (le même pour tout le
+            monde en course/solo, propre à chacun en partage), ou une maison
+            une fois leur file vide. */}
+        <div className="flex h-full items-center gap-2">
+          {displayState.players.map((playerId) => {
+            const player = players.find((p) => p.id === playerId);
+            if (!player) return null;
+            const seatIndex = displayState.players.indexOf(playerId);
+            const targetId = targetIdForSeat(displayState, seatIndex);
+            return (
+              <div key={playerId} className="flex h-full items-center gap-1 rounded-2xl bg-piece/10 px-2">
+                <img
+                  src={player.photo}
+                  alt={player.name}
+                  className="h-[70%] w-auto rounded-full object-cover"
+                  style={{ boxShadow: `0 0 0 2px ${player.color}` }}
+                />
+                {targetId !== null ? (
+                  <img src={TREASURE_ICONS[targetId]} alt="Trésor recherché" className="h-[70%] w-auto" />
+                ) : (
+                  <span className="text-lg" aria-label="Retour à la maison">
+                    🏠
+                  </span>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div
@@ -299,14 +423,18 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
               ou coup déjà appliqué par un adversaire/le bot), React déplace
               le même nœud DOM plutôt que d'en recréer un, et la transition
               CSS sur top/left fait le reste : c'est tout le glissement
-              animé, sans minuteur ni calcul de trajectoire. */}
+              animé, sans minuteur ni calcul de trajectoire. La tuile tout
+              juste entrée (voir `enterFrom`) naît hors du plateau, comme
+              poussée depuis la fente, plutôt que d'apparaître d'un coup. */}
           {effectiveBoard.map((tile, cell) => {
-            const row = Math.floor(cell / SIZE);
-            const col = cell % SIZE;
+            const isEntering = enterFrom?.id === tile.id;
+            const row = isEntering ? enterFrom!.row : Math.floor(cell / SIZE);
+            const col = isEntering ? enterFrom!.col : cell % SIZE;
             const isHome = HOME_CELLS_BY_SEAT.includes(cell);
             const homeSeat = HOME_CELLS_BY_SEAT.indexOf(cell);
             const homePlayerId = isHome ? displayState.players[homeSeat] : undefined;
             const homePlayer = homePlayerId ? players.find((p) => p.id === homePlayerId) ?? null : null;
+            const homeReady = homePlayer !== null && targetIdForSeat(displayState, homeSeat) === null;
             const isActiveTreasure = tile.treasure !== -1 && displayState.activeTreasureIds.includes(tile.treasure);
             const isCollected = tile.treasure !== -1 && displayState.collectedTreasureIds.includes(tile.treasure);
 
@@ -329,13 +457,15 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
                   style={{ transform: `rotate(${tile.rotation * 90}deg)` }}
                 />
                 {/* Point de départ : la couleur du joueur seule (pas son
-                    avatar, retour utilisateur) — un aplat plus franc que le
-                    lavis léger utilisé ailleurs, puisque c'est maintenant le
-                    seul repère d'identité sur cette case. */}
+                    avatar, retour utilisateur). Une fois qu'il faut y
+                    rentrer pour gagner, l'aplat perd sa transparence et
+                    pulse doucement (« whoua whoua ») pour attirer l'œil. */}
                 {homePlayer && (
                   <span
-                    className="absolute inset-[10%] rounded-md ring-2 ring-inset ring-black/20"
-                    style={{ backgroundColor: homePlayer.color, opacity: 0.6 }}
+                    className={`absolute inset-[10%] rounded-md ring-2 ring-inset ring-black/20 ${
+                      homeReady ? 'motion-safe:animate-home-ready' : ''
+                    }`}
+                    style={{ backgroundColor: homePlayer.color, opacity: homeReady ? 1 : 0.6 }}
                   />
                 )}
                 {tile.treasure !== -1 && (
@@ -351,8 +481,11 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
           })}
 
           {/* Pions : clé par joueur (pas par case), même technique de
-              transition CSS — sert à la fois au glissement (décalage) et,
-              combiné au minuteur ci-dessus, au parcours pas à pas. */}
+              transition CSS. Un pion simplement emporté par un décalage
+              (colonne qui glisse sous lui) suit la même durée que la tuile,
+              comme collé dessus ; seul celui qui parcourt effectivement son
+              chemin (voir `walk`) passe à la cadence plus rapide du pas à
+              pas. */}
           {displayState.players.map((playerId, seatIndex) => {
             const player = players.find((p) => p.id === playerId);
             if (!player) return null;
@@ -361,6 +494,7 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
             const col = cell % SIZE;
             const sharedWith = renderedPawnCell.map((c, i) => (c === cell ? i : -1)).filter((i) => i !== -1);
             const offset = sharedWith.length > 1 ? (sharedWith.indexOf(seatIndex) === 0 ? -18 : 18) : 0;
+            const isWalkingThisPawn = walk !== null && walk.playerIndex === seatIndex;
 
             return (
               <div
@@ -371,14 +505,14 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
                   height: `${100 / SIZE}%`,
                   top: `${(100 / SIZE) * row}%`,
                   left: `${(100 / SIZE) * col}%`,
-                  transitionDuration: `${WALK_STEP_MS}ms`,
+                  transitionDuration: `${isWalkingThisPawn ? WALK_STEP_MS : SHIFT_DURATION_MS}ms`,
                 }}
               >
                 <img
                   src={player.photo}
                   alt=""
-                  className="absolute left-1/2 top-1/2 h-[46%] w-[46%] -translate-y-1/2 rounded-full object-cover"
-                  style={{ boxShadow: `0 0 0 2px ${player.color}`, transform: `translateX(calc(-50% + ${offset}%))` }}
+                  className="absolute left-1/2 top-1/2 h-[46%] w-[46%] rounded-full object-cover"
+                  style={{ boxShadow: `0 0 0 2px ${player.color}`, transform: `translate(calc(-50% + ${offset}%), -50%)` }}
                 />
               </div>
             );
@@ -404,9 +538,6 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
                   {isReachable && showingDestinations && (
                     <span className="absolute inset-1 rounded-md ring-4 ring-victory/80" />
                   )}
-                  {pathHeld && isReachable && !showingDestinations && (
-                    <span className="absolute inset-1 rounded-md ring-4 ring-victory/50" />
-                  )}
                   {isLastDestination && <span className="absolute inset-0 bg-victory/20" />}
                 </button>
               );
@@ -415,6 +546,7 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
 
           {chosenSlot === null &&
             !walk &&
+            !interactionLocked &&
             displayState.phase === 'playing' &&
             SLOTS.map((slot, index) => (
               <SlotButton

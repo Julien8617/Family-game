@@ -55,12 +55,22 @@ export default {
           '60%': { transform: 'translateX(-4px)' },
           '80%': { transform: 'translateX(3px)' },
         },
+        // Labyrinthe (spec 08) : la maison d'un joueur qui doit maintenant y
+        // rentrer pour gagner — un petit « whoua whoua » (rétrécit puis
+        // grossit) en boucle, pas un simple agrandissement, pour vraiment
+        // attirer l'œil sans être une simple pulsation régulière.
+        'home-ready': {
+          '0%, 100%': { transform: 'scale(1)' },
+          '30%': { transform: 'scale(0.9)' },
+          '65%': { transform: 'scale(1.1)' },
+        },
       },
       animation: {
         'win-line': 'win-line 200ms ease-out',
         'connect4-drop': 'connect4-drop 461ms cubic-bezier(0.34, 1.56, 0.64, 1)',
         'count-in-pulse': 'count-in-pulse 220ms ease-out',
         'quiz-shake': 'quiz-shake 500ms ease-in-out',
+        'home-ready': 'home-ready 1.4s ease-in-out infinite',
       },
     },
   },
