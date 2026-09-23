@@ -2130,14 +2130,31 @@ pour ne dépendre d'aucun détail d'ordre de tirage du plateau. Course : 3
 trésors tirés, partagés, un par un. Partage : 3×N trésors, une file par
 joueur. Solo : 6 trésors, une seule file.
 
-**Règle du retour à la maison (mode course) : interprétation tranchée
-seule.** L'énoncé ne dit pas explicitement si, une fois les 3 trésors trouvés
-(par n'importe quelle combinaison de joueurs), la maison ne compte que pour
-celui qui a pris le 3ᵉ trésor ou pour tout le monde. Choisi : pour tout le
-monde — un compteur partagé (`progress.queue` vide) ouvre la « course au
-retour » à tous les joueurs encore en lice, premier arrivé chez soi gagne.
-Plus fidèle à l'esprit compétitif du mode que de figer un gagnant dès le 3ᵉ
-trésor sans course finale.
+**Règle de victoire du mode course : revue après retour utilisateur, plus de
+retour à la maison.** Interprétation initiale (tranchée seule, faute de
+précision dans l'énoncé) : une fois les 3 trésors trouvés (par n'importe
+quelle combinaison de joueurs), une « course au retour » s'ouvrait à tout le
+monde, premier arrivé chez soi gagnant — plus fidèle à l'esprit compétitif
+qu'un gagnant figé dès le 3ᵉ trésor, pensait-on. Retour utilisateur : ce
+n'est pas ce qui compte, gagner devait dépendre du score (trésors
+personnellement ramassés), pas d'une course d'appoint après coup. Revu : la
+partie s'arrête l'instant même où le 3ᵉ trésor est distribué (`applyMove`,
+branche `state.mode === 'course'`), sans retour à la maison ; le gagnant est
+celui qui en a ramassé le plus (`sharedTreasuresWon`, un compteur par siège,
+nouveau champ de `MazeState`) — pas forcément celui qui vient de prendre le
+dernier. Égalité exacte (possible dès 3 joueurs ou plus, jamais à 2 puisque
+3 trésors ne se partagent jamais en deux parts égales) → `kind: 'draw'`,
+générique dès maintenant en pensant à quatre. Effet de bord attendu côté
+Board.tsx : l'indicatif « il faut rentrer » (icône maison dans l'en-tête,
+pulsation de la case de départ) ne doit plus jamais s'afficher en course —
+`needsHomeReturn` court-circuite `targetIdForSeat` pour ce mode, gardé tel
+quel pour solo/partage où le retour compte toujours. `bot.ts` n'a pas eu
+besoin de changer : sa cible de repli « maison une fois la file vide »
+devient simplement un chemin mort en course (la partie est déjà terminée à
+cet instant), le mode solo/partage qui l'utilise réellement est inchangé —
+et les méthodes de test de force existantes (solo apparié, duel réel en
+partage) ne dépendaient pas de la règle du mode course, donc rien à
+retoucher là non plus.
 
 **Simplification assumée : le ramassage par décalage ne profite qu'au joueur
 qui décale.** La règle « un trésor est ramassé en arrivant sur sa tuile, y

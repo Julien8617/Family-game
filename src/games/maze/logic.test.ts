@@ -273,6 +273,55 @@ describe('maze pickup and win', () => {
   });
 });
 
+describe('maze course scoring', () => {
+  // Retour utilisateur (spec 08, revu) : en mode course, plus de retour à la
+  // maison — la partie s'arrête dès que les 3 trésors sont distribués, et
+  // c'est le score (trésors personnellement ramassés) qui décide, pas qui a
+  // pris le dernier ni qui est chez soi.
+  function playCourseTo(seed: number, progressOverride: Partial<MazeState>): { state: MazeState; targetCell: number } {
+    let state = createState([P1, P2], seed);
+    state = applyMove(state, { type: 'chooseMode', mode: 'course' });
+    const targetId = (state.progress as { kind: 'shared'; queue: number[] }).queue[0];
+    state = { ...state, ...progressOverride, progress: { kind: 'shared', queue: [targetId] } };
+    const targetCell = state.board.findIndex((t) => t.treasure === targetId);
+    return { state, targetCell };
+  }
+
+  function findWinningMove(state: MazeState, targetCell: number): MazeState {
+    for (let slot = 0; slot < 12; slot++) {
+      for (let rotation = 0; rotation < 4; rotation++) {
+        const move = { type: 'turn' as const, slot, rotation: rotation as Rotation, destination: targetCell };
+        if (isValidMove(state, move)) return applyMove(state, move);
+      }
+    }
+    throw new Error('no reachable move found for this seed — pick another seed');
+  }
+
+  it('ends the instant the third treasure is distributed, without requiring a return home', () => {
+    const { state, targetCell } = playCourseTo(8, { sharedTreasuresWon: [1, 0] });
+    // Au trait par défaut : P1 (turnIndex 0). Il ramasse le dernier trésor
+    // ailleurs que chez lui — la victoire ne doit pas en dépendre.
+    const next = findWinningMove(state, targetCell);
+    expect(next.homeCells[0]).not.toBe(targetCell);
+    expect(getResult(next)).toEqual({ kind: 'win', winner: P1 });
+  });
+
+  it('crowns whoever has the most treasures, even when someone else grabs the last one', () => {
+    const { state, targetCell } = playCourseTo(8, { turnIndex: 1, sharedTreasuresWon: [2, 0] });
+    // P2 est au trait et prend le dernier trésor, mais P1 en avait déjà 2.
+    const next = findWinningMove(state, targetCell);
+    expect(getResult(next)).toEqual({ kind: 'win', winner: P1 });
+  });
+
+  it('declares a draw when scores are tied once every treasure is distributed', () => {
+    // P1 est au trait et rattrape son retard (0 → 1) en prenant le dernier
+    // trésor pendant que P2 est déjà à 1 : égalité exacte à l'arrivée.
+    const { state, targetCell } = playCourseTo(8, { sharedTreasuresWon: [0, 1] });
+    const next = findWinningMove(state, targetCell);
+    expect(getResult(next)).toEqual({ kind: 'draw' });
+  });
+});
+
 describe('maze setup phase', () => {
   it('never assigns the bot the mode-picking or dealing turn', () => {
     const state = createState([P1, P2], 5);

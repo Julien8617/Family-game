@@ -85,11 +85,21 @@ const MODE_TILES: ModeTile[] = [
 
 // Trésor visé par le siège `seatIndex` sur `state` — le même pour tout le
 // monde en course/solo (file partagée), propre à chacun en partage. null
-// signifie « plus rien à trouver, il faut rentrer à la maison ».
+// signifie « plus rien à trouver » — pas forcément « il faut rentrer chez
+// soi », voir `needsHomeReturn` ci-dessous (le mode course n'exige plus le
+// retour à la maison, retour utilisateur).
 function targetIdForSeat(state: MazeState, seatIndex: number): number | null {
   if (!state.progress) return null;
   const queue = state.progress.kind === 'perPlayer' ? state.progress.queues[seatIndex] : state.progress.queue;
   return queue.length > 0 ? queue[0] : null;
+}
+
+// true si le siège `seatIndex` doit encore rentrer chez lui pour gagner —
+// faux en course, où la partie se termine dès le dernier trésor distribué,
+// au score, sans retour à la maison (revu, spec 08).
+function needsHomeReturn(state: MazeState, seatIndex: number): boolean {
+  if (state.mode === 'course') return false;
+  return targetIdForSeat(state, seatIndex) === null;
 }
 
 export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove>) {
@@ -408,11 +418,11 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
                 />
                 {targetId !== null ? (
                   <img src={TREASURE_ICONS[targetId]} alt="Trésor recherché" className="h-[70%] w-auto" />
-                ) : (
+                ) : needsHomeReturn(displayState, seatIndex) ? (
                   <span className="text-lg" aria-label="Retour à la maison">
                     🏠
                   </span>
-                )}
+                ) : null}
               </div>
             );
           })}
@@ -440,7 +450,7 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
             const homeSeat = HOME_CELLS_BY_SEAT.indexOf(cell);
             const homePlayerId = isHome ? displayState.players[homeSeat] : undefined;
             const homePlayer = homePlayerId ? players.find((p) => p.id === homePlayerId) ?? null : null;
-            const homeReady = homePlayer !== null && targetIdForSeat(displayState, homeSeat) === null;
+            const homeReady = homePlayer !== null && needsHomeReturn(displayState, homeSeat);
             const isActiveTreasure = tile.treasure !== -1 && displayState.activeTreasureIds.includes(tile.treasure);
             const isCollected = tile.treasure !== -1 && displayState.collectedTreasureIds.includes(tile.treasure);
 

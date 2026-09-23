@@ -325,6 +325,10 @@ export interface MazeState {
   progress: MazeProgress | null; // null tant que le mode n'est pas choisi
   activeTreasureIds: number[]; // trésors distribués cette partie (jamais réduit)
   collectedTreasureIds: number[]; // trésors déjà ramassés, toutes files confondues
+  // Trésors personnellement ramassés par chaque joueur dans une file
+  // PARTAGÉE (course, solo) — sert de score en mode course (voir applyMove) ;
+  // sans objet en partage, où la file de chacun suffit déjà.
+  sharedTreasuresWon: number[];
   shiftsUsed: number; // décalages joués cette partie (score du mode solo)
   turnIndex: number; // index dans `players` du joueur au trait
   lastTurn: { slot: number; rotation: Rotation; destination: number; playerId: PlayerId } | null;
@@ -349,6 +353,7 @@ export function createState(players: PlayerId[], seed: number): MazeState {
     progress: null,
     activeTreasureIds: [],
     collectedTreasureIds: [],
+    sharedTreasuresWon: players.map(() => 0),
     shiftsUsed: 0,
     turnIndex: 0,
     lastTurn: null,
@@ -493,6 +498,7 @@ export function applyMove(state: MazeState, move: MazeMove): MazeState {
 
       let progress = state.progress!;
       let collectedTreasureIds = state.collectedTreasureIds;
+      let sharedTreasuresWon = state.sharedTreasuresWon;
       const treasureHere = board[move.destination].treasure;
 
       if (treasureHere !== -1) {
@@ -506,19 +512,37 @@ export function applyMove(state: MazeState, move: MazeMove): MazeState {
         } else if (progress.queue[0] === treasureHere) {
           progress = { kind: 'shared', queue: progress.queue.slice(1) };
           collectedTreasureIds = [...collectedTreasureIds, treasureHere];
+          sharedTreasuresWon = sharedTreasuresWon.map((n, i) => (i === moverIndex ? n + 1 : n));
         }
       }
 
-      const questDone = progress.kind === 'perPlayer' ? progress.queues[moverIndex].length === 0 : progress.queue.length === 0;
-      const atHome = move.destination === state.homeCells[moverIndex];
-      const won = questDone && atHome;
       const shiftsUsed = state.shiftsUsed + 1;
+      let won = false;
+      let result: Result | null = null;
 
-      const result: Result | null = won
-        ? state.mode === 'solo'
-          ? { kind: 'win', winner: mover, score: { value: Math.max(0, SOLO_PAR - shiftsUsed), variant: 'solo-6' } }
-          : { kind: 'win', winner: mover }
-        : null;
+      if (state.mode === 'course') {
+        // Retour utilisateur (spec 08, revu) : plus de course au retour à la
+        // maison en mode course — la partie s'arrête dès que les 3 trésors
+        // sont distribués, et c'est celui qui en a ramassé le plus qui
+        // gagne, pas forcément celui qui vient de prendre le dernier.
+        if (progress.kind === 'shared' && progress.queue.length === 0) {
+          won = true;
+          const maxWon = Math.max(...sharedTreasuresWon);
+          const leaders = state.players.filter((_, i) => sharedTreasuresWon[i] === maxWon);
+          result = leaders.length === 1 ? { kind: 'win', winner: leaders[0] } : { kind: 'draw' };
+        }
+      } else {
+        const questDone =
+          progress.kind === 'perPlayer' ? progress.queues[moverIndex].length === 0 : progress.queue.length === 0;
+        const atHome = move.destination === state.homeCells[moverIndex];
+        won = questDone && atHome;
+        if (won) {
+          result =
+            state.mode === 'solo'
+              ? { kind: 'win', winner: mover, score: { value: Math.max(0, SOLO_PAR - shiftsUsed), variant: 'solo-6' } }
+              : { kind: 'win', winner: mover };
+        }
+      }
 
       return {
         ...state,
@@ -528,6 +552,7 @@ export function applyMove(state: MazeState, move: MazeMove): MazeState {
         forbiddenSlot: OPPOSITE_SLOT[move.slot],
         progress,
         collectedTreasureIds,
+        sharedTreasuresWon,
         shiftsUsed,
         turnIndex: won ? state.turnIndex : (state.turnIndex + 1) % state.players.length,
         phase: won ? 'gameover' : state.phase,

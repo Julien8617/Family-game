@@ -7,15 +7,17 @@ l'écran « Joueurs » (coin bas, format `commit · date`).
 ## Non publié
 
 - Nouveau jeu : « Le labyrinthe » — un plateau 7×7 de tuiles-couloirs qu'on
-  décale à chaque tour (une tuile en main, tournée puis glissée dans une
-  fente), pour aller chercher des trésors avant de rentrer chez soi. Trois
-  façons de jouer : la course (tout le monde vise le même trésor), le
-  partage (trois trésors chacun) et le solo (six trésors, le moins de
-  décalages possible — un score comme la mémoire sonore). Un bouton
-  « Chemin » montre à tout moment les cases accessibles. Contre l'ordinateur,
-  quatre niveaux (œuf/poussin/poule/coq) comme les autres jeux à bot ; le
-  coq est le seul à gêner activement un adversaire sur le point de gagner.
-  Pas encore joué sur iPad/iPhone réels.
+  décale à chaque tour (une tuile en main, tournée puis poussée dans une
+  fente), pour aller chercher des trésors. Trois façons de jouer : la course
+  (le même trésor pour tout le monde, gagné par celui qui en a ramassé le
+  plus une fois les trois distribués — pas de retour à la maison dans ce
+  mode), le partage (trois trésors chacun, retour à la maison obligatoire) et
+  le solo (six trésors, le moins de décalages possible — un score comme la
+  mémoire sonore). Décalage et parcours du pion animés, à un rythme
+  volontairement posé face à l'ordinateur. Contre l'ordinateur, quatre
+  niveaux (œuf/poussin/poule/coq) comme les autres jeux à bot ; le coq est le
+  seul à gêner activement un adversaire sur le point de gagner. Pas encore
+  joué sur iPad/iPhone réels.
 - Nouveau jeu : « La chasse au roi » — jeu solo, on y joue toujours les tours,
   qui traquent un roi sur un petit échiquier 5×5 avant d'épuiser leur réserve
   de coups (affichée en rangée de jetons qui s'éteignent un par un au-dessus
