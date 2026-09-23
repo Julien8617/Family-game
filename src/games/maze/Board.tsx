@@ -193,23 +193,29 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
     }
   }, [displayState]);
 
-  // Avance le parcours en cours d'un cran toutes les WALK_STEP_MS ; au
-  // dernier cran, émet le coup en attente s'il y en a un (notre propre
-  // geste), sinon s'efface simplement (parcours rejoué après coup) — et
-  // pose dans les deux cas le verrou anti-enchaînement.
+  // Avance le parcours en cours d'un cran toutes les WALK_STEP_MS. Attend
+  // toujours la fin de la durée avant d'agir — y compris pour le DERNIER
+  // cran : passer `step` à sa valeur finale ne fait que LANCER le
+  // glissement CSS vers la dernière case, il lui faut encore WALK_STEP_MS
+  // pour visuellement l'atteindre. Conclure dès que `step` atteint cette
+  // valeur (au lieu d'attendre ce dernier délai) faisait jouer l'adversaire
+  // avant que le pion ne soit vraiment arrivé — retour utilisateur, bug
+  // réel, pas une supposition.
   useEffect(() => {
     if (!walk) return undefined;
-    if (walk.step >= walk.path.length - 1) {
-      if (walk.pendingMove) {
-        suppressRevealDelayRef.current = true;
-        suppressWalkDetectionRef.current = true;
-        onMove(walk.pendingMove);
+    const timer = setTimeout(() => {
+      if (walk.step >= walk.path.length - 1) {
+        if (walk.pendingMove) {
+          suppressRevealDelayRef.current = true;
+          suppressWalkDetectionRef.current = true;
+          onMove(walk.pendingMove);
+        }
+        setWalk(null);
+        scheduleUnlock(0);
+      } else {
+        setWalk((w) => (w ? { ...w, step: w.step + 1 } : w));
       }
-      setWalk(null);
-      scheduleUnlock(0);
-      return undefined;
-    }
-    const timer = setTimeout(() => setWalk((w) => (w ? { ...w, step: w.step + 1 } : w)), WALK_STEP_MS);
+    }, WALK_STEP_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walk]);
