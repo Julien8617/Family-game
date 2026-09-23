@@ -23,14 +23,28 @@ const RESERVED_HEADER_PX = 64;
 const REVEAL_STEP_MS = 900;
 const REVEAL_LEAD_IN_MS = 400;
 
+// Durée du glissement d'une rangée/colonne — transition CSS sur la position
+// de chaque tuile (tuiles à clé stable `tile.id`, voir plus bas), pas un
+// minuteur : elle s'anime tout seule dès que `effectiveBoard` change, pour
+// un décalage prévisualisé par le joueur local comme pour un coup déjà joué
+// par un adversaire ou le bot. Retour utilisateur (premier essai réel à
+// 250ms) : trop brusque, remonté à 1000ms.
+const SHIFT_DURATION_MS = 1000;
+
 // Durée d'un pas du pion le long de son chemin — l'autre animation attendue
-// par la spec (« le pion qui parcourt son chemin, tuile par tuile »). Le
-// glissement d'une rangée/colonne, lui, n'a pas de minuteur : c'est une
-// simple transition CSS sur la position de chaque tuile (voir plus bas,
-// tuiles à clé stable `tile.id`), qui s'anime tout seule dès que
-// `effectiveBoard` change — pour un décalage prévisualisé par le joueur
-// local comme pour un coup déjà joué par un adversaire ou le bot.
-const WALK_STEP_MS = 220;
+// par la spec (« le pion qui parcourt son chemin, tuile par tuile »).
+// Retour utilisateur : ralentie de 40 % par rapport au premier essai (220ms
+// → vitesse × 0.6, donc durée / 0.6).
+const WALK_STEP_MS = Math.round(220 / 0.6);
+
+// Temps de réflexion avant de révéler un coup qu'on n'a pas joué soi-même
+// (l'ordinateur, ou un autre joueur sur un appareil partagé) — retour
+// utilisateur : « un peu plus de latence dans le jeu de l'ordi... comme si
+// on jouait contre un humain ». N'affecte que ce jeu (purement local à
+// Board.tsx, jamais le délai partagé de GameScreen.tsx) : le coup est déjà
+// appliqué côté state quand ce délai commence, Board choisit juste QUAND le
+// montrer.
+const OPPONENT_REVEAL_DELAY_MS = 1000;
 
 interface WalkAnim {
   playerIndex: number;
@@ -58,42 +72,72 @@ const MODE_TILES: ModeTile[] = [
 export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove>) {
   const [rotation, setRotation] = useState<Rotation>(0);
   const [chosenSlot, setChosenSlot] = useState<number | null>(null);
+  const [previewSettled, setPreviewSettled] = useState(false);
   const [pathHeld, setPathHeld] = useState(false);
   const [walk, setWalk] = useState<WalkAnim | null>(null);
-  const prevStateRef = useRef(state);
-  // true juste après qu'on ait nous-même déclenché onMove (parcours local
-  // terminé, ou coup sans déplacement) — évite que l'effet de détection
-  // ci-dessous ne rejoue une deuxième fois un parcours qu'on vient
-  // d'animer nous-même.
-  const suppressNextWalkDetectionRef = useRef(false);
 
-  // Un coup vient d'être appliqué (accepté) — même patron que
-  // king-hunt/chess-race : la nouvelle référence de state réinitialise le
-  // geste local en cours.
+  // Ce que Board affiche réellement — décalé du `state` reçu quand le coup
+  // n'est pas le nôtre (voir OPPONENT_REVEAL_DELAY_MS ci-dessus). Nos
+  // propres coups, eux, sont déjà animés avant l'appel à onMove, donc
+  // révélés immédiatement dès que `state` les confirme.
+  const [displayState, setDisplayState] = useState(state);
+  const prevPropStateRef = useRef(state);
+  const prevDisplayStateRef = useRef(displayState);
+  // true juste avant qu'on appelle onMove nous-même (parcours local
+  // terminé, ou coup sans déplacement) — évite (a) le délai de révélation
+  // ci-dessus, réservé à un coup qu'on n'a pas soi-même déclenché, et (b)
+  // que l'effet de détection du parcours ne rejoue une deuxième fois un
+  // parcours qu'on vient d'animer nous-même.
+  const suppressRevealDelayRef = useRef(false);
+  const suppressWalkDetectionRef = useRef(false);
+  const revealTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const walkStartTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  // Propage `state` vers `displayState` — tout de suite pour notre propre
+  // coup, après un temps de réflexion sinon (l'ordinateur, ou un autre
+  // joueur sur un appareil partagé) : il ne doit jamais sembler instantané.
+  useEffect(() => {
+    const prevProp = prevPropStateRef.current;
+    prevPropStateRef.current = state;
+    if (prevProp === state) return;
+    if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+    if (suppressRevealDelayRef.current) {
+      suppressRevealDelayRef.current = false;
+      setDisplayState(state);
+      return;
+    }
+    revealTimerRef.current = setTimeout(() => setDisplayState(state), OPPONENT_REVEAL_DELAY_MS);
+  }, [state]);
+
+  // Un coup vient d'être révélé — même patron que king-hunt/chess-race : la
+  // nouvelle référence de displayState réinitialise le geste local en cours.
   useEffect(() => {
     setRotation(0);
     setChosenSlot(null);
-  }, [state]);
+  }, [displayState]);
 
-  // Rejoue après coup le parcours d'un pion pour un coup qu'on n'a pas
-  // animé nous-même (le bot, ou un autre joueur sur un appareil partagé) —
-  // sans ça, seuls nos propres coups locaux se verraient marcher case par
-  // case, ce qui serait incohérent.
+  // Rejoue le parcours d'un pion pour un coup qu'on n'a pas animé soi-même
+  // (le bot, ou un autre joueur sur un appareil partagé), une fois le
+  // décalage terminé — sans ça, seuls nos propres coups locaux se
+  // verraient marcher case par case, ce qui serait incohérent.
   useEffect(() => {
-    const prev = prevStateRef.current;
-    prevStateRef.current = state;
-    if (prev === state) return;
-    if (suppressNextWalkDetectionRef.current) {
-      suppressNextWalkDetectionRef.current = false;
+    const prev = prevDisplayStateRef.current;
+    prevDisplayStateRef.current = displayState;
+    if (prev === displayState) return;
+    if (walkStartTimerRef.current) clearTimeout(walkStartTimerRef.current);
+    if (suppressWalkDetectionRef.current) {
+      suppressWalkDetectionRef.current = false;
       return;
     }
-    if (!state.lastTurn || state.lastTurn === prev.lastTurn) return;
-    const moverIndex = state.players.indexOf(state.lastTurn.playerId);
+    if (!displayState.lastTurn || displayState.lastTurn === prev.lastTurn) return;
+    const moverIndex = displayState.players.indexOf(displayState.lastTurn.playerId);
     if (moverIndex === -1) return;
-    const { pawns: wrappedPawns } = previewShift(prev, state.lastTurn.slot, state.lastTurn.rotation);
-    const path = shortestPath(state.board, wrappedPawns[moverIndex], state.lastTurn.destination);
-    if (path && path.length > 1) setWalk({ playerIndex: moverIndex, path, step: 0 });
-  }, [state]);
+    const { pawns: wrappedPawns } = previewShift(prev, displayState.lastTurn.slot, displayState.lastTurn.rotation);
+    const path = shortestPath(displayState.board, wrappedPawns[moverIndex], displayState.lastTurn.destination);
+    if (path && path.length > 1) {
+      walkStartTimerRef.current = setTimeout(() => setWalk({ playerIndex: moverIndex, path, step: 0 }), SHIFT_DURATION_MS);
+    }
+  }, [displayState]);
 
   // Avance le parcours en cours d'un cran toutes les WALK_STEP_MS ; au
   // dernier cran, émet le coup en attente s'il y en a un (notre propre
@@ -102,7 +146,8 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
     if (!walk) return undefined;
     if (walk.step >= walk.path.length - 1) {
       if (walk.pendingMove) {
-        suppressNextWalkDetectionRef.current = true;
+        suppressRevealDelayRef.current = true;
+        suppressWalkDetectionRef.current = true;
         onMove(walk.pendingMove);
       }
       setWalk(null);
@@ -113,8 +158,30 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [walk]);
 
-  if (state.phase === 'setup') {
-    const seatCount = state.players.length;
+  // Le glissement d'un décalage prévisualisé (voir SHIFT_DURATION_MS) doit
+  // se terminer avant qu'on puisse choisir sa destination — sans ça, le
+  // pion pourrait se mettre à marcher pendant que les tuiles glissent
+  // encore.
+  useEffect(() => {
+    if (chosenSlot === null) {
+      setPreviewSettled(false);
+      return undefined;
+    }
+    setPreviewSettled(false);
+    const timer = setTimeout(() => setPreviewSettled(true), SHIFT_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [chosenSlot, rotation]);
+
+  useEffect(
+    () => () => {
+      if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      if (walkStartTimerRef.current) clearTimeout(walkStartTimerRef.current);
+    },
+    [],
+  );
+
+  if (displayState.phase === 'setup') {
+    const seatCount = displayState.players.length;
     const tiles = MODE_TILES.filter((t) => (t.mode === 'solo' ? seatCount === 1 : seatCount === 2));
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-6 rounded-3xl bg-piece/10 p-6">
@@ -136,21 +203,21 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
     );
   }
 
-  if (state.phase === 'dealing' && state.progress?.kind === 'perPlayer') {
-    return <DealingScreen state={state} players={players} onDone={() => onMove({ type: 'dealingDone' })} />;
+  if (displayState.phase === 'dealing' && displayState.progress?.kind === 'perPlayer') {
+    return <DealingScreen state={displayState} players={players} onDone={() => onMove({ type: 'dealingDone' })} />;
   }
 
   // ---- phase 'playing' / 'gameover' ----
 
-  const moverIndex = state.turnIndex;
-  const preview = chosenSlot !== null ? previewShift(state, chosenSlot, rotation) : null;
-  const effectiveBoard = preview?.board ?? state.board;
-  const effectivePawns = preview?.pawns ?? state.pawns;
+  const moverIndex = displayState.turnIndex;
+  const preview = chosenSlot !== null ? previewShift(displayState, chosenSlot, rotation) : null;
+  const effectiveBoard = preview?.board ?? displayState.board;
+  const effectivePawns = preview?.pawns ?? displayState.pawns;
   const moverCell = effectivePawns[moverIndex];
-  const showingDestinations = chosenSlot !== null && state.phase === 'playing' && !walk;
+  const showingDestinations = chosenSlot !== null && previewSettled && displayState.phase === 'playing' && !walk;
   const reachable = (showingDestinations || pathHeld) && !walk ? reachableFrom(effectiveBoard, moverCell) : null;
 
-  const forbiddenSlot = state.forbiddenSlot;
+  const forbiddenSlot = displayState.forbiddenSlot;
 
   function handleSlotTap(slot: number) {
     if (walk || slot === forbiddenSlot) return;
@@ -163,7 +230,8 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
     const path = shortestPath(effectiveBoard, moverCell, cell);
     if (!path || path.length <= 1) {
       // Reste sur place : rien à faire marcher, coup immédiat.
-      suppressNextWalkDetectionRef.current = true;
+      suppressRevealDelayRef.current = true;
+      suppressWalkDetectionRef.current = true;
       onMove(move);
       return;
     }
@@ -171,12 +239,12 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
   }
 
   const currentTargetId =
-    state.progress?.kind === 'perPlayer' ? state.progress.queues[moverIndex]?.[0] : state.progress?.queue[0];
+    displayState.progress?.kind === 'perPlayer' ? displayState.progress.queues[moverIndex]?.[0] : displayState.progress?.queue[0];
 
   // Position RENDUE de chaque pion — remplace sa case par l'étape courante
   // du parcours animé quand il y en a un pour ce siège (le sien ou celui
   // qu'on rejoue après coup), sinon sa case réelle.
-  const renderedPawnCell = state.players.map((_, i) =>
+  const renderedPawnCell = displayState.players.map((_, i) =>
     walk && walk.playerIndex === i ? walk.path[walk.step] : effectivePawns[i],
   );
 
@@ -191,7 +259,7 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
           className="relative flex h-full items-center justify-center p-2"
         >
           <img
-            src={TILE_IMAGES[state.handTile.shape]}
+            src={TILE_IMAGES[displayState.handTile.shape]}
             alt=""
             className="h-full w-auto rounded-lg transition-transform"
             style={{ transform: `rotate(${rotation * 90}deg)` }}
@@ -237,20 +305,21 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
             const col = cell % SIZE;
             const isHome = HOME_CELLS_BY_SEAT.includes(cell);
             const homeSeat = HOME_CELLS_BY_SEAT.indexOf(cell);
-            const homePlayerId = isHome ? state.players[homeSeat] : undefined;
+            const homePlayerId = isHome ? displayState.players[homeSeat] : undefined;
             const homePlayer = homePlayerId ? players.find((p) => p.id === homePlayerId) ?? null : null;
-            const isActiveTreasure = tile.treasure !== -1 && state.activeTreasureIds.includes(tile.treasure);
-            const isCollected = tile.treasure !== -1 && state.collectedTreasureIds.includes(tile.treasure);
+            const isActiveTreasure = tile.treasure !== -1 && displayState.activeTreasureIds.includes(tile.treasure);
+            const isCollected = tile.treasure !== -1 && displayState.collectedTreasureIds.includes(tile.treasure);
 
             return (
               <div
                 key={tile.id}
-                className="absolute overflow-hidden rounded-md transition-[top,left] duration-[250ms] ease-out"
+                className="absolute overflow-hidden rounded-md transition-[top,left] ease-in-out"
                 style={{
                   width: `${100 / SIZE}%`,
                   height: `${100 / SIZE}%`,
                   top: `${(100 / SIZE) * row}%`,
                   left: `${(100 / SIZE) * col}%`,
+                  transitionDuration: `${SHIFT_DURATION_MS}ms`,
                 }}
               >
                 <img
@@ -259,18 +328,14 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
                   className="absolute inset-0 h-full w-full"
                   style={{ transform: `rotate(${tile.rotation * 90}deg)` }}
                 />
+                {/* Point de départ : la couleur du joueur seule (pas son
+                    avatar, retour utilisateur) — un aplat plus franc que le
+                    lavis léger utilisé ailleurs, puisque c'est maintenant le
+                    seul repère d'identité sur cette case. */}
                 {homePlayer && (
                   <span
-                    className="absolute inset-[8%] rounded-md"
-                    style={{ backgroundColor: homePlayer.color, opacity: 0.35 }}
-                  />
-                )}
-                {homePlayer && (
-                  <img
-                    src={homePlayer.photo}
-                    alt=""
-                    className="absolute left-1/2 top-1/2 h-[38%] w-[38%] -translate-x-1/2 -translate-y-1/2 rounded-full object-cover"
-                    style={{ boxShadow: `0 0 0 2px ${homePlayer.color}` }}
+                    className="absolute inset-[10%] rounded-md ring-2 ring-inset ring-black/20"
+                    style={{ backgroundColor: homePlayer.color, opacity: 0.6 }}
                   />
                 )}
                 {tile.treasure !== -1 && (
@@ -288,7 +353,7 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
           {/* Pions : clé par joueur (pas par case), même technique de
               transition CSS — sert à la fois au glissement (décalage) et,
               combiné au minuteur ci-dessus, au parcours pas à pas. */}
-          {state.players.map((playerId, seatIndex) => {
+          {displayState.players.map((playerId, seatIndex) => {
             const player = players.find((p) => p.id === playerId);
             if (!player) return null;
             const cell = renderedPawnCell[seatIndex];
@@ -300,12 +365,13 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
             return (
               <div
                 key={playerId}
-                className="pointer-events-none absolute transition-[top,left] duration-[220ms] ease-linear"
+                className="pointer-events-none absolute transition-[top,left] ease-in-out"
                 style={{
                   width: `${100 / SIZE}%`,
                   height: `${100 / SIZE}%`,
                   top: `${(100 / SIZE) * row}%`,
                   left: `${(100 / SIZE) * col}%`,
+                  transitionDuration: `${WALK_STEP_MS}ms`,
                 }}
               >
                 <img
@@ -326,7 +392,7 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
           >
             {Array.from({ length: SIZE * SIZE }, (_, cell) => {
               const isReachable = reachable?.[cell] ?? false;
-              const isLastDestination = state.lastTurn?.destination === cell;
+              const isLastDestination = displayState.lastTurn?.destination === cell;
               return (
                 <button
                   key={cell}
@@ -347,9 +413,9 @@ export function Board({ state, players, onMove }: BoardProps<MazeState, MazeMove
             })}
           </div>
 
-          {!showingDestinations &&
+          {chosenSlot === null &&
             !walk &&
-            state.phase === 'playing' &&
+            displayState.phase === 'playing' &&
             SLOTS.map((slot, index) => (
               <SlotButton
                 key={index}
